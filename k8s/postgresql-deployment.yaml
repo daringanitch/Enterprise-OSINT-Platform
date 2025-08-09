@@ -1,0 +1,487 @@
+---
+# PostgreSQL Secret for credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-secret
+  namespace: osint-platform
+type: Opaque
+data:
+  # postgres / password123 (base64 encoded)
+  POSTGRES_USER: cG9zdGdyZXM=
+  POSTGRES_PASSWORD: cGFzc3dvcmQxMjM=
+  POSTGRES_DB: b3NpbnRfYXVkaXQ=
+
+---
+# PostgreSQL ConfigMap for initialization scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-init-config
+  namespace: osint-platform
+data:
+  01-init-database.sql: |
+    -- Create OSINT audit database schema
+    CREATE SCHEMA IF NOT EXISTS audit;
+    CREATE SCHEMA IF NOT EXISTS investigations;
+    CREATE SCHEMA IF NOT EXISTS reporting;
+    
+    -- Create extension for UUID generation
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    
+    -- Set default search path
+    ALTER DATABASE osint_audit SET search_path TO audit,investigations,reporting,public;
+    
+  02-audit-tables.sql: |
+    -- Audit Events Table
+    CREATE TABLE IF NOT EXISTS audit.events (
+      id SERIAL PRIMARY KEY,
+      event_uuid UUID DEFAULT uuid_generate_v4(),
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      event_type VARCHAR(50) NOT NULL,
+      user_id VARCHAR(100),
+      user_name VARCHAR(255),
+      source_ip INET,
+      user_agent TEXT,
+      session_id VARCHAR(100),
+      action VARCHAR(100) NOT NULL,
+      resource_type VARCHAR(50),
+      resource_id VARCHAR(255),
+      resource_name VARCHAR(255),
+      success BOOLEAN NOT NULL,
+      error_message TEXT,
+      request_data JSONB,
+      response_data JSONB,
+      processing_time_ms INTEGER,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Investigation Audit Table
+    CREATE TABLE IF NOT EXISTS audit.investigations (
+      id SERIAL PRIMARY KEY,
+      investigation_id VARCHAR(255) UNIQUE NOT NULL,
+      investigator_id VARCHAR(100) NOT NULL,
+      investigator_name VARCHAR(255) NOT NULL,
+      target_identifier VARCHAR(500) NOT NULL,
+      investigation_type VARCHAR(50) NOT NULL,
+      priority VARCHAR(20) NOT NULL,
+      status VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      started_at TIMESTAMP WITH TIME ZONE,
+      completed_at TIMESTAMP WITH TIME ZONE,
+      processing_time_seconds REAL,
+      data_points_collected INTEGER DEFAULT 0,
+      api_calls_made INTEGER DEFAULT 0,
+      cost_estimate_usd DECIMAL(10,2) DEFAULT 0.00,
+      risk_score REAL,
+      threat_level VARCHAR(20),
+      compliance_status VARCHAR(20),
+      classification_level VARCHAR(20),
+      key_findings JSONB,
+      warnings JSONB,
+      errors JSONB,
+      metadata JSONB,
+      audit_created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      audit_updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- API Key Usage Audit Table
+    CREATE TABLE IF NOT EXISTS audit.api_key_usage (
+      id SERIAL PRIMARY KEY,
+      service_name VARCHAR(50) NOT NULL,
+      operation VARCHAR(100) NOT NULL,
+      user_id VARCHAR(100),
+      investigation_id VARCHAR(255),
+      request_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      response_time_ms INTEGER,
+      success BOOLEAN NOT NULL,
+      rate_limited BOOLEAN DEFAULT FALSE,
+      quota_exceeded BOOLEAN DEFAULT FALSE,
+      request_size INTEGER,
+      response_size INTEGER,
+      cost_usd DECIMAL(8,4),
+      error_type VARCHAR(50),
+      error_message TEXT,
+      request_metadata JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Risk Assessment Audit Table
+    CREATE TABLE IF NOT EXISTS audit.risk_assessments (
+      id SERIAL PRIMARY KEY,
+      assessment_id VARCHAR(255) UNIQUE NOT NULL,
+      investigation_id VARCHAR(255) NOT NULL,
+      target_id VARCHAR(255) NOT NULL,
+      overall_risk_score REAL NOT NULL,
+      threat_level VARCHAR(20) NOT NULL,
+      confidence_level VARCHAR(20) NOT NULL,
+      assessment_data JSONB NOT NULL,
+      threat_vectors JSONB,
+      critical_findings JSONB,
+      recommendations JSONB,
+      correlation_analysis JSONB,
+      assessed_by VARCHAR(255) NOT NULL,
+      assessed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      data_freshness_score REAL,
+      coverage_completeness REAL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Compliance Audit Table
+    CREATE TABLE IF NOT EXISTS audit.compliance_assessments (
+      id SERIAL PRIMARY KEY,
+      assessment_id VARCHAR(255) UNIQUE NOT NULL,
+      investigation_id VARCHAR(255) NOT NULL,
+      framework VARCHAR(20) NOT NULL,
+      status VARCHAR(50) NOT NULL,
+      risk_level VARCHAR(20) NOT NULL,
+      compliance_score REAL NOT NULL,
+      violations JSONB,
+      data_categories JSONB,
+      processing_records JSONB,
+      remediation_actions JSONB,
+      assessed_by VARCHAR(255) NOT NULL,
+      assessed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      next_review_date TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- System Performance Metrics Table
+    CREATE TABLE IF NOT EXISTS audit.system_metrics (
+      id SERIAL PRIMARY KEY,
+      metric_name VARCHAR(100) NOT NULL,
+      metric_value REAL NOT NULL,
+      metric_unit VARCHAR(20),
+      metric_type VARCHAR(50) NOT NULL, -- counter, gauge, histogram
+      labels JSONB,
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Configuration Changes Audit Table
+    CREATE TABLE IF NOT EXISTS audit.configuration_changes (
+      id SERIAL PRIMARY KEY,
+      change_id UUID DEFAULT uuid_generate_v4(),
+      component VARCHAR(100) NOT NULL,
+      operation VARCHAR(50) NOT NULL, -- CREATE, UPDATE, DELETE
+      resource_path VARCHAR(500) NOT NULL,
+      old_value JSONB,
+      new_value JSONB,
+      changed_by VARCHAR(255) NOT NULL,
+      change_reason TEXT,
+      approved_by VARCHAR(255),
+      change_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+  03-indexes.sql: |
+    -- Create indexes for better query performance
+    
+    -- Audit Events indexes
+    CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit.events(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_user ON audit.events(user_id, user_name);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_type ON audit.events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_resource ON audit.events(resource_type, resource_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_success ON audit.events(success);
+    
+    -- Investigation Audit indexes
+    CREATE INDEX IF NOT EXISTS idx_investigations_investigator ON audit.investigations(investigator_id, investigator_name);
+    CREATE INDEX IF NOT EXISTS idx_investigations_target ON audit.investigations(target_identifier);
+    CREATE INDEX IF NOT EXISTS idx_investigations_type ON audit.investigations(investigation_type);
+    CREATE INDEX IF NOT EXISTS idx_investigations_status ON audit.investigations(status);
+    CREATE INDEX IF NOT EXISTS idx_investigations_created ON audit.investigations(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_investigations_completed ON audit.investigations(completed_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_investigations_risk ON audit.investigations(risk_score DESC);
+    
+    -- API Key Usage indexes
+    CREATE INDEX IF NOT EXISTS idx_api_usage_service ON audit.api_key_usage(service_name);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON audit.api_key_usage(request_timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_user ON audit.api_key_usage(user_id);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_investigation ON audit.api_key_usage(investigation_id);
+    CREATE INDEX IF NOT EXISTS idx_api_usage_success ON audit.api_key_usage(success);
+    
+    -- Risk Assessment indexes
+    CREATE INDEX IF NOT EXISTS idx_risk_assessments_investigation ON audit.risk_assessments(investigation_id);
+    CREATE INDEX IF NOT EXISTS idx_risk_assessments_target ON audit.risk_assessments(target_id);
+    CREATE INDEX IF NOT EXISTS idx_risk_assessments_score ON audit.risk_assessments(overall_risk_score DESC);
+    CREATE INDEX IF NOT EXISTS idx_risk_assessments_level ON audit.risk_assessments(threat_level);
+    CREATE INDEX IF NOT EXISTS idx_risk_assessments_assessed ON audit.risk_assessments(assessed_at DESC);
+    
+    -- Compliance Assessment indexes
+    CREATE INDEX IF NOT EXISTS idx_compliance_investigation ON audit.compliance_assessments(investigation_id);
+    CREATE INDEX IF NOT EXISTS idx_compliance_framework ON audit.compliance_assessments(framework);
+    CREATE INDEX IF NOT EXISTS idx_compliance_status ON audit.compliance_assessments(status);
+    CREATE INDEX IF NOT EXISTS idx_compliance_score ON audit.compliance_assessments(compliance_score DESC);
+    
+    -- System Metrics indexes
+    CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON audit.system_metrics(metric_name);
+    CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON audit.system_metrics(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_system_metrics_type ON audit.system_metrics(metric_type);
+    
+    -- Configuration Changes indexes
+    CREATE INDEX IF NOT EXISTS idx_config_changes_component ON audit.configuration_changes(component);
+    CREATE INDEX IF NOT EXISTS idx_config_changes_timestamp ON audit.configuration_changes(change_timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_config_changes_user ON audit.configuration_changes(changed_by);
+    
+  04-functions.sql: |
+    -- Create useful functions for audit queries
+    
+    -- Function to update the updated_at timestamp
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Function to calculate investigation success rate
+    CREATE OR REPLACE FUNCTION get_investigator_success_rate(investigator_name_param VARCHAR(255))
+    RETURNS DECIMAL AS $$
+    DECLARE
+      total_count INTEGER;
+      success_count INTEGER;
+    BEGIN
+      SELECT COUNT(*) INTO total_count
+      FROM audit.investigations
+      WHERE investigator_name = investigator_name_param;
+      
+      SELECT COUNT(*) INTO success_count
+      FROM audit.investigations
+      WHERE investigator_name = investigator_name_param AND status = 'COMPLETED';
+      
+      IF total_count = 0 THEN
+        RETURN 0;
+      END IF;
+      
+      RETURN ROUND((success_count::DECIMAL / total_count::DECIMAL) * 100, 2);
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Function to get API usage statistics
+    CREATE OR REPLACE FUNCTION get_api_usage_stats(service_name_param VARCHAR(50), days_back INTEGER DEFAULT 30)
+    RETURNS TABLE(
+      total_requests BIGINT,
+      successful_requests BIGINT,
+      failed_requests BIGINT,
+      success_rate DECIMAL,
+      avg_response_time DECIMAL,
+      total_cost DECIMAL
+    ) AS $$
+    BEGIN
+      RETURN QUERY
+      SELECT
+        COUNT(*) as total_requests,
+        COUNT(*) FILTER (WHERE success = true) as successful_requests,
+        COUNT(*) FILTER (WHERE success = false) as failed_requests,
+        ROUND((COUNT(*) FILTER (WHERE success = true)::DECIMAL / COUNT(*)::DECIMAL) * 100, 2) as success_rate,
+        ROUND(AVG(response_time_ms), 2) as avg_response_time,
+        COALESCE(SUM(cost_usd), 0) as total_cost
+      FROM audit.api_key_usage
+      WHERE service_name = service_name_param
+        AND request_timestamp >= NOW() - (days_back || ' days')::INTERVAL;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+  05-triggers.sql: |
+    -- Create triggers for automated timestamp updates
+    
+    -- Trigger for audit.events
+    DROP TRIGGER IF EXISTS trigger_audit_events_updated_at ON audit.events;
+    CREATE TRIGGER trigger_audit_events_updated_at
+      BEFORE UPDATE ON audit.events
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+    
+    -- Trigger for audit.investigations
+    DROP TRIGGER IF EXISTS trigger_audit_investigations_updated_at ON audit.investigations;
+    CREATE TRIGGER trigger_audit_investigations_updated_at
+      BEFORE UPDATE ON audit.investigations
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+    
+  06-sample-data.sql: |
+    -- Insert some sample audit data for testing
+    
+    -- Sample audit events
+    INSERT INTO audit.events (event_type, user_name, source_ip, action, resource_type, resource_id, success) VALUES
+    ('investigation_start', 'analyst1', '10.0.1.100', 'CREATE', 'investigation', 'inv_001', true),
+    ('api_key_configured', 'admin', '10.0.1.50', 'UPDATE', 'api_key', 'openai', true),
+    ('risk_assessment', 'analyst2', '10.0.1.101', 'CREATE', 'risk_assessment', 'risk_001', true),
+    ('compliance_check', 'system', '10.0.1.1', 'CREATE', 'compliance_assessment', 'comp_001', true);
+    
+    -- Sample investigation records
+    INSERT INTO audit.investigations (
+      investigation_id, investigator_id, investigator_name, target_identifier, 
+      investigation_type, priority, status, created_at, processing_time_seconds,
+      data_points_collected, api_calls_made, cost_estimate_usd, risk_score, 
+      threat_level, compliance_status, classification_level
+    ) VALUES
+    ('inv_001', 'analyst1', 'John Analyst', 'example.com', 'domain_investigation', 'high', 'COMPLETED', NOW() - INTERVAL '2 hours', 1800, 150, 25, 12.50, 65.5, 'moderate', 'internal'),
+    ('inv_002', 'analyst2', 'Jane Investigator', 'suspicious-domain.net', 'threat_analysis', 'critical', 'COMPLETED', NOW() - INTERVAL '1 day', 3600, 300, 45, 25.75, 85.2, 'high', 'confidential'),
+    ('inv_003', 'analyst1', 'John Analyst', 'company-target.org', 'comprehensive', 'normal', 'IN_PROGRESS', NOW() - INTERVAL '30 minutes', NULL, 75, 15, 8.25, NULL, NULL, 'pending', 'internal');
+    
+    -- Sample API usage records
+    INSERT INTO audit.api_key_usage (service_name, operation, investigation_id, response_time_ms, success, cost_usd) VALUES
+    ('openai', 'chat_completion', 'inv_001', 1200, true, 0.25),
+    ('shodan', 'host_lookup', 'inv_001', 800, true, 0.10),
+    ('virustotal', 'domain_scan', 'inv_002', 2000, true, 0.05),
+    ('twitter', 'search_tweets', 'inv_002', 1500, false, 0.00),
+    ('openai', 'chat_completion', 'inv_003', 1100, true, 0.30);
+
+---
+# PostgreSQL PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-data-pvc
+  namespace: osint-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: osint-platform
+  labels:
+    app: postgresql
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: postgresql
+
+---
+# PostgreSQL External Service (for admin access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-external
+  namespace: osint-platform
+  labels:
+    app: postgresql
+    component: database
+spec:
+  type: NodePort
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432
+      nodePort: 30432
+      protocol: TCP
+  selector:
+    app: postgresql
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: osint-platform
+  labels:
+    app: postgresql
+    component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        component: database
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgresql
+          image: postgres:15.5-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_INITDB_ARGS
+              value: "--auth-host=md5"
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgresql-init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: postgresql-data
+          persistentVolumeClaim:
+            claimName: postgresql-data-pvc
+        - name: postgresql-init-scripts
+          configMap:
+            name: postgresql-init-config
+      restartPolicy: Always

@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-backend
+  namespace: osint-platform
+  labels:
+    app: osint-backend
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: osint-backend
+  template:
+    metadata:
+      labels:
+        app: osint-backend
+        component: backend
+    spec:
+      serviceAccountName: osint-backend
+      containers:
+      - name: backend
+        image: osint-platform/backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: database-url
+        - name: REDIS_URL
+          value: "redis://osint-redis:6379/0"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: secret-key
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: reports
+          mountPath: /app/reports
+      volumes:
+      - name: reports
+        persistentVolumeClaim:
+          claimName: osint-reports-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-backend
+  namespace: osint-platform
+spec:
+  selector:
+    app: osint-backend
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: osint-backend
+  namespace: osint-platform

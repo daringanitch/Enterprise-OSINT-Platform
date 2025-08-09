@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostgreSQL Audit Features Demo - Enterprise OSINT Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e5e7eb;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .feature-card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .feature-card h3 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .world-clocks {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .clock {
+            background: #111827;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #374151;
+        }
+        
+        .clock-city {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+        
+        .clock-time {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #10b981;
+            font-family: monospace;
+        }
+        
+        .clock-date {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 0.2rem;
+        }
+        
+        .audit-dashboard {
+            background: #111827;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .audit-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat {
+            background: #1f2937;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #374151;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+        
+        .api-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            background: #1f2937;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .online { background: #10b981; }
+        .pending { background: #f59e0b; }
+        .offline { background: #ef4444; }
+        .degraded { background: #f97316; }
+        .rate_limited { background: #eab308; }
+        
+        .status.status-online { border-left: 3px solid #10b981; }
+        .status.status-degraded { border-left: 3px solid #f97316; }
+        .status.status-rate_limited { border-left: 3px solid #eab308; }
+        .status.status-offline { border-left: 3px solid #ef4444; }
+        
+        .investigation-preview {
+            background: #111827;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #374151;
+        }
+        
+        .inv-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .inv-id {
+            font-family: monospace;
+            color: #60a5fa;
+            font-size: 0.9rem;
+        }
+        
+        .inv-status {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        .status-completed { background: #065f46; color: #10b981; }
+        .status-running { background: #92400e; color: #f59e0b; }
+        
+        .code-preview {
+            background: #000;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #10b981;
+            margin-top: 1rem;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            color: #60a5fa;
+        }
+        
+        .comment {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Enterprise OSINT Platform</h1>
+            <p>New PostgreSQL Audit Logging System - Feature Demo</p>
+        </div>
+        
+        <div class="feature-grid">
+            <!-- Real-time World Clocks -->
+            <div class="feature-card">
+                <h3>🕐 Real-time World Clocks</h3>
+                <p>Live timezone clocks for global OSINT operations</p>
+                <div class="world-clocks">
+                    <div class="clock">
+                        <div class="clock-city">🇺🇸 Los Angeles</div>
+                        <div class="clock-time" id="time-la">--:--:--</div>
+                        <div class="clock-date" id="date-la">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">🇺🇸 New York</div>
+                        <div class="clock-time" id="time-ny">--:--:--</div>
+                        <div class="clock-date" id="date-ny">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">🇬🇧 London</div>
+                        <div class="clock-time" id="time-london">--:--:--</div>
+                        <div class="clock-date" id="date-london">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">🇯🇵 Tokyo</div>
+                        <div class="clock-time" id="time-tokyo">--:--:--</div>
+                        <div class="clock-date" id="date-tokyo">--/--/----</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Status with PostgreSQL -->
+            <div class="feature-card">
+                <h3>📊 System Status Dashboard</h3>
+                <p>Real-time connectivity to PostgreSQL audit database</p>
+                <div class="api-status">
+                    <div class="status">
+                        <span class="status-dot online"></span>
+                        PostgreSQL Audit DB
+                    </div>
+                    <div class="status">
+                        <span class="status-dot online"></span>
+                        HashiCorp Vault
+                    </div>
+                    <div class="status">
+                        <span class="status-dot online"></span>
+                        Investigation Engine
+                    </div>
+                    <div class="status">
+                        <span class="status-dot online"></span>
+                        Compliance Framework
+                    </div>
+                    <div class="status" id="api-openai">
+                        <span class="status-dot pending"></span>
+                        OpenAI API
+                    </div>
+                    <div class="status" id="api-twitter">
+                        <span class="status-dot offline"></span>
+                        Twitter/X API
+                    </div>
+                    <div class="status" id="api-reddit">
+                        <span class="status-dot online"></span>
+                        Reddit API
+                    </div>
+                    <div class="status" id="api-shodan">
+                        <span class="status-dot offline"></span>
+                        Shodan API
+                    </div>
+                    <div class="status" id="api-virustotal">
+                        <span class="status-dot pending"></span>
+                        VirusTotal API
+                    </div>
+                    <div class="status" id="api-alienvault">
+                        <span class="status-dot online"></span>
+                        AlienVault OTX
+                    </div>
+                </div>
+                
+                <div class="code-preview">
+<span class="comment"># System Status Endpoint</span>
+GET /api/system/status
+{
+  <span class="highlight">"components"</span>: {
+    <span class="highlight">"postgresql"</span>: {
+      <span class="highlight">"connected"</span>: true,
+      <span class="highlight">"host"</span>: "postgresql.osint-platform",
+      <span class="highlight">"database"</span>: "osint_audit"
+    }
+  }
+}
+                </div>
+            </div>
+            
+            <!-- PostgreSQL Audit Dashboard -->
+            <div class="feature-card">
+                <h3>🗃️ PostgreSQL Audit Metrics</h3>
+                <p>Live investigation and audit statistics from PostgreSQL</p>
+                <div class="audit-stats">
+                    <div class="stat">
+                        <div class="stat-value" id="total-investigations">47</div>
+                        <div class="stat-label">Total Investigations</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="active-users">12</div>
+                        <div class="stat-label">Active Investigators</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="audit-events">1,284</div>
+                        <div class="stat-label">Audit Events</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="api-calls">892</div>
+                        <div class="stat-label">API Calls Tracked</div>
+                    </div>
+                </div>
+                
+                <div class="investigation-preview">
+                    <div class="inv-header">
+                        <span class="inv-id">INV_7334aae_001</span>
+                        <span class="inv-status status-completed">COMPLETED</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #d1d5db;">
+                        <div><strong>Target:</strong> example.com</div>
+                        <div><strong>Investigator:</strong> analyst_001</div>
+                        <div><strong>Type:</strong> Comprehensive Assessment</div>
+                        <div><strong>Risk Score:</strong> 65.2/100</div>
+                        <div style="color: #6b7280; margin-top: 0.5rem;">
+                            Logged to PostgreSQL audit.investigations table
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Investigation Activity Report -->
+            <div class="feature-card">
+                <h3>📈 Investigation Activity Reports</h3>
+                <p>PostgreSQL-powered investigation analytics and reporting</p>
+                
+                <div class="code-preview">
+<span class="comment"># Get Investigation Report from PostgreSQL</span>
+GET /api/reports/investigations/activity?time_range=last_30_days
+
+<span class="comment"># Sample Response (from PostgreSQL data):</span>
+{
+  <span class="highlight">"summary"</span>: {
+    <span class="highlight">"total_investigations"</span>: 47,
+    <span class="highlight">"success_rate"</span>: 94.2,
+    <span class="highlight">"avg_processing_time"</span>: 1847.3,
+    <span class="highlight">"total_cost"</span>: 234.56
+  },
+  <span class="highlight">"investigators"</span>: [
+    {
+      <span class="highlight">"investigator_name"</span>: "analyst_001",
+      <span class="highlight">"total_investigations"</span>: 12,
+      <span class="highlight">"success_rate"</span>: 100.0
+    }
+  ]
+}
+                </div>
+            </div>
+            
+            <!-- API Usage Monitoring -->
+            <div class="feature-card">
+                <h3>🔌 API Usage Monitoring</h3>
+                <p>Real-time API call tracking and cost monitoring via PostgreSQL</p>
+                
+                <div class="audit-stats">
+                    <div class="stat">
+                        <div class="stat-value">$127.43</div>
+                        <div class="stat-label">Total API Costs</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2,847</div>
+                        <div class="stat-label">API Calls This Month</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">99.2%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                </div>
+                
+                <div class="code-preview">
+<span class="comment"># API Usage Audit Table Structure</span>
+<span class="highlight">CREATE TABLE</span> audit.api_key_usage (
+  id <span class="highlight">SERIAL PRIMARY KEY</span>,
+  service_name <span class="highlight">VARCHAR(50)</span> NOT NULL,
+  operation <span class="highlight">VARCHAR(100)</span> NOT NULL,
+  investigation_id <span class="highlight">VARCHAR(255)</span>,
+  response_time_ms <span class="highlight">INTEGER</span>,
+  success <span class="highlight">BOOLEAN</span> NOT NULL,
+  cost_usd <span class="highlight">DECIMAL(8,4)</span>,
+  request_timestamp <span class="highlight">TIMESTAMP</span> DEFAULT NOW()
+);
+                </div>
+            </div>
+            
+            <!-- Kubernetes Integration -->
+            <div class="feature-card">
+                <h3>☸️ Kubernetes Integration</h3>
+                <p>Production-ready deployment with persistent PostgreSQL storage</p>
+                
+                <div class="code-preview">
+<span class="comment"># Kubernetes PostgreSQL Deployment</span>
+apiVersion: apps/v1
+kind: <span class="highlight">Deployment</span>
+metadata:
+  name: postgresql
+  namespace: <span class="highlight">osint-platform</span>
+spec:
+  template:
+    spec:
+      containers:
+      - name: postgresql
+        image: <span class="highlight">postgres:15.5-alpine</span>
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: <span class="highlight">postgresql-data-pvc</span>
+---
+<span class="comment"># 50GB Persistent Volume for Audit Data</span>
+kind: PersistentVolumeClaim
+spec:
+  resources:
+    requests:
+      storage: <span class="highlight">50Gi</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Audit Dashboard -->
+        <div class="audit-dashboard">
+            <h2 style="color: #60a5fa; margin-bottom: 2rem;">🔍 PostgreSQL Audit Dashboard</h2>
+            
+            <div class="audit-stats">
+                <div class="stat">
+                    <div class="stat-value">Real-time</div>
+                    <div class="stat-label">Audit Logging</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">50GB</div>
+                    <div class="stat-label">Persistent Storage</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">7</div>
+                    <div class="stat-label">Audit Tables</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">GDPR</div>
+                    <div class="stat-label">Compliant</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                <div>
+                    <h4 style="color: #34d399; margin-bottom: 1rem;">✅ New Features Implemented</h4>
+                    <ul style="color: #d1d5db; line-height: 1.8;">
+                        <li>• PostgreSQL audit client with async/sync support</li>
+                        <li>• Investigation lifecycle tracking</li>
+                        <li>• API usage monitoring with cost tracking</li>
+                        <li>• Real-time system status endpoint</li>
+                        <li>• Investigator performance metrics</li>
+                        <li>• Compliance audit trails</li>
+                        <li>• Kubernetes-native deployment</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: #60a5fa; margin-bottom: 1rem;">🗄️ Database Schema</h4>
+                    <ul style="color: #d1d5db; line-height: 1.8;">
+                        <li>• audit.events - System audit events</li>
+                        <li>• audit.investigations - Investigation tracking</li>
+                        <li>• audit.api_key_usage - API call monitoring</li>
+                        <li>• audit.risk_assessments - Risk analysis</li>
+                        <li>• audit.compliance_assessments - Compliance</li>
+                        <li>• audit.system_metrics - Performance data</li>
+                        <li>• audit.configuration_changes - Config audit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // World Clock Functions (working live clocks)
+        function updateWorldClocks() {
+            const now = new Date();
+            
+            // Los Angeles (Pacific Time)
+            const laTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+            document.getElementById('time-la').textContent = laTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-la').textContent = laTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // New York (Eastern Time)
+            const nyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            document.getElementById('time-ny').textContent = nyTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-ny').textContent = nyTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // London (GMT/BST)
+            const londonTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+            document.getElementById('time-london').textContent = londonTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-london').textContent = londonTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // Tokyo (JST)
+            const tokyoTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+            document.getElementById('time-tokyo').textContent = tokyoTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-tokyo').textContent = tokyoTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+        }
+        
+        // Simulate API status monitoring
+        function updateApiStatuses() {
+            const apis = ['openai', 'twitter', 'reddit', 'shodan', 'virustotal', 'alienvault'];
+            const statuses = ['online', 'degraded', 'rate_limited', 'offline'];
+            const statusLabels = {
+                'online': '🟢 Online',
+                'degraded': '🟡 Degraded', 
+                'rate_limited': '🟠 Rate Limited',
+                'offline': '🔴 Offline'
+            };
+            
+            apis.forEach(api => {
+                const element = document.getElementById(`api-${api}`);
+                if (element) {
+                    // Simulate status changes with some APIs more stable than others
+                    let newStatus;
+                    const random = Math.random();
+                    
+                    if (api === 'openai') {
+                        // OpenAI more likely to be online (critical service)
+                        newStatus = random > 0.1 ? 'online' : (random > 0.05 ? 'degraded' : 'offline');
+                    } else if (api === 'reddit') {
+                        // Reddit generally stable
+                        newStatus = random > 0.2 ? 'online' : (random > 0.1 ? 'degraded' : 'offline');
+                    } else if (api === 'twitter') {
+                        // Twitter often has issues
+                        newStatus = random > 0.4 ? 'offline' : (random > 0.2 ? 'rate_limited' : 'online');
+                    } else {
+                        // Other APIs random distribution
+                        newStatus = statuses[Math.floor(Math.random() * statuses.length)];
+                    }
+                    
+                    // Update the display
+                    const dotSpan = element.querySelector('.status-dot');
+                    const apiName = api.charAt(0).toUpperCase() + api.slice(1);
+                    
+                    // Remove old status classes
+                    element.classList.remove('status-online', 'status-degraded', 'status-rate_limited', 'status-offline');
+                    dotSpan.classList.remove('online', 'degraded', 'rate_limited', 'offline');
+                    
+                    // Add new status classes
+                    element.classList.add(`status-${newStatus}`);
+                    dotSpan.classList.add(newStatus);
+                    
+                    // Update text
+                    element.innerHTML = `<span class="status-dot ${newStatus}"></span>${apiName} API: ${statusLabels[newStatus]}`;
+                }
+            });
+        }
+        
+        // Animate the audit statistics
+        function animateStats() {
+            const investigations = document.getElementById('total-investigations');
+            const users = document.getElementById('active-users');
+            const events = document.getElementById('audit-events');
+            const calls = document.getElementById('api-calls');
+            
+            // Simulate real-time increments
+            let invCount = parseInt(investigations.textContent);
+            let eventCount = parseInt(events.textContent.replace(',', ''));
+            let callCount = parseInt(calls.textContent);
+            
+            setInterval(() => {
+                if (Math.random() < 0.1) { // 10% chance per update
+                    invCount++;
+                    investigations.textContent = invCount;
+                }
+                
+                if (Math.random() < 0.3) { // 30% chance per update
+                    eventCount += Math.floor(Math.random() * 3) + 1;
+                    events.textContent = eventCount.toLocaleString();
+                }
+                
+                if (Math.random() < 0.2) { // 20% chance per update
+                    callCount += Math.floor(Math.random() * 5) + 1;
+                    calls.textContent = callCount;
+                }
+            }, 5000); // Update every 5 seconds
+        }
+        
+        // Initialize
+        updateWorldClocks();
+        updateApiStatuses();
+        animateStats();
+        
+        // Update clocks every second
+        setInterval(updateWorldClocks, 1000);
+        
+        // Update API statuses every 10 seconds
+        setInterval(updateApiStatuses, 10000);
+    </script>
+</body>
+</html>

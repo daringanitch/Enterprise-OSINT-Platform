@@ -1,0 +1,28 @@
+apiVersion: v2
+name: osint-platform
+description: Enterprise OSINT Research Platform with MCP Integration
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - osint
+  - intelligence
+  - security
+  - mcp
+  - flask
+  - react
+home: https://github.com/yourusername/enterprise-osint-flask
+sources:
+  - https://github.com/yourusername/enterprise-osint-flask
+maintainers:
+  - name: Your Name
+    email: dganitch@gmail.com
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

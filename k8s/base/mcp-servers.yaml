@@ -1,0 +1,223 @@
+# Social Media MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-social-media
+  namespace: osint-platform
+  labels:
+    app: mcp-social-media
+    component: mcp-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-social-media
+  template:
+    metadata:
+      labels:
+        app: mcp-social-media
+        component: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: osint-platform/mcp-social-media:latest
+        ports:
+        - containerPort: 8010
+          name: http
+        env:
+        - name: MCP_SERVER_NAME
+          value: "social-media"
+        - name: MCP_SERVER_PORT
+          value: "8010"
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: REDDIT_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: reddit-client-id
+        - name: REDDIT_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: reddit-client-secret
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-social-media
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-social-media
+  ports:
+  - name: http
+    port: 8010
+    targetPort: 8010
+  type: ClusterIP
+
+---
+# Infrastructure MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-infrastructure
+  namespace: osint-platform
+  labels:
+    app: mcp-infrastructure
+    component: mcp-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-infrastructure
+  template:
+    metadata:
+      labels:
+        app: mcp-infrastructure
+        component: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: osint-platform/mcp-infrastructure:latest
+        ports:
+        - containerPort: 8020
+          name: http
+        env:
+        - name: MCP_SERVER_NAME
+          value: "infrastructure"
+        - name: MCP_SERVER_PORT
+          value: "8020"
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-infrastructure
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-infrastructure
+  ports:
+  - name: http
+    port: 8020
+    targetPort: 8020
+  type: ClusterIP
+
+---
+# Threat Intelligence MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-threat-intel
+  namespace: osint-platform
+  labels:
+    app: mcp-threat-intel
+    component: mcp-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-threat-intel
+  template:
+    metadata:
+      labels:
+        app: mcp-threat-intel
+        component: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: osint-platform/mcp-threat-intel:latest
+        ports:
+        - containerPort: 8030
+          name: http
+        env:
+        - name: MCP_SERVER_NAME
+          value: "threat-intel"
+        - name: MCP_SERVER_PORT
+          value: "8030"
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        - name: ABUSEIPDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: abuseipdb-api-key
+        - name: ALIENVAULT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: alienvault-api-key
+        - name: MISP_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: misp-url
+        - name: MISP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: misp-api-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-threat-intel
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-threat-intel
+  ports:
+  - name: http
+    port: 8030
+    targetPort: 8030
+  type: ClusterIP

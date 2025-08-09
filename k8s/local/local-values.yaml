@@ -1,0 +1,88 @@
+# Local development values for testing
+replicaCount:
+  frontend: 1
+  backend: 1
+  celeryWorker: 1
+  mcpSocialMedia: 1
+  mcpInfrastructure: 1
+  mcpThreatIntel: 1
+
+image:
+  registry: "localhost:5000"
+  pullPolicy: Never  # Use local images
+  tag: "local"
+
+# Reduce resource requirements for local testing
+frontend:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+backend:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+celery:
+  worker:
+    concurrency: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+mcp:
+  socialMedia:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+  infrastructure:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+  threatIntel:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+# Use smaller storage for local testing
+persistence:
+  reports:
+    size: 1Gi
+
+postgresql:
+  primary:
+    persistence:
+      size: 5Gi
+
+redis:
+  master:
+    persistence:
+      size: 1Gi
+
+# Disable ingress for local testing, use port-forward instead
+ingress:
+  enabled: false

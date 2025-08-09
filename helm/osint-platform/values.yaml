@@ -1,0 +1,208 @@
+# Default values for osint-platform
+replicaCount:
+  frontend: 3
+  backend: 3
+  celeryWorker: 4
+  mcpSocialMedia: 2
+  mcpInfrastructure: 2
+  mcpThreatIntel: 2
+
+image:
+  registry: ""
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Frontend configuration
+frontend:
+  image:
+    repository: osint-platform/frontend
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+# Backend configuration
+backend:
+  image:
+    repository: osint-platform/backend
+  service:
+    type: ClusterIP
+    port: 5000
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Celery configuration
+celery:
+  worker:
+    concurrency: 2
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  beat:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# MCP Servers configuration
+mcp:
+  socialMedia:
+    image:
+      repository: osint-platform/mcp-social-media
+    port: 8010
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  
+  infrastructure:
+    image:
+      repository: osint-platform/mcp-infrastructure
+    port: 8020
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  
+  threatIntel:
+    image:
+      repository: osint-platform/mcp-threat-intel
+    port: 8030
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    username: osint_user
+    password: "changeme"
+    database: osint_db
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+  metrics:
+    enabled: true
+
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "changeme"
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+  metrics:
+    enabled: true
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  hosts:
+    - host: osint.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: frontend
+        - path: /api
+          pathType: Prefix
+          backend: backend
+        - path: /socket.io
+          pathType: Prefix
+          backend: backend
+  tls:
+    - secretName: osint-tls
+      hosts:
+        - osint.example.com
+
+# Storage configuration
+persistence:
+  reports:
+    enabled: true
+    storageClass: "standard"
+    accessMode: ReadWriteMany
+    size: 100Gi
+
+# Security configuration
+security:
+  secretKey: "changeme-to-random-string"
+  jwtSecretKey: "changeme-to-random-jwt-secret"
+
+# API Keys - MUST be provided via secrets in production
+apiKeys:
+  openai: ""
+  twitterBearer: ""
+  shodan: ""
+  virustotal: ""
+  redditClientId: ""
+  redditClientSecret: ""
+  abuseipdb: ""
+  alienvault: ""
+  mispUrl: ""
+  mispApiKey: ""
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+# Auto-scaling
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}

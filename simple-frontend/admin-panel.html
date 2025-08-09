@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Enterprise OSINT</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Admin-specific styles */
+        .admin-panel {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .admin-tabs {
+            display: flex;
+            background: #2c3e50;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .admin-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .admin-tab:hover {
+            background: #34495e;
+        }
+
+        .admin-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .admin-content {
+            display: none;
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 30px;
+        }
+
+        .admin-content.active {
+            display: block;
+        }
+
+        .vault-status {
+            background: #34495e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-connected { background: #27ae60; }
+        .status-disconnected { background: #e74c3c; }
+        .status-warning { background: #f39c12; }
+
+        .api-services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: #34495e;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+
+        .service-card.configured {
+            border-color: #27ae60;
+        }
+
+        .service-card.error {
+            border-color: #e74c3c;
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .service-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-configured {
+            background: #27ae60;
+            color: white;
+        }
+
+        .status-missing {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #2c3e50;
+            border: 1px solid #7f8c8d;
+            border-radius: 5px;
+            color: #ecf0f1;
+            font-size: 14px;
+        }
+
+        .form-group input[type="password"] {
+            font-family: monospace;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .alert-success {
+            background: #d5edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .config-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .config-section:last-child {
+            border-bottom: none;
+        }
+
+        .config-section h3 {
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+
+        .bulk-actions {
+            background: #34495e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #34495e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .audit-table th,
+        .audit-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #2c3e50;
+        }
+
+        .audit-table th {
+            background: #2c3e50;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .audit-table tr:hover {
+            background: #2c3e50;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #34495e;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .secret-display {
+            position: relative;
+        }
+
+        .secret-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .secret-hidden {
+            -webkit-text-security: disc;
+            text-security: disc;
+        }
+
+        @media (max-width: 768px) {
+            .admin-tabs {
+                flex-direction: column;
+            }
+            
+            .api-services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="nav-links">
+                <a href="index.html">🏠 Home</a>
+                <a href="risk-dashboard.html">⚠️ Risk Dashboard</a>
+                <a href="#" onclick="showReports()">📊 Reports</a>
+                <a href="admin-panel.html" class="active">⚙️ Admin Panel</a>
+            </div>
+        </header>
+
+        <div class="admin-panel">
+            <div class="admin-header">
+                <h1>🔧 Administration Panel</h1>
+                <p>Secure configuration management with HashiCorp Vault integration</p>
+            </div>
+
+            <!-- Admin Tabs -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showTab('api-keys')">🔑 API Keys</button>
+                <button class="admin-tab" onclick="showTab('vault-config')">🛡️ Vault Config</button>
+                <button class="admin-tab" onclick="showTab('audit-logs')">📝 Audit Logs</button>
+                <button class="admin-tab" onclick="showTab('reports-admin')">📊 Report Admin</button>
+                <button class="admin-tab" onclick="showTab('system-status')">⚡ System Status</button>
+            </div>
+
+            <!-- API Keys Management -->
+            <div id="api-keys" class="admin-content active">
+                <div class="vault-status" id="vault-status-display">
+                    <div class="status-indicator">
+                        <div class="status-dot status-disconnected" id="vault-status-dot"></div>
+                        <span id="vault-status-text">Vault Status: Checking...</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="checkVaultStatus()">🔄 Refresh</button>
+                </div>
+
+                <div class="bulk-actions">
+                    <h3>📦 Bulk Actions</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="importFromEnvironment()">📥 Import from Environment</button>
+                        <button class="btn btn-warning" onclick="testAllServices()">🧪 Test All Services</button>
+                        <button class="btn btn-success" onclick="loadServiceConfigs()">🔄 Refresh Services</button>
+                    </div>
+                    <div id="bulk-action-status"></div>
+                </div>
+
+                <h3>🔑 API Service Configuration</h3>
+                <div id="api-services-grid" class="api-services-grid">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading service configurations...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vault Configuration -->
+            <div id="vault-config" class="admin-content">
+                <div class="config-section">
+                    <h3>🛡️ HashiCorp Vault Configuration</h3>
+                    <div class="form-group">
+                        <label for="vault-url">Vault URL</label>
+                        <input type="text" id="vault-url" placeholder="http://localhost:8200" value="http://localhost:8200">
+                    </div>
+                    <div class="form-group">
+                        <label for="vault-token">Vault Token</label>
+                        <div class="secret-display">
+                            <input type="password" id="vault-token" placeholder="Enter Vault token" class="secret-hidden">
+                            <button type="button" class="secret-toggle" onclick="toggleSecretVisibility('vault-token')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="vault-namespace">Namespace (optional)</label>
+                        <input type="text" id="vault-namespace" placeholder="Leave empty for root namespace">
+                    </div>
+                    <div class="form-group">
+                        <label for="vault-mount-point">Mount Point</label>
+                        <input type="text" id="vault-mount-point" value="secret" placeholder="secret">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testVaultConnection()">🔍 Test Connection</button>
+                        <button class="btn btn-success" onclick="saveVaultConfig()">💾 Save Configuration</button>
+                        <button class="btn btn-warning" onclick="initializeVault()">🚀 Initialize Vault Policies</button>
+                    </div>
+                    <div id="vault-config-status"></div>
+                </div>
+
+                <div class="config-section">
+                    <h3>🔐 Authentication Methods</h3>
+                    <div class="form-group">
+                        <label for="auth-method">Authentication Method</label>
+                        <select id="auth-method" onchange="handleAuthMethodChange()">
+                            <option value="token">Token Authentication</option>
+                            <option value="approle">AppRole Authentication</option>
+                            <option value="userpass">Username/Password</option>
+                        </select>
+                    </div>
+                    
+                    <div id="approle-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="role-id">Role ID</label>
+                            <input type="text" id="role-id" placeholder="AppRole Role ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="secret-id">Secret ID</label>
+                            <div class="secret-display">
+                                <input type="password" id="secret-id" placeholder="AppRole Secret ID" class="secret-hidden">
+                                <button type="button" class="secret-toggle" onclick="toggleSecretVisibility('secret-id')">👁️</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="userpass-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Vault username">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <div class="secret-display">
+                                <input type="password" id="password" placeholder="Vault password" class="secret-hidden">
+                                <button type="button" class="secret-toggle" onclick="toggleSecretVisibility('password')">👁️</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Logs -->
+            <div id="audit-logs" class="admin-content">
+                <div class="config-section">
+                    <h3>📝 System Audit Logs</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="generateAuditReport()">📊 Generate Audit Report</button>
+                        <button class="btn btn-secondary" onclick="exportAuditLogs()">📥 Export Logs</button>
+                        <button class="btn btn-danger" onclick="clearAuditLogs()">🗑️ Clear Logs</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="audit-time-range">Time Range</label>
+                        <select id="audit-time-range" onchange="loadAuditLogs()">
+                            <option value="1h">Last Hour</option>
+                            <option value="24h" selected>Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                        </select>
+                    </div>
+                    
+                    <div id="audit-logs-container">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Event Type</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Resource</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-logs-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px;">Loading audit logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Administration -->
+            <div id="reports-admin" class="admin-content">
+                <div class="config-section">
+                    <h3>📊 Report Generation Administration</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="generateInvestigationAuditReport()">📋 Investigation Audit Report</button>
+                        <button class="btn btn-success" onclick="generateSystemUsageReport()">📈 System Usage Report</button>
+                        <button class="btn btn-warning" onclick="generateComplianceReport()">🛡️ Compliance Report</button>
+                    </div>
+                    <div id="report-generation-status"></div>
+                </div>
+
+                <div class="config-section">
+                    <h3>📄 Professional Report Templates</h3>
+                    <div class="form-group">
+                        <label for="report-classification">Default Classification Level</label>
+                        <select id="report-classification">
+                            <option value="unclassified">Unclassified</option>
+                            <option value="internal" selected>Internal</option>
+                            <option value="confidential">Confidential</option>
+                            <option value="restricted">Restricted</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="report-watermark">Report Watermark (optional)</label>
+                        <input type="text" id="report-watermark" placeholder="CONFIDENTIAL">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="organization-name">Organization Name</label>
+                        <input type="text" id="organization-name" value="Enterprise OSINT Platform">
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="saveReportSettings()">💾 Save Settings</button>
+                        <button class="btn btn-primary" onclick="testReportGeneration()">🧪 Test Report Generation</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div id="system-status" class="admin-content">
+                <div class="config-section">
+                    <h3>⚡ System Health Status</h3>
+                    <div id="system-status-grid" class="api-services-grid">
+                        <div class="service-card">
+                            <div class="service-header">
+                                <h4>🐍 Flask Backend</h4>
+                                <span class="service-status status-configured">RUNNING</span>
+                            </div>
+                            <p>Main application server status</p>
+                        </div>
+                        
+                        <div class="service-card">
+                            <div class="service-header">
+                                <h4>🛡️ HashiCorp Vault</h4>
+                                <span id="vault-health-status" class="service-status status-missing">CHECKING</span>
+                            </div>
+                            <p>Secure secret storage system</p>
+                        </div>
+                        
+                        <div class="service-card">
+                            <div class="service-header">
+                                <h4>🔍 Investigation Engine</h4>
+                                <span id="investigation-engine-status" class="service-status status-configured">ACTIVE</span>
+                            </div>
+                            <p>OSINT investigation orchestrator</p>
+                        </div>
+                        
+                        <div class="service-card">
+                            <div class="service-header">
+                                <h4>⚠️ Risk Assessment Engine</h4>
+                                <span id="risk-engine-status" class="service-status status-configured">ACTIVE</span>
+                            </div>
+                            <p>Advanced threat correlation system</p>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="checkSystemHealth()">🔄 Refresh Status</button>
+                        <button class="btn btn-secondary" onclick="exportSystemLogs()">📥 Export Logs</button>
+                        <button class="btn btn-warning" onclick="restartServices()">🔄 Restart Services</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentServiceConfigs = {};
+        let vaultStatus = { connected: false };
+
+        // Tab management
+        function showTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.admin-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Load data for the selected tab
+            switch(tabId) {
+                case 'api-keys':
+                    loadServiceConfigs();
+                    checkVaultStatus();
+                    break;
+                case 'audit-logs':
+                    loadAuditLogs();
+                    break;
+                case 'system-status':
+                    checkSystemHealth();
+                    break;
+            }
+        }
+
+        // Vault status check
+        async function checkVaultStatus() {
+            try {
+                const response = await fetch('/api/admin/vault/status');
+                const status = await response.json();
+                
+                vaultStatus = status;
+                updateVaultStatusDisplay(status);
+                
+            } catch (error) {
+                console.error('Failed to check Vault status:', error);
+                updateVaultStatusDisplay({ 
+                    available: false, 
+                    error: error.message,
+                    mode: 'error'
+                });
+            }
+        }
+
+        function updateVaultStatusDisplay(status) {
+            const dot = document.getElementById('vault-status-dot');
+            const text = document.getElementById('vault-status-text');
+            const healthStatus = document.getElementById('vault-health-status');
+            
+            if (status.available && status.authenticated && !status.sealed) {
+                dot.className = 'status-dot status-connected';
+                text.textContent = `Vault Status: Connected (${status.version})`;
+                if (healthStatus) {
+                    healthStatus.textContent = 'CONNECTED';
+                    healthStatus.className = 'service-status status-configured';
+                }
+            } else if (status.available && status.sealed) {
+                dot.className = 'status-dot status-warning';
+                text.textContent = 'Vault Status: Sealed';
+                if (healthStatus) {
+                    healthStatus.textContent = 'SEALED';
+                    healthStatus.className = 'service-status status-missing';
+                }
+            } else {
+                dot.className = 'status-dot status-disconnected';
+                text.textContent = `Vault Status: ${status.mode === 'mock' ? 'Mock Mode' : 'Disconnected'}`;
+                if (healthStatus) {
+                    healthStatus.textContent = status.mode === 'mock' ? 'MOCK' : 'DISCONNECTED';
+                    healthStatus.className = 'service-status status-missing';
+                }
+            }
+        }
+
+        // Service configuration management
+        async function loadServiceConfigs() {
+            try {
+                const response = await fetch('/api/admin/services/configs');
+                const configs = await response.json();
+                
+                currentServiceConfigs = configs;
+                renderServiceCards(configs);
+                
+            } catch (error) {
+                console.error('Failed to load service configs:', error);
+                showAlert('danger', 'Failed to load service configurations: ' + error.message);
+            }
+        }
+
+        function renderServiceCards(configs) {
+            const grid = document.getElementById('api-services-grid');
+            
+            if (!configs || Object.keys(configs).length === 0) {
+                grid.innerHTML = '<p style="text-align: center; padding: 20px;">No services configured</p>';
+                return;
+            }
+            
+            grid.innerHTML = Object.entries(configs).map(([serviceName, config]) => `
+                <div class="service-card ${config.configured ? 'configured' : ''}">
+                    <div class="service-header">
+                        <h4>🔑 ${config.name}</h4>
+                        <span class="service-status ${config.configured ? 'status-configured' : 'status-missing'}">
+                            ${config.configured ? 'CONFIGURED' : 'MISSING'}
+                        </span>
+                    </div>
+                    
+                    <p><strong>Endpoint:</strong> ${config.endpoint}</p>
+                    <p><strong>Rate Limit:</strong> ${config.rate_limit || 'Not specified'}</p>
+                    <p><strong>Quota:</strong> ${config.quota_limit || 'Not specified'}</p>
+                    
+                    <div class="form-group">
+                        <label for="${serviceName}-api-key">API Key</label>
+                        <div class="secret-display">
+                            <input type="password" 
+                                   id="${serviceName}-api-key" 
+                                   placeholder="${config.configured ? 'API key configured' : 'Enter API key'}"
+                                   class="secret-hidden"
+                                   ${config.configured ? 'disabled' : ''}>
+                            <button type="button" class="secret-toggle" onclick="toggleSecretVisibility('${serviceName}-api-key')">👁️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        ${config.configured ? `
+                            <button class="btn btn-warning" onclick="rotateApiKey('${serviceName}')">🔄 Rotate</button>
+                            <button class="btn btn-danger" onclick="removeApiKey('${serviceName}')">🗑️ Remove</button>
+                        ` : `
+                            <button class="btn btn-success" onclick="configureApiKey('${serviceName}')">💾 Configure</button>
+                        `}
+                        <button class="btn btn-primary" onclick="testApiKey('${serviceName}')">🧪 Test</button>
+                    </div>
+                    
+                    <div id="${serviceName}-status"></div>
+                </div>
+            `).join('');
+        }
+
+        // API key management functions
+        async function configureApiKey(serviceName) {
+            const apiKeyInput = document.getElementById(`${serviceName}-api-key`);
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                showServiceAlert(serviceName, 'danger', 'Please enter an API key');
+                return;
+            }
+            
+            try {
+                showServiceAlert(serviceName, 'info', 'Configuring API key...');
+                
+                const response = await fetch('/api/admin/services/configure', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        service_name: serviceName,
+                        api_key: apiKey,
+                        environment: 'production'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showServiceAlert(serviceName, 'success', 'API key configured successfully');
+                    loadServiceConfigs(); // Refresh the display
+                } else {
+                    showServiceAlert(serviceName, 'danger', result.error || 'Configuration failed');
+                }
+                
+            } catch (error) {
+                console.error('Failed to configure API key:', error);
+                showServiceAlert(serviceName, 'danger', 'Configuration failed: ' + error.message);
+            }
+        }
+
+        async function testApiKey(serviceName) {
+            try {
+                showServiceAlert(serviceName, 'info', 'Testing API key...');
+                
+                const response = await fetch(`/api/admin/services/${serviceName}/test`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showServiceAlert(serviceName, 'success', `API key test successful: ${result.message || 'Connection verified'}`);
+                } else {
+                    showServiceAlert(serviceName, 'danger', result.error || 'API key test failed');
+                }
+                
+            } catch (error) {
+                console.error('Failed to test API key:', error);
+                showServiceAlert(serviceName, 'danger', 'Test failed: ' + error.message);
+            }
+        }
+
+        async function removeApiKey(serviceName) {
+            if (!confirm(`Are you sure you want to remove the API key for ${serviceName}?`)) {
+                return;
+            }
+            
+            try {
+                showServiceAlert(serviceName, 'info', 'Removing API key...');
+                
+                const response = await fetch(`/api/admin/services/${serviceName}/remove`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showServiceAlert(serviceName, 'success', 'API key removed successfully');
+                    loadServiceConfigs(); // Refresh the display
+                } else {
+                    showServiceAlert(serviceName, 'danger', result.error || 'Removal failed');
+                }
+                
+            } catch (error) {
+                console.error('Failed to remove API key:', error);
+                showServiceAlert(serviceName, 'danger', 'Removal failed: ' + error.message);
+            }
+        }
+
+        async function rotateApiKey(serviceName) {
+            const newApiKey = prompt(`Enter new API key for ${serviceName}:`);
+            if (!newApiKey) {
+                return;
+            }
+            
+            try {
+                showServiceAlert(serviceName, 'info', 'Rotating API key...');
+                
+                const response = await fetch(`/api/admin/services/${serviceName}/rotate`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        new_api_key: newApiKey
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showServiceAlert(serviceName, 'success', 'API key rotated successfully');
+                    loadServiceConfigs(); // Refresh the display
+                } else {
+                    showServiceAlert(serviceName, 'danger', result.error || 'Rotation failed');
+                }
+                
+            } catch (error) {
+                console.error('Failed to rotate API key:', error);
+                showServiceAlert(serviceName, 'danger', 'Rotation failed: ' + error.message);
+            }
+        }
+
+        // Bulk actions
+        async function importFromEnvironment() {
+            try {
+                showAlert('info', 'Importing API keys from environment variables...');
+                
+                const response = await fetch('/api/admin/services/import-env', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const imported = Object.entries(result).filter(([_, success]) => success).length;
+                    const total = Object.keys(result).length;
+                    
+                    showAlert('success', `Successfully imported ${imported}/${total} API keys from environment`);
+                    
+                    if (imported < total) {
+                        const failed = Object.entries(result).filter(([_, success]) => !success).map(([service, _]) => service);
+                        showAlert('warning', `Failed to import: ${failed.join(', ')}`);
+                    }
+                    
+                    loadServiceConfigs(); // Refresh the display
+                } else {
+                    showAlert('danger', result.error || 'Import failed');
+                }
+                
+            } catch (error) {
+                console.error('Failed to import from environment:', error);
+                showAlert('danger', 'Import failed: ' + error.message);
+            }
+        }
+
+        async function testAllServices() {
+            showAlert('info', 'Testing all configured services...');
+            
+            const results = {};
+            const services = Object.keys(currentServiceConfigs).filter(service => 
+                currentServiceConfigs[service].configured
+            );
+            
+            for (const serviceName of services) {
+                try {
+                    const response = await fetch(`/api/admin/services/${serviceName}/test`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    results[serviceName] = result.success;
+                } catch (error) {
+                    results[serviceName] = false;
+                }
+            }
+            
+            const successful = Object.values(results).filter(success => success).length;
+            const total = Object.keys(results).length;
+            
+            if (successful === total) {
+                showAlert('success', `All ${total} services tested successfully`);
+            } else {
+                const failed = Object.entries(results).filter(([_, success]) => !success).map(([service, _]) => service);
+                showAlert('warning', `${successful}/${total} services passed. Failed: ${failed.join(', ')}`);
+            }
+        }
+
+        // Utility functions
+        function showAlert(type, message) {
+            const bulkActionStatus = document.getElementById('bulk-action-status');
+            if (bulkActionStatus) {
+                bulkActionStatus.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+                setTimeout(() => {
+                    bulkActionStatus.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        function showServiceAlert(serviceName, type, message) {
+            const statusElement = document.getElementById(`${serviceName}-status`);
+            if (statusElement) {
+                statusElement.innerHTML = `<div class="alert alert-${type}" style="margin-top: 10px; padding: 8px;">${message}</div>`;
+                setTimeout(() => {
+                    statusElement.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        function toggleSecretVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.parentNode.querySelector('.secret-toggle');
+            
+            if (input.classList.contains('secret-hidden')) {
+                input.classList.remove('secret-hidden');
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.classList.add('secret-hidden');
+                input.type = 'password';
+                button.textContent = '👁️';
+            }
+        }
+
+        function handleAuthMethodChange() {
+            const method = document.getElementById('auth-method').value;
+            
+            document.getElementById('approle-config').style.display = method === 'approle' ? 'block' : 'none';
+            document.getElementById('userpass-config').style.display = method === 'userpass' ? 'block' : 'none';
+        }
+
+        // Audit logs functions
+        async function loadAuditLogs() {
+            const timeRange = document.getElementById('audit-time-range').value;
+            const tbody = document.getElementById('audit-logs-body');
+            
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Loading audit logs...</td></tr>';
+            
+            try {
+                const response = await fetch(`/api/admin/audit/logs?time_range=${timeRange}`);
+                const logs = await response.json();
+                
+                if (logs && logs.length > 0) {
+                    tbody.innerHTML = logs.map(log => `
+                        <tr>
+                            <td>${new Date(log.timestamp).toLocaleString()}</td>
+                            <td>${log.event_type}</td>
+                            <td>${log.user || 'System'}</td>
+                            <td>${log.action}</td>
+                            <td>${log.resource}</td>
+                            <td><span class="service-status ${log.success ? 'status-configured' : 'status-missing'}">${log.success ? 'SUCCESS' : 'FAILED'}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No audit logs found for selected time range</td></tr>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load audit logs:', error);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #e74c3c;">Failed to load audit logs</td></tr>';
+            }
+        }
+
+        // Report generation functions
+        async function generateInvestigationAuditReport() {
+            try {
+                const statusDiv = document.getElementById('report-generation-status');
+                statusDiv.innerHTML = '<div class="alert alert-info">Generating investigation audit report...</div>';
+                
+                const response = await fetch('/api/reports/investigations/activity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        time_range: 'last_30_days',
+                        format: 'html'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="alert alert-success">Investigation audit report generated successfully!</div>';
+                    
+                    // Open report in new window
+                    const reportWindow = window.open('', '_blank');
+                    reportWindow.document.write(result.report_html || 'Report generated successfully');
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger">Report generation failed: ${result.error}</div>`;
+                }
+                
+            } catch (error) {
+                console.error('Failed to generate audit report:', error);
+                document.getElementById('report-generation-status').innerHTML = 
+                    `<div class="alert alert-danger">Report generation failed: ${error.message}</div>`;
+            }
+        }
+
+        // System health check
+        async function checkSystemHealth() {
+            try {
+                // Check various system components
+                await checkVaultStatus();
+                
+                // Update investigation engine status
+                const investigationStatus = document.getElementById('investigation-engine-status');
+                investigationStatus.textContent = 'ACTIVE';
+                investigationStatus.className = 'service-status status-configured';
+                
+                // Update risk engine status
+                const riskStatus = document.getElementById('risk-engine-status');
+                riskStatus.textContent = 'ACTIVE';
+                riskStatus.className = 'service-status status-configured';
+                
+            } catch (error) {
+                console.error('System health check failed:', error);
+            }
+        }
+
+        // Initialize admin panel
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Admin panel loaded');
+            loadServiceConfigs();
+            checkVaultStatus();
+        });
+
+        // Navigation function
+        function showReports() {
+            window.location.href = 'index.html#reports';
+        }
+
+        // Additional placeholder functions for remaining functionality
+        function testVaultConnection() { alert('Vault connection test would be implemented here'); }
+        function saveVaultConfig() { alert('Vault configuration save would be implemented here'); }
+        function initializeVault() { alert('Vault initialization would be implemented here'); }
+        function generateAuditReport() { alert('Audit report generation would be implemented here'); }
+        function exportAuditLogs() { alert('Audit log export would be implemented here'); }
+        function clearAuditLogs() { alert('Audit log clearing would be implemented here'); }
+        function generateSystemUsageReport() { alert('System usage report would be implemented here'); }
+        function generateComplianceReport() { alert('Compliance report would be implemented here'); }
+        function saveReportSettings() { alert('Report settings save would be implemented here'); }
+        function testReportGeneration() { alert('Report generation test would be implemented here'); }
+        function exportSystemLogs() { alert('System log export would be implemented here'); }
+        function restartServices() { alert('Service restart would be implemented here'); }
+    </script>
+</body>
+</html>

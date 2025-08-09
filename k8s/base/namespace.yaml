@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: osint-platform
+  labels:
+    app: osint-platform
+    environment: production

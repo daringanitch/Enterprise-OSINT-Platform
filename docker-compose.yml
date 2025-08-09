@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgresql:
+    image: postgres:15.5-alpine
+    container_name: osint-postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: osint_audit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./k8s/postgresql-deployment.yaml:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - osint-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # HashiCorp Vault
+  vault:
+    image: hashicorp/vault:1.15.4
+    container_name: osint-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dev-only-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    networks:
+      - osint-network
+    command: server -dev
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OSINT Backend
+  backend:
+    build:
+      context: ./simple-backend
+      dockerfile: Dockerfile
+    container_name: osint-backend
+    environment:
+      POSTGRES_HOST: postgresql
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: osint_audit
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-only-token
+      FLASK_ENV: production
+      # Add your API keys here or use .env file
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
+      # SHODAN_API_KEY: ${SHODAN_API_KEY}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    networks:
+      - osint-network
+    volumes:
+      - ./simple-backend:/app:ro
+    command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 app:app
+
+  # OSINT Frontend
+  frontend:
+    image: nginx:alpine
+    container_name: osint-frontend
+    volumes:
+      - ./simple-frontend:/usr/share/nginx/html:ro
+      - ./simple-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - osint-network
+
+  # Redis Cache (optional, for future scaling)
+  redis:
+    image: redis:7-alpine
+    container_name: osint-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - osint-network
+    volumes:
+      - redis_data:/data
+
+networks:
+  osint-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  vault_data:
+    driver: local

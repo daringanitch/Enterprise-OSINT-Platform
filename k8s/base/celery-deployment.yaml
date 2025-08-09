@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-celery-worker
+  namespace: osint-platform
+  labels:
+    app: osint-celery-worker
+    component: worker
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: osint-celery-worker
+  template:
+    metadata:
+      labels:
+        app: osint-celery-worker
+        component: worker
+    spec:
+      serviceAccountName: osint-backend
+      containers:
+      - name: celery-worker
+        image: osint-platform/backend:latest
+        imagePullPolicy: Always
+        command: ["celery", "-A", "app.celery", "worker", "--loglevel=info", "--concurrency=2"]
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: database-url
+        - name: REDIS_URL
+          value: "redis://osint-redis:6379/0"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: secret-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: reports
+          mountPath: /app/reports
+      volumes:
+      - name: reports
+        persistentVolumeClaim:
+          claimName: osint-reports-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-celery-beat
+  namespace: osint-platform
+  labels:
+    app: osint-celery-beat
+    component: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: osint-celery-beat
+  template:
+    metadata:
+      labels:
+        app: osint-celery-beat
+        component: scheduler
+    spec:
+      serviceAccountName: osint-backend
+      containers:
+      - name: celery-beat
+        image: osint-platform/backend:latest
+        imagePullPolicy: Always
+        command: ["celery", "-A", "app.celery", "beat", "--loglevel=info"]
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: database-url
+        - name: REDIS_URL
+          value: "redis://osint-redis:6379/0"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: secret-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

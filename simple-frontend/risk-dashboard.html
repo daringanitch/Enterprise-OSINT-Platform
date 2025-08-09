@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Assessment Dashboard - Enterprise OSINT</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Risk-specific styles */
+        .risk-dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .risk-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .risk-summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .risk-card {
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .risk-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .risk-score {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .risk-minimal { color: #2ecc71; }
+        .risk-low { color: #f39c12; }
+        .risk-moderate { color: #ff9800; }
+        .risk-high { color: #e74c3c; }
+        .risk-critical { color: #c0392b; }
+
+        .threat-vectors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .threat-vector-card {
+            background: #34495e;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .vector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .vector-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .attack-chain {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .attack-step {
+            background: #16a085;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .correlation-matrix {
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .matrix-cell {
+            background: #34495e;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .correlation-high { background: #e74c3c !important; }
+        .correlation-medium { background: #f39c12 !important; }
+        .correlation-low { background: #95a5a6 !important; }
+
+        .recommendations-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .recommendation-card {
+            background: #2c3e50;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .recommendation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendation-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .recommendation-list li:last-child {
+            border-bottom: none;
+        }
+
+        .risk-trend-chart {
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .trend-indicator {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+
+        .trend-increasing { color: #e74c3c; }
+        .trend-decreasing { color: #2ecc71; }
+        .trend-stable { color: #f39c12; }
+
+        .critical-findings {
+            background: #c0392b;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .finding-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ffffff;
+        }
+
+        .load-assessment-form {
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ecf0f1;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #34495e;
+            border: 1px solid #7f8c8d;
+            border-radius: 5px;
+            color: #ecf0f1;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #95a5a6;
+        }
+
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .success-message {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        @media (max-width: 768px) {
+            .risk-summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .threat-vectors-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .recommendations-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="nav-links">
+                <a href="index.html">🏠 Home</a>
+                <a href="risk-dashboard.html" class="active">⚠️ Risk Dashboard</a>
+                <a href="#" onclick="showReports()">📊 Reports</a>
+                <a href="#" onclick="showSettings()">⚙️ Settings</a>
+            </div>
+        </header>
+
+        <div class="risk-dashboard">
+            <div class="risk-header">
+                <h1>🔍 Risk Assessment Dashboard</h1>
+                <p>Advanced threat analysis with intelligence correlation</p>
+            </div>
+
+            <!-- Load Assessment Form -->
+            <div class="load-assessment-form">
+                <h3>📋 Load Risk Assessment</h3>
+                <div class="form-group">
+                    <label for="assessment-source">Assessment Source:</label>
+                    <select id="assessment-source" onchange="handleSourceChange()">
+                        <option value="investigation">From Investigation ID</option>
+                        <option value="standalone">Standalone Assessment</option>
+                        <option value="correlation">Intelligence Correlation</option>
+                    </select>
+                </div>
+                
+                <div id="investigation-input" class="form-group">
+                    <label for="investigation-id">Investigation ID:</label>
+                    <input type="text" id="investigation-id" placeholder="Enter investigation ID">
+                    <button class="btn-primary" onclick="loadInvestigationRisk()">Load Assessment</button>
+                </div>
+
+                <div id="standalone-input" class="form-group" style="display: none;">
+                    <label>Assessment Data:</label>
+                    <textarea id="assessment-data" rows="8" style="width: 100%; background: #34495e; color: #ecf0f1; padding: 10px; border-radius: 5px;" 
+                              placeholder='Enter JSON data for standalone assessment:
+{
+    "target_id": "example.com",
+    "social_intelligence": {...},
+    "infrastructure_intelligence": {...},
+    "threat_intelligence": {...}
+}'></textarea>
+                    <button class="btn-primary" onclick="performStandaloneAssessment()">Assess Risk</button>
+                </div>
+            </div>
+
+            <!-- Loading/Error States -->
+            <div id="loading" class="loading" style="display: none;">
+                🔄 Loading risk assessment data...
+            </div>
+            
+            <div id="error-message" class="error-message" style="display: none;"></div>
+
+            <!-- Risk Assessment Dashboard (hidden by default) -->
+            <div id="risk-dashboard-content" style="display: none;">
+                
+                <!-- Risk Summary Cards -->
+                <div class="risk-summary-cards">
+                    <div class="risk-card">
+                        <h3>Overall Risk Score</h3>
+                        <div id="overall-risk-score" class="risk-score risk-moderate">75</div>
+                        <p id="threat-level">HIGH RISK</p>
+                    </div>
+                    
+                    <div class="risk-card">
+                        <h3>Confidence Level</h3>
+                        <div id="confidence-level" class="risk-score">High</div>
+                        <p id="data-freshness">Data Freshness: 85%</p>
+                    </div>
+                    
+                    <div class="risk-card">
+                        <h3>Threat Vectors</h3>
+                        <div id="threat-vectors-count" class="risk-score">3</div>
+                        <p id="critical-vectors">2 Critical Vectors</p>
+                    </div>
+                    
+                    <div class="risk-card">
+                        <h3>Risk Trend</h3>
+                        <div id="risk-trend" class="risk-score trend-increasing">📈</div>
+                        <p id="trend-description">Increasing</p>
+                    </div>
+                </div>
+
+                <!-- Critical Findings -->
+                <div id="critical-findings-section" class="critical-findings">
+                    <h3>🚨 Critical Findings</h3>
+                    <div id="critical-findings-list"></div>
+                </div>
+
+                <!-- Threat Vectors -->
+                <div class="threat-vectors-grid" id="threat-vectors-grid"></div>
+
+                <!-- Correlation Matrix -->
+                <div class="correlation-matrix">
+                    <h3>🔗 Intelligence Source Correlation</h3>
+                    <p>Cross-source correlation strength between intelligence sources</p>
+                    <div id="correlation-matrix-grid" class="matrix-grid"></div>
+                </div>
+
+                <!-- Risk Trend Analysis -->
+                <div class="risk-trend-chart">
+                    <h3>📊 Risk Trend Analysis</h3>
+                    <div id="trend-chart-placeholder">
+                        <p>Risk trend visualization would appear here</p>
+                        <div class="trend-indicator trend-increasing">📈 INCREASING THREAT LEVEL</div>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="recommendations-section">
+                    <div class="recommendation-card">
+                        <h3>⚡ Immediate Actions</h3>
+                        <ul id="immediate-actions" class="recommendation-list"></ul>
+                    </div>
+                    
+                    <div class="recommendation-card">
+                        <h3>🔍 Monitoring Recommendations</h3>
+                        <ul id="monitoring-recommendations" class="recommendation-list"></ul>
+                    </div>
+                    
+                    <div class="recommendation-card">
+                        <h3>🎯 Long-term Strategies</h3>
+                        <ul id="long-term-strategies" class="recommendation-list"></ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAssessment = null;
+
+        function handleSourceChange() {
+            const source = document.getElementById('assessment-source').value;
+            document.getElementById('investigation-input').style.display = source === 'investigation' ? 'block' : 'none';
+            document.getElementById('standalone-input').style.display = source === 'standalone' ? 'block' : 'none';
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('risk-dashboard-content').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error-message').style.display = 'block';
+            hideLoading();
+        }
+
+        function showSuccess(message) {
+            // You could add a success message element if needed
+            console.log('Success:', message);
+        }
+
+        async function loadInvestigationRisk() {
+            const investigationId = document.getElementById('investigation-id').value.trim();
+            
+            if (!investigationId) {
+                showError('Please enter an investigation ID');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`/api/risk/investigations/${investigationId}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to load risk assessment');
+                }
+
+                const data = await response.json();
+                currentAssessment = data.risk_assessment;
+                
+                displayRiskAssessment(currentAssessment);
+                hideLoading();
+                
+            } catch (error) {
+                showError(`Failed to load assessment: ${error.message}`);
+            }
+        }
+
+        async function performStandaloneAssessment() {
+            const assessmentDataText = document.getElementById('assessment-data').value.trim();
+            
+            if (!assessmentDataText) {
+                showError('Please enter assessment data');
+                return;
+            }
+
+            let assessmentData;
+            try {
+                assessmentData = JSON.parse(assessmentDataText);
+            } catch (error) {
+                showError('Invalid JSON format in assessment data');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch('/api/risk/assess', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(assessmentData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to perform risk assessment');
+                }
+
+                const data = await response.json();
+                currentAssessment = data;
+                
+                displayRiskAssessment(currentAssessment);
+                hideLoading();
+                
+            } catch (error) {
+                showError(`Risk assessment failed: ${error.message}`);
+            }
+        }
+
+        function displayRiskAssessment(assessment) {
+            // Update summary cards
+            const riskScore = assessment.overall_risk_score || assessment.risk_score || 0;
+            const threatLevel = assessment.threat_level || 'unknown';
+            
+            document.getElementById('overall-risk-score').textContent = Math.round(riskScore);
+            document.getElementById('overall-risk-score').className = `risk-score ${getRiskClass(riskScore)}`;
+            document.getElementById('threat-level').textContent = threatLevel.toUpperCase();
+            
+            document.getElementById('confidence-level').textContent = assessment.confidence_level || assessment.confidence || 'Unknown';
+            document.getElementById('data-freshness').textContent = `Data Freshness: ${assessment.data_freshness_score || 0}%`;
+            
+            const threatVectors = assessment.threat_vectors || [];
+            document.getElementById('threat-vectors-count').textContent = threatVectors.length;
+            
+            const criticalVectors = threatVectors.filter(v => v.threat_level === 'critical' || v.threat_level === 'high');
+            document.getElementById('critical-vectors').textContent = `${criticalVectors.length} High-Risk Vectors`;
+            
+            // Update trend
+            const trend = assessment.risk_trend || 'stable';
+            document.getElementById('risk-trend').textContent = getTrendIcon(trend);
+            document.getElementById('risk-trend').className = `risk-score trend-${trend}`;
+            document.getElementById('trend-description').textContent = trend.charAt(0).toUpperCase() + trend.slice(1);
+            
+            // Display critical findings
+            displayCriticalFindings(assessment.critical_findings || []);
+            
+            // Display threat vectors
+            displayThreatVectors(threatVectors);
+            
+            // Display correlation matrix
+            displayCorrelationMatrix(assessment.correlation_analysis?.source_correlation_matrix || {});
+            
+            // Display recommendations
+            displayRecommendations(assessment.recommendations || assessment);
+            
+            // Show the dashboard
+            document.getElementById('risk-dashboard-content').style.display = 'block';
+        }
+
+        function getRiskClass(score) {
+            if (score >= 81) return 'risk-critical';
+            if (score >= 61) return 'risk-high';
+            if (score >= 41) return 'risk-moderate';
+            if (score >= 21) return 'risk-low';
+            return 'risk-minimal';
+        }
+
+        function getTrendIcon(trend) {
+            switch (trend) {
+                case 'increasing': return '📈';
+                case 'decreasing': return '📉';
+                case 'stable': return '➡️';
+                default: return '❓';
+            }
+        }
+
+        function displayCriticalFindings(findings) {
+            const container = document.getElementById('critical-findings-list');
+            
+            if (!findings || findings.length === 0) {
+                container.innerHTML = '<p>No critical findings identified.</p>';
+                return;
+            }
+            
+            container.innerHTML = findings.map(finding => 
+                `<div class="finding-item">🚨 ${finding}</div>`
+            ).join('');
+        }
+
+        function displayThreatVectors(vectors) {
+            const container = document.getElementById('threat-vectors-grid');
+            
+            if (!vectors || vectors.length === 0) {
+                container.innerHTML = '<p>No specific threat vectors identified.</p>';
+                return;
+            }
+            
+            container.innerHTML = vectors.map(vector => `
+                <div class="threat-vector-card">
+                    <div class="vector-header">
+                        <h4>${vector.name}</h4>
+                        <span class="vector-badge ${getRiskClass(vector.risk_score || 0)}">${vector.threat_level || 'unknown'}</span>
+                    </div>
+                    <p><strong>Risk Score:</strong> ${Math.round(vector.risk_score || 0)}/100</p>
+                    <p><strong>Category:</strong> ${vector.category}</p>
+                    <p><strong>Confidence:</strong> ${vector.confidence || 'Unknown'}</p>
+                    
+                    ${vector.attack_chain && vector.attack_chain.length > 0 ? `
+                        <div>
+                            <strong>Attack Chain:</strong>
+                            <div class="attack-chain">
+                                ${vector.attack_chain.map(step => `<span class="attack-step">${step}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${vector.mitigation_recommendations && vector.mitigation_recommendations.length > 0 ? `
+                        <div>
+                            <strong>Key Mitigations:</strong>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${vector.mitigation_recommendations.slice(0, 3).map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function displayCorrelationMatrix(matrix) {
+            const container = document.getElementById('correlation-matrix-grid');
+            
+            if (!matrix || Object.keys(matrix).length === 0) {
+                container.innerHTML = '<p>No correlation data available.</p>';
+                return;
+            }
+            
+            let html = '';
+            const sources = Object.keys(matrix);
+            
+            sources.forEach(source1 => {
+                sources.forEach(source2 => {
+                    const correlation = matrix[source1]?.[source2] || 0;
+                    const correlationClass = correlation > 0.7 ? 'correlation-high' : 
+                                           correlation > 0.4 ? 'correlation-medium' : 'correlation-low';
+                    
+                    html += `
+                        <div class="matrix-cell ${correlationClass}">
+                            <div style="font-size: 0.8em;">${source1}</div>
+                            <div style="font-size: 0.8em;">↔</div>
+                            <div style="font-size: 0.8em;">${source2}</div>
+                            <div style="font-weight: bold;">${Math.round(correlation * 100)}%</div>
+                        </div>
+                    `;
+                });
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayRecommendations(recommendations) {
+            // Immediate actions
+            const immediateActions = recommendations.immediate_actions || [];
+            document.getElementById('immediate-actions').innerHTML = immediateActions.length > 0 ? 
+                immediateActions.map(action => `<li>⚡ ${action}</li>`).join('') :
+                '<li>No immediate actions required</li>';
+            
+            // Monitoring recommendations
+            const monitoringRecs = recommendations.monitoring_recommendations || [];
+            document.getElementById('monitoring-recommendations').innerHTML = monitoringRecs.length > 0 ? 
+                monitoringRecs.map(rec => `<li>🔍 ${rec}</li>`).join('') :
+                '<li>Standard monitoring protocols apply</li>';
+            
+            // Long-term strategies
+            const longTermStrats = recommendations.long_term_strategies || [];
+            document.getElementById('long-term-strategies').innerHTML = longTermStrats.length > 0 ? 
+                longTermStrats.map(strat => `<li>🎯 ${strat}</li>`).join('') :
+                '<li>Continue regular security assessments</li>';
+        }
+
+        function showReports() {
+            window.location.href = 'index.html#reports';
+        }
+
+        function showSettings() {
+            alert('Settings functionality would be implemented here');
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Risk Assessment Dashboard loaded');
+        });
+    </script>
+</body>
+</html>

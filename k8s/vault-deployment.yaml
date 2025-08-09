@@ -1,0 +1,341 @@
+---
+# Vault ConfigMap for configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: osint-platform
+data:
+  vault.hcl: |
+    ui = true
+    
+    listener "tcp" {
+      address = "0.0.0.0:8200"
+      tls_disable = 1
+    }
+    
+    storage "file" {
+      path = "/vault/data"
+    }
+    
+    api_addr = "http://vault:8200"
+    cluster_addr = "http://vault:8201"
+    
+    # Enable audit logging
+    audit "file" {
+      file_path = "/vault/audit/audit.log"
+    }
+
+---
+# Vault PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-data-pvc
+  namespace: osint-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+# Vault Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  type: ClusterIP
+  ports:
+    - name: vault-port
+      port: 8200
+      targetPort: 8200
+      protocol: TCP
+    - name: vault-cluster-port
+      port: 8201
+      targetPort: 8201
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+# Vault External Service (for admin access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-external
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  type: NodePort
+  ports:
+    - name: vault-ui
+      port: 8200
+      targetPort: 8200
+      nodePort: 30200
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+# Vault Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+        component: secret-management
+    spec:
+      serviceAccountName: vault-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - "server"
+          env:
+            - name: VAULT_CONFIG_DIR
+              value: "/vault/config"
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: "dev-only-token"
+            - name: VAULT_DEV_LISTEN_ADDRESS
+              value: "0.0.0.0:8200"
+            - name: VAULT_ADDR
+              value: "http://localhost:8200"
+          ports:
+            - name: vault-port
+              containerPort: 8200
+              protocol: TCP
+            - name: vault-cluster-port
+              containerPort: 8201
+              protocol: TCP
+          volumeMounts:
+            - name: vault-config
+              mountPath: /vault/config
+              readOnly: true
+            - name: vault-data
+              mountPath: /vault/data
+            - name: vault-audit
+              mountPath: /vault/audit
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 100
+            capabilities:
+              add: ["IPC_LOCK"]
+              drop: ["ALL"]
+      volumes:
+        - name: vault-config
+          configMap:
+            name: vault-config
+        - name: vault-data
+          persistentVolumeClaim:
+            claimName: vault-data-pvc
+        - name: vault-audit
+          emptyDir: {}
+      restartPolicy: Always
+
+---
+# Vault ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-service-account
+  namespace: osint-platform
+  labels:
+    app: vault
+
+---
+# Vault ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-auth
+  labels:
+    app: vault
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "serviceaccounts/token"]
+    verbs: ["create", "get", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+# Vault ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-auth
+  labels:
+    app: vault
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vault-auth
+subjects:
+  - kind: ServiceAccount
+    name: vault-service-account
+    namespace: osint-platform
+
+---
+# Vault Initialization Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: osint-platform
+  labels:
+    app: vault-init
+spec:
+  template:
+    spec:
+      serviceAccountName: vault-service-account
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-vault
+          image: busybox:1.36
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z vault 8200; do
+                echo "Waiting for vault..."
+                sleep 2
+              done
+              echo "Vault is ready"
+      containers:
+        - name: vault-init
+          image: hashicorp/vault:1.15.4
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault:8200"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Wait for Vault to be ready
+              sleep 10
+              
+              # Check if Vault is already initialized
+              if vault status | grep -q "Initialized.*true"; then
+                echo "Vault is already initialized"
+                exit 0
+              fi
+              
+              # Initialize Vault
+              echo "Initializing Vault..."
+              vault operator init -key-shares=3 -key-threshold=2 -format=json > /tmp/vault-keys.json
+              
+              # Extract unseal keys and root token
+              UNSEAL_KEY_1=$(cat /tmp/vault-keys.json | jq -r '.unseal_keys_b64[0]')
+              UNSEAL_KEY_2=$(cat /tmp/vault-keys.json | jq -r '.unseal_keys_b64[1]')
+              ROOT_TOKEN=$(cat /tmp/vault-keys.json | jq -r '.root_token')
+              
+              # Unseal Vault
+              echo "Unsealing Vault..."
+              vault operator unseal $UNSEAL_KEY_1
+              vault operator unseal $UNSEAL_KEY_2
+              
+              # Login with root token
+              vault auth $ROOT_TOKEN
+              
+              # Enable KV secrets engine
+              vault secrets enable -version=2 -path=secret kv
+              
+              # Enable AppRole auth method
+              vault auth enable approle
+              
+              # Create OSINT policy
+              vault policy write osint-admin - <<EOF
+              # Full access to secret/osint path
+              path "secret/data/osint/*" {
+                capabilities = ["create", "read", "update", "delete", "list"]
+              }
+              
+              path "secret/metadata/osint/*" {
+                capabilities = ["list", "read", "delete"]
+              }
+              
+              # API key management paths
+              path "secret/data/api-keys/*" {
+                capabilities = ["create", "read", "update", "delete", "list"]
+              }
+              
+              path "secret/metadata/api-keys/*" {
+                capabilities = ["list", "read", "delete"]
+              }
+              EOF
+              
+              # Create AppRole for OSINT application
+              vault write auth/approle/role/osint-app \
+                bind_secret_id=true \
+                token_ttl=1h \
+                token_max_ttl=4h \
+                token_policies="osint-admin" \
+                token_bound_cidrs="10.0.0.0/8"
+              
+              # Get Role ID and Secret ID
+              ROLE_ID=$(vault read -field=role_id auth/approle/role/osint-app/role-id)
+              SECRET_ID=$(vault write -field=secret_id -f auth/approle/role/osint-app/secret-id)
+              
+              echo "Vault initialization completed!"
+              echo "Role ID: $ROLE_ID"
+              echo "Secret ID: $SECRET_ID"
+              echo "Root Token: $ROOT_TOKEN"
+              
+              # Store credentials in a configmap for the application
+              kubectl create configmap vault-credentials \
+                --from-literal=role-id="$ROLE_ID" \
+                --from-literal=secret-id="$SECRET_ID" \
+                --from-literal=root-token="$ROOT_TOKEN" \
+                --namespace=osint-platform \
+                --dry-run=client -o yaml | kubectl apply -f -
+              
+              echo "Credentials stored in vault-credentials ConfigMap"
