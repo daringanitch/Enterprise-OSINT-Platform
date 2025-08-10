@@ -764,8 +764,17 @@
             const loginModal = document.getElementById('loginModal');
             const registerModal = document.getElementById('registerModal');
             if (loginModal && registerModal) {
+                // Clear any previous errors when showing login modal
+                clearError('loginError');
+                clearError('registerError');
+                clearError('registerSuccess');
+                
                 loginModal.classList.remove('hidden');
                 registerModal.classList.add('hidden');
+                
+                // Focus on email field
+                setTimeout(() => document.getElementById('loginEmail').focus(), 100);
+                
                 console.log('Login modal shown');
             } else {
                 console.error('Login/Register modals not found');
@@ -777,8 +786,17 @@
             const loginModal = document.getElementById('loginModal');
             const registerModal = document.getElementById('registerModal');
             if (loginModal && registerModal) {
+                // Clear any previous errors when showing register modal
+                clearError('loginError');
+                clearError('registerError');
+                clearError('registerSuccess');
+                
                 registerModal.classList.remove('hidden');
                 loginModal.classList.add('hidden');
+                
+                // Focus on email field
+                setTimeout(() => document.getElementById('registerEmail').focus(), 100);
+                
                 console.log('Register modal shown');
             } else {
                 console.error('Login/Register modals not found');
@@ -870,7 +888,25 @@
             setTimeout(() => errorEl.classList.add('hidden'), 5000);
         }
         
+        function clearError(elementId) {
+            const errorEl = document.getElementById(elementId);
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.add('hidden');
+            }
+        }
+        
         async function login(email, password) {
+            // Clear any previous error messages
+            clearError('loginError');
+            
+            // Disable form during login attempt
+            const loginForm = document.getElementById('loginForm');
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            submitButton.textContent = 'Logging in...';
+            submitButton.disabled = true;
+            
             try {
                 const response = await fetch('/api/v1/auth/login', {
                     method: 'POST',
@@ -902,6 +938,10 @@
                         isAuthenticated = true;
                         console.log('User logged in:', currentUser.email);
                         console.log('Auth token available:', !!authToken);
+                        
+                        // Reset form on successful login
+                        loginForm.reset();
+                        
                         updateAuthUI();
                         hideAuthModals();
                         // Wait a moment before loading investigations to ensure auth state is set
@@ -910,14 +950,37 @@
                 } else {
                     const error = await response.json();
                     showError('loginError', error.detail || 'Login failed');
+                    // Reset form on failed login
+                    loginForm.reset();
+                    // Focus back to email field for retry
+                    document.getElementById('loginEmail').focus();
                 }
             } catch (error) {
                 console.error('Login error:', error);
                 showError('loginError', 'Connection error. Please try again.');
+                // Reset form on error
+                loginForm.reset();
+                // Focus back to email field for retry
+                document.getElementById('loginEmail').focus();
+            } finally {
+                // Always re-enable the form
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
             }
         }
         
         async function register(userData) {
+            // Clear any previous error messages
+            clearError('registerError');
+            clearError('registerSuccess');
+            
+            // Disable form during registration attempt
+            const registerForm = document.getElementById('registerForm');
+            const submitButton = registerForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            submitButton.textContent = 'Creating Account...';
+            submitButton.disabled = true;
+            
             try {
                 const response = await fetch('/api/v1/auth/register', {
                     method: 'POST',
@@ -933,6 +996,9 @@
                 });
                 
                 if (response.ok) {
+                    // Reset form on successful registration
+                    registerForm.reset();
+                    
                     // Show success message and ask user to check email
                     showSuccess('registerSuccess', 'Registration successful! Please check your email to verify your account before logging in.');
                     
@@ -942,10 +1008,18 @@
                 } else {
                     const error = await response.json();
                     showError('registerError', error.detail || 'Registration failed');
+                    // Focus back to email field for retry
+                    document.getElementById('registerEmail').focus();
                 }
             } catch (error) {
                 console.error('Registration error:', error);
                 showError('registerError', 'Connection error. Please try again.');
+                // Focus back to email field for retry
+                document.getElementById('registerEmail').focus();
+            } finally {
+                // Always re-enable the form
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
             }
         }
         
