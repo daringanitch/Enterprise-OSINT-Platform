@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-fastapi-backend
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+    component: backend
+    framework: fastapi
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: osint-fastapi-backend
+  template:
+    metadata:
+      labels:
+        app: osint-fastapi-backend
+        component: backend
+        framework: fastapi
+    spec:
+      containers:
+      - name: backend
+        image: osint-platform/fastapi-backend:v1.0.0-auth
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: WORKERS
+          value: "4"
+        - name: PORT
+          value: "8000"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: POSTGRES_SERVER
+          value: "postgresql"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: vault-token
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        - name: PROMETHEUS_ENABLED
+          value: "true"
+        - name: RATE_LIMIT_ENABLED
+          value: "true"
+        - name: MAX_CONCURRENT_INVESTIGATIONS
+          value: "10"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: reports
+          mountPath: /app/reports
+      volumes:
+      - name: reports
+        persistentVolumeClaim:
+          claimName: osint-reports-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-fastapi-backend
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: osint-fastapi-backend
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-fastapi-backend-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-fastapi-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60

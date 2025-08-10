@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-backend
+  namespace: osint-platform
+  labels:
+    app: osint-backend
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: osint-backend
+  template:
+    metadata:
+      labels:
+        app: osint-backend
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: osint-platform/simple-backend:v1.0.0-auth
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: FLASK_ENV
+          value: "development"
+        - name: POSTGRES_HOST
+          value: "postgresql"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "password123"
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          value: "dev-only-token"
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
+        - name: CELERY_BROKER_URL
+          value: "redis://redis:6379/0"
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-backend
+  namespace: osint-platform
+spec:
+  selector:
+    app: osint-backend
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP

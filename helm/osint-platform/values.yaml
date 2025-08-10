@@ -10,7 +10,7 @@ replicaCount:
 image:
   registry: ""
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: "v1.0.0-auth"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -24,7 +24,7 @@ serviceAccount:
 # Frontend configuration
 frontend:
   image:
-    repository: osint-platform/frontend
+    repository: osint-platform/simple-frontend
   service:
     type: ClusterIP
     port: 80
@@ -39,7 +39,7 @@ frontend:
 # Backend configuration
 backend:
   image:
-    repository: osint-platform/backend
+    repository: osint-platform/fastapi-backend
   service:
     type: ClusterIP
     port: 5000

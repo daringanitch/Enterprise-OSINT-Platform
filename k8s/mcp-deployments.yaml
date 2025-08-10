@@ -1,0 +1,135 @@
+---
+# MCP Social Media Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-social-media
+  namespace: osint-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-social-media
+  template:
+    metadata:
+      labels:
+        app: mcp-social-media
+    spec:
+      containers:
+      - name: social-media
+        image: osint-platform/mcp-social-media:v1.0.0-auth
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8010
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# MCP Infrastructure Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-infrastructure
+  namespace: osint-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-infrastructure
+  template:
+    metadata:
+      labels:
+        app: mcp-infrastructure
+    spec:
+      containers:
+      - name: infrastructure
+        image: osint-platform/mcp-infrastructure:v1.0.0-auth
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8020
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# MCP Threat Intel Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-threat-intel
+  namespace: osint-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-threat-intel
+  template:
+    metadata:
+      labels:
+        app: mcp-threat-intel
+    spec:
+      containers:
+      - name: threat-intel
+        image: osint-platform/mcp-threat-intel:v1.0.0-auth
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8030
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-social-media
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-social-media
+  ports:
+  - port: 8010
+    targetPort: 8010
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-infrastructure
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-infrastructure
+  ports:
+  - port: 8020
+    targetPort: 8020
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-threat-intel
+  namespace: osint-platform
+spec:
+  selector:
+    app: mcp-threat-intel
+  ports:
+  - port: 8030
+    targetPort: 8030
+  type: ClusterIP
