@@ -1,0 +1,53 @@
+---
+# Production Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-frontend-prod
+  namespace: osint-platform
+  labels:
+    app: osint-frontend-prod
+    component: frontend
+    version: v2.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: osint-frontend-prod
+  template:
+    metadata:
+      labels:
+        app: osint-frontend-prod
+        component: frontend
+        version: v2.0.0
+    spec:
+      containers:
+      - name: frontend
+        image: osint-platform/simple-frontend:v2.5.0-reports-fixed
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+
+---
+# Production Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-frontend-prod
+  namespace: osint-platform
+  labels:
+    app: osint-frontend-prod
+spec:
+  selector:
+    app: osint-frontend-prod
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer

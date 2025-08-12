@@ -1,0 +1,76 @@
+---
+# Manual service without selector for immediate load balancing
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-fastapi-manual
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+    component: backend-manual
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+---
+# Manual endpoints pointing to working pods
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: osint-fastapi-manual
+  namespace: osint-platform
+subsets:
+- addresses:
+  - ip: 10.1.0.216
+  - ip: 10.1.0.217
+  - ip: 10.1.0.218
+  - ip: 10.1.0.219
+  ports:
+  - name: http
+    port: 8000
+    protocol: TCP
+---
+# Updated simple ingress using manual service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-working-ingress
+  namespace: osint-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-simple-frontend
+            port:
+              number: 80

@@ -1,0 +1,69 @@
+---
+# Run Database Migrations Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: osint-run-migrations
+  namespace: osint-platform
+  labels:
+    app: osint-run-migrations
+    component: database-setup
+spec:
+  template:
+    metadata:
+      labels:
+        app: osint-run-migrations
+        component: database-setup
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: run-migrations
+        image: osint-platform/fastapi-backend:v2.0.0-auth-fixed
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Running database migrations..."
+          cd /app
+          alembic upgrade head
+          echo "Database migrations completed successfully!"
+          
+        env:
+        # Database Configuration
+        - name: POSTGRES_SERVER
+          value: "osint-platform-postgresql"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "GlbGVmgFxi"
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_SERVER):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+        
+        # Security Configuration
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+              
+        # Application Configuration
+        - name: DEBUG
+          value: "true"
+        - name: PROJECT_NAME
+          value: "Enterprise OSINT Platform"
+          
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300

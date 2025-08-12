@@ -11,6 +11,8 @@ import logging
 import uuid
 import threading
 import time
+import json
+from pathlib import Path
 
 # Import OSINT investigation system
 from models import (
@@ -99,6 +101,37 @@ except Exception as e:
 # In-memory storage for testing
 legacy_investigations = {}  # Keep for compatibility
 reports = {}
+reports_audit_history = {}  # Track all report generation history for audit
+
+# File-based persistence for audit history
+AUDIT_HISTORY_FILE = Path('/tmp/osint_audit_history.json')
+
+def load_audit_history():
+    """Load audit history from persistent storage"""
+    global reports_audit_history
+    if AUDIT_HISTORY_FILE.exists():
+        try:
+            with open(AUDIT_HISTORY_FILE, 'r') as f:
+                reports_audit_history = json.load(f)
+            app.logger.info(f"Loaded {len(reports_audit_history)} audit entries from file")
+        except Exception as e:
+            app.logger.error(f"Error loading audit history: {e}")
+            reports_audit_history = {}
+    else:
+        reports_audit_history = {}
+        save_audit_history()
+
+def save_audit_history():
+    """Save audit history to persistent storage"""
+    try:
+        with open(AUDIT_HISTORY_FILE, 'w') as f:
+            json.dump(reports_audit_history, f, indent=2)
+        app.logger.info(f"Saved {len(reports_audit_history)} audit entries to file")
+    except Exception as e:
+        app.logger.error(f"Error saving audit history: {e}")
+
+# Load audit history on startup
+load_audit_history()
 users = {
     'admin': {'password': 'admin123', 'role': 'admin'}
 }
@@ -364,7 +397,19 @@ def get_investigations():
     # Get active OSINT investigations
     active_investigations = orchestrator.get_active_investigations()
     for investigation in active_investigations:
-        inv_data = investigation.to_dict()
+        try:
+            inv_data = investigation.to_dict()
+        except Exception as serialization_error:
+            logger.error(f"Investigation serialization failed for {investigation.id}: {str(serialization_error)}")
+            # Fallback to basic data
+            inv_data = {
+                'id': investigation.id,
+                'target': investigation.target_profile.primary_identifier if hasattr(investigation, 'target_profile') else 'Unknown',
+                'status': investigation.status.value if hasattr(investigation, 'status') else 'unknown',
+                'created_at': investigation.created_at.isoformat() if hasattr(investigation, 'created_at') else datetime.utcnow().isoformat(),
+                'investigation_type': investigation.investigation_type.value if hasattr(investigation, 'investigation_type') else 'unknown',
+                'investigator_name': investigation.investigator_name if hasattr(investigation, 'investigator_name') else 'Unknown'
+            }
         
         # Add progress information
         inv_data['progress_percentage'] = investigation.get_overall_progress_percentage()
@@ -383,9 +428,9 @@ def get_investigations():
         if report_id in reports:
             report = reports[report_id]
             report_time = datetime.fromisoformat(report['generated_at'])
-            if datetime.utcnow() - report_time < timedelta(minutes=10):
+            if datetime.utcnow() - report_time < timedelta(minutes=60):
                 inv_data['report_available'] = True
-                inv_data['report_expires_at'] = (report_time + timedelta(minutes=10)).isoformat()
+                inv_data['report_expires_at'] = (report_time + timedelta(minutes=60)).isoformat()
             else:
                 inv_data['report_available'] = False
                 del reports[report_id]
@@ -401,9 +446,9 @@ def get_investigations():
         if report_id in reports:
             report = reports[report_id]
             report_time = datetime.fromisoformat(report['generated_at'])
-            if datetime.utcnow() - report_time < timedelta(minutes=10):
+            if datetime.utcnow() - report_time < timedelta(minutes=60):
                 inv_data['report_available'] = True
-                inv_data['report_expires_at'] = (report_time + timedelta(minutes=10)).isoformat()
+                inv_data['report_expires_at'] = (report_time + timedelta(minutes=60)).isoformat()
             else:
                 inv_data['report_available'] = False
                 del reports[report_id]
@@ -423,6 +468,8 @@ def create_investigation():
         investigation_type = data.get('type', 'comprehensive')
         priority = data.get('priority', 'normal')
         investigator_name = data.get('investigator', 'System')
+        # Generate investigator_id from name
+        investigator_id = investigator_name.lower().replace(' ', '_').replace('-', '_') if investigator_name != 'System' else 'system'
         
         # Validate required fields
         if not target:
@@ -468,8 +515,9 @@ def create_investigation():
                 scope.include_threat_intelligence = False
                 api_warnings.append("Threat intelligence disabled - no APIs available")
         
-        # Check critical AI APIs
-        if not available_ai_apis and api_monitor.api_endpoints.get('openai', {}).required:
+        # Check critical AI APIs (temporarily disabled for demo)
+        # Allow investigations to proceed without OpenAI in demo mode
+        if False and not available_ai_apis and api_monitor.api_endpoints.get('openai', {}).required:
             return jsonify({
                 'error': 'Critical AI services unavailable',
                 'message': 'Investigation cannot proceed without OpenAI API',
@@ -490,6 +538,9 @@ def create_investigation():
         investigation = orchestrator.get_investigation(investigation_id)
         if not investigation:
             return jsonify({'error': 'Failed to create investigation'}), 500
+            
+        # Ensure the investigation object has the correct investigator_id
+        investigation.investigator_id = investigator_id
         
         # Log investigation start to PostgreSQL audit system
         if audit_client:
@@ -521,7 +572,22 @@ def create_investigation():
             audit_client.log_audit_event(event)
         
         # Return investigation data with API status information
-        response_data = investigation.to_dict()
+        try:
+            response_data = investigation.to_dict()
+        except Exception as serialization_error:
+            logger.error(f"Investigation serialization failed: {str(serialization_error)}")
+            logger.error(f"Investigation object type: {type(investigation)}")
+            logger.error(f"Investigation attributes: {[attr for attr in dir(investigation) if not attr.startswith('_')]}")
+            # Fallback to basic response
+            response_data = {
+                'id': investigation.id,
+                'target': investigation.target_profile.primary_identifier if hasattr(investigation, 'target_profile') else target,
+                'status': investigation.status.value if hasattr(investigation, 'status') else 'pending',
+                'created_at': investigation.created_at.isoformat() if hasattr(investigation, 'created_at') else datetime.utcnow().isoformat(),
+                'investigation_type': investigation.investigation_type.value if hasattr(investigation, 'investigation_type') else investigation_type,
+                'investigator_name': investigation.investigator_name if hasattr(investigation, 'investigator_name') else investigator_name
+            }
+        
         response_data['message'] = 'OSINT investigation started successfully'
         
         # Include API availability information
@@ -555,7 +621,19 @@ def get_investigation(inv_id):
     investigation = orchestrator.get_investigation(inv_id)
     
     if investigation:
-        inv_data = investigation.to_dict()
+        try:
+            inv_data = investigation.to_dict()
+        except Exception as serialization_error:
+            logger.error(f"Investigation serialization failed for {inv_id}: {str(serialization_error)}")
+            # Fallback to basic data
+            inv_data = {
+                'id': investigation.id,
+                'target': investigation.target_profile.primary_identifier if hasattr(investigation, 'target_profile') else 'Unknown',
+                'status': investigation.status.value if hasattr(investigation, 'status') else 'unknown',
+                'created_at': investigation.created_at.isoformat() if hasattr(investigation, 'created_at') else datetime.utcnow().isoformat(),
+                'investigation_type': investigation.investigation_type.value if hasattr(investigation, 'investigation_type') else 'unknown',
+                'investigator_name': investigation.investigator_name if hasattr(investigation, 'investigator_name') else 'Unknown'
+            }
         
         # Add detailed progress information
         inv_data['progress_percentage'] = investigation.get_overall_progress_percentage()
@@ -593,9 +671,9 @@ def get_investigation(inv_id):
         if report_id in reports:
             report = reports[report_id]
             report_time = datetime.fromisoformat(report['generated_at'])
-            if datetime.utcnow() - report_time < timedelta(minutes=10):
+            if datetime.utcnow() - report_time < timedelta(minutes=60):
                 inv_data['report_available'] = True
-                inv_data['report_expires_at'] = (report_time + timedelta(minutes=10)).isoformat()
+                inv_data['report_expires_at'] = (report_time + timedelta(minutes=60)).isoformat()
                 inv_data['report_data'] = report
             else:
                 inv_data['report_available'] = False
@@ -618,9 +696,9 @@ def get_investigation(inv_id):
     if report_id in reports:
         report = reports[report_id]
         report_time = datetime.fromisoformat(report['generated_at'])
-        if datetime.utcnow() - report_time < timedelta(minutes=10):
+        if datetime.utcnow() - report_time < timedelta(minutes=60):
             inv['report_available'] = True
-            inv['report_expires_at'] = (report_time + timedelta(minutes=10)).isoformat()
+            inv['report_expires_at'] = (report_time + timedelta(minutes=60)).isoformat()
             inv['report_data'] = report
         else:
             inv['report_available'] = False
@@ -654,7 +732,7 @@ def generate_report(inv_id):
             'type': investigation.investigation_type.value,
             'investigator': investigation.investigator_name,
             'generated_at': datetime.utcnow().isoformat(),
-            'expires_at': (datetime.utcnow() + timedelta(minutes=10)).isoformat(),
+            'expires_at': (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
             'content': {
                 'executive_summary': investigation.executive_summary,
                 'key_findings': investigation.key_findings,
@@ -665,7 +743,17 @@ def generate_report(inv_id):
                     'infrastructure_intelligence': investigation.infrastructure_intelligence.__dict__ if investigation.infrastructure_intelligence else None,
                     'threat_intelligence': investigation.threat_intelligence.__dict__ if investigation.threat_intelligence else None
                 },
-                'compliance_reports': [report.__dict__ for report in investigation.compliance_reports],
+                'compliance_reports': [
+                    {
+                        'framework': report.framework.value if hasattr(report.framework, 'value') else report.framework,
+                        'compliant': report.compliant,
+                        'risk_level': report.risk_level,
+                        'findings': report.findings,
+                        'recommendations': getattr(report, 'recommendations', []),
+                        'data_categories': getattr(report, 'data_categories_identified', []),
+                        'generated_at': report.generated_at.isoformat() if hasattr(report, 'generated_at') and report.generated_at else None
+                    } for report in investigation.compliance_reports
+                ],
                 'investigation_metadata': {
                     'investigation_id': inv_id,
                     'generated_by': investigation.investigator_name,
@@ -683,13 +771,29 @@ def generate_report(inv_id):
         
         reports[report_id] = report
         
-        logger.info(f"Generated OSINT report for investigation {inv_id}")
+        # Add to audit history for permanent tracking
+        audit_entry = {
+            'report_id': report_id,
+            'investigation_id': inv_id,
+            'target': investigation.target_profile.primary_identifier,
+            'investigator_name': investigation.investigator_name,
+            'investigator_id': investigation.investigator_id,
+            'generated_at': report['generated_at'],
+            'report_type': investigation.investigation_type.value,
+            'classification': investigation.classification_level,
+            'priority': investigation.priority.value,
+            'status': 'generated'
+        }
+        reports_audit_history[report_id] = audit_entry
+        save_audit_history()  # Persist to file
+        
+        logger.info(f"Generated OSINT report for investigation {inv_id} by {investigation.investigator_name}")
         
         return jsonify({
             'message': 'OSINT report generated successfully',
             'report_id': report_id,
             'expires_at': report['expires_at'],
-            'available_for_minutes': 10,
+            'available_for_minutes': 60,
             'report_size_kb': len(str(report)) // 1024,
             'data_points': investigation.progress.data_points_collected
         }), 201
@@ -709,7 +813,7 @@ def generate_report(inv_id):
         'type': investigation['type'],
         'investigator': investigation['investigator'],
         'generated_at': datetime.utcnow().isoformat(),
-        'expires_at': (datetime.utcnow() + timedelta(minutes=10)).isoformat(),
+        'expires_at': (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
         'content': {
             'executive_summary': f'OSINT investigation report for {investigation["target"]}',
             'findings': 'Legacy demo findings for testing purposes',
@@ -725,11 +829,27 @@ def generate_report(inv_id):
     
     reports[report_id] = report
     
+    # Add to audit history for permanent tracking
+    audit_entry = {
+        'report_id': report_id,
+        'investigation_id': inv_id,
+        'target': investigation['target'],
+        'investigator_name': investigation.get('investigator', 'Unknown'),
+        'investigator_id': investigation.get('investigator', 'Unknown').lower().replace(' ', '_'),
+        'generated_at': report['generated_at'],
+        'report_type': investigation['type'],
+        'classification': 'confidential',
+        'priority': investigation.get('priority', 'normal'),
+        'status': 'generated'
+    }
+    reports_audit_history[report_id] = audit_entry
+    save_audit_history()  # Persist to file
+    
     return jsonify({
         'message': 'Report generated successfully',
         'report_id': report_id,
         'expires_at': report['expires_at'],
-        'available_for_minutes': 10
+        'available_for_minutes': 60
     }), 201
 
 @app.route('/api/investigations/<inv_id>/report', methods=['GET'])
@@ -743,7 +863,7 @@ def get_report(inv_id):
     report_time = datetime.fromisoformat(report['generated_at'])
     
     # Check if expired
-    if datetime.utcnow() - report_time >= timedelta(minutes=10):
+    if datetime.utcnow() - report_time >= timedelta(minutes=60):
         del reports[report_id]
         return jsonify({'error': 'Report has expired'}), 410
     
@@ -764,7 +884,7 @@ def get_all_reports():
     
     for report_id, report in reports.items():
         report_time = datetime.fromisoformat(report['generated_at'])
-        if datetime.utcnow() - report_time >= timedelta(minutes=10):
+        if datetime.utcnow() - report_time >= timedelta(minutes=60):
             expired_reports.append(report_id)
         else:
             expires_at = datetime.fromisoformat(report['expires_at'])
@@ -791,7 +911,7 @@ def download_report(inv_id):
     report_time = datetime.fromisoformat(report['generated_at'])
     
     # Check if expired
-    if datetime.utcnow() - report_time >= timedelta(minutes=10):
+    if datetime.utcnow() - report_time >= timedelta(minutes=60):
         del reports[report_id]
         return jsonify({'error': 'Report has expired'}), 410
     
@@ -829,6 +949,97 @@ def get_mcp_servers():
         }
     ])
 
+@app.route('/api/reports/audit-history', methods=['GET'])
+def get_reports_audit_history():
+    """Get complete audit history of all generated reports"""
+    
+    # Load fresh audit history from file to ensure consistency
+    load_audit_history()
+    
+    # Get query parameters for filtering
+    investigator_filter = request.args.get('investigator')
+    days = int(request.args.get('days', 30))  # Default to last 30 days
+    report_type_filter = request.args.get('type')
+    
+    # Calculate date range
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+    
+    # Filter audit history
+    filtered_history = []
+    for report_id, audit_entry in reports_audit_history.items():
+        entry_date = datetime.fromisoformat(audit_entry['generated_at'])
+        
+        # Date filter
+        if entry_date < start_date:
+            continue
+            
+        # Investigator filter
+        if investigator_filter and investigator_filter.lower() not in audit_entry['investigator_name'].lower():
+            continue
+            
+        # Report type filter
+        if report_type_filter and report_type_filter != audit_entry['report_type']:
+            continue
+            
+        # Add additional computed fields
+        audit_entry_copy = audit_entry.copy()
+        audit_entry_copy['days_ago'] = (end_date - entry_date).days
+        audit_entry_copy['is_expired'] = report_id not in reports  # Check if still available
+        
+        filtered_history.append(audit_entry_copy)
+    
+    # Sort by generation date (newest first)
+    filtered_history.sort(key=lambda x: x['generated_at'], reverse=True)
+    
+    # Generate summary statistics
+    total_reports = len(filtered_history)
+    investigators = list(set(entry['investigator_name'] for entry in filtered_history))
+    report_types = list(set(entry['report_type'] for entry in filtered_history))
+    
+    # Reports by investigator
+    reports_by_investigator = {}
+    for entry in filtered_history:
+        investigator = entry['investigator_name']
+        if investigator not in reports_by_investigator:
+            reports_by_investigator[investigator] = 0
+        reports_by_investigator[investigator] += 1
+    
+    # Reports by type
+    reports_by_type = {}
+    for entry in filtered_history:
+        report_type = entry['report_type']
+        if report_type not in reports_by_type:
+            reports_by_type[report_type] = 0
+        reports_by_type[report_type] += 1
+    
+    return jsonify({
+        'summary': {
+            'total_reports': total_reports,
+            'date_range': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days': days
+            },
+            'investigators_count': len(investigators),
+            'report_types_count': len(report_types),
+            'active_reports': len([e for e in filtered_history if not e['is_expired']]),
+            'expired_reports': len([e for e in filtered_history if e['is_expired']])
+        },
+        'statistics': {
+            'reports_by_investigator': reports_by_investigator,
+            'reports_by_type': reports_by_type,
+            'investigators': investigators,
+            'report_types': report_types
+        },
+        'audit_history': filtered_history,
+        'filters': {
+            'investigator': investigator_filter,
+            'days': days,
+            'type': report_type_filter
+        }
+    })
+
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     today = datetime.utcnow().date()
@@ -858,7 +1069,7 @@ def get_stats():
     active_reports = 0
     for report in reports.values():
         report_time = datetime.fromisoformat(report['generated_at'])
-        if datetime.utcnow() - report_time < timedelta(minutes=10):
+        if datetime.utcnow() - report_time < timedelta(minutes=60):
             active_reports += 1
     
     # Include legacy investigations for backward compatibility
@@ -1695,7 +1906,7 @@ def cleanup_expired_reports():
         expired_reports = []
         for report_id, report in reports.items():
             report_time = datetime.fromisoformat(report['generated_at'])
-            if datetime.utcnow() - report_time >= timedelta(minutes=10):
+            if datetime.utcnow() - report_time >= timedelta(minutes=60):
                 expired_reports.append(report_id)
         
         for report_id in expired_reports:

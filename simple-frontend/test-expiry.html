@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Investigation Expiry Test</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #1a1a1a; color: white; }
+        .investigation { border: 1px solid #555; margin: 10px 0; padding: 15px; background: #2a2a2a; }
+        .expired { opacity: 0.7; background: #1f1f1f; }
+        .status { color: #6b7280; margin-top: 10px; }
+        button { padding: 8px 16px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Investigation Expiry Test</h1>
+    <div id="investigations"></div>
+
+    <script>
+        // Test data with different ages
+        const testInvestigations = [
+            {
+                id: '1',
+                target: 'fresh-investigation.com',
+                created_at: Date.now() / 1000, // Just created
+                status: 'completed',
+                report_generated: false
+            },
+            {
+                id: '2',
+                target: '30min-old.com',
+                created_at: (Date.now() - 30 * 60 * 1000) / 1000, // 30 minutes old
+                status: 'completed',
+                report_generated: false
+            },
+            {
+                id: '3',
+                target: '59min-old.com',
+                created_at: (Date.now() - 59 * 60 * 1000) / 1000, // 59 minutes old
+                status: 'completed',
+                report_generated: false
+            },
+            {
+                id: '4',
+                target: '61min-old.com',
+                created_at: (Date.now() - 61 * 60 * 1000) / 1000, // 61 minutes old (expired)
+                status: 'completed',
+                report_generated: false
+            },
+            {
+                id: '5',
+                target: '2hours-old.com',
+                created_at: (Date.now() - 2 * 60 * 60 * 1000) / 1000, // 2 hours old (expired)
+                status: 'completed',
+                report_generated: false
+            }
+        ];
+
+        function displayInvestigations() {
+            const container = document.getElementById('investigations');
+            
+            container.innerHTML = testInvestigations.map(inv => {
+                const investigationTime = new Date(inv.created_at * 1000);
+                const now = new Date();
+                const hoursElapsed = (now - investigationTime) / (1000 * 60 * 60);
+                const minutesElapsed = (now - investigationTime) / (1000 * 60);
+                const investigationExpired = hoursElapsed >= 1;
+                
+                // Same logic as main app
+                const canGenerateReport = !inv.report_generated && !investigationExpired;
+                
+                return `
+                    <div class="investigation ${investigationExpired ? 'expired' : ''}">
+                        <h3>${inv.target}</h3>
+                        <p>Created: ${investigationTime.toLocaleString()}</p>
+                        <p>Age: ${minutesElapsed.toFixed(0)} minutes (${hoursElapsed.toFixed(2)} hours)</p>
+                        <p>Expired: ${investigationExpired ? 'YES' : 'NO'}</p>
+                        
+                        ${canGenerateReport ? 
+                            '<button>📄 Generate Report</button>' : 
+                            ''
+                        }
+                        
+                        ${investigationExpired ? 
+                            `<div class="status">⏰ Investigation expired (${hoursElapsed.toFixed(1)}h old) - No longer available for reporting</div>` :
+                            `<div class="status">📄 Investigation complete - Generate report to view results (expires in ${(60 - minutesElapsed).toFixed(0)} minutes)</div>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Display and update every second
+        displayInvestigations();
+        setInterval(displayInvestigations, 1000);
+    </script>
+</body>
+</html>

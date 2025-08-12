@@ -37,9 +37,9 @@ class User(Base):
     verification_token = Column(String, nullable=True)
     verification_token_expires = Column(DateTime(timezone=True), nullable=True)
     
-    # Relationships
-    # investigations = relationship("Investigation", back_populates="user")
-    # audit_events = relationship("AuditEvent", back_populates="user")
+    # Relationships (using string references to avoid circular imports)
+    investigations = relationship("Investigation", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
     
     def __repr__(self):
         return f"<User {self.email}>"

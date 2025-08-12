@@ -27,6 +27,7 @@ class InvestigationStatus(Enum):
     PROFILING = "profiling"
     COLLECTING = "collecting"
     ANALYZING = "analyzing"
+    ASSESSING_RISK = "assessing_risk"
     VERIFYING = "verifying"
     GENERATING_REPORT = "generating_report"
     COMPLETED = "completed"
@@ -157,7 +158,7 @@ class ComplianceReport:
 @dataclass
 class InvestigationProgress:
     """Real-time investigation progress tracking"""
-    stage: InvestigationStatus
+    stage: InvestigationStatus = InvestigationStatus.PENDING
     stage_progress: float = 0.0  # 0.0 to 1.0
     overall_progress: float = 0.0  # 0.0 to 1.0
     current_activity: str = ""
@@ -217,19 +218,83 @@ class OSINTInvestigation:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert investigation to dictionary for API responses"""
-        def serialize_datetime(obj):
+        def serialize_value(obj, seen=None):
+            """Recursively serialize all types to JSON-compatible values"""
+            if seen is None:
+                seen = set()
+            
+            # Handle None
+            if obj is None:
+                return None
+            
+            # Handle primitive types
+            if isinstance(obj, (str, int, float, bool)):
+                return obj
+            
+            # Handle datetime objects
             if isinstance(obj, datetime):
                 return obj.isoformat()
-            return obj
             
-        def convert_dataclass(obj):
-            if hasattr(obj, '__dict__'):
-                return {k: serialize_datetime(v) if isinstance(v, datetime) 
-                       else convert_dataclass(v) if hasattr(v, '__dict__')
-                       else v for k, v in obj.__dict__.items()}
-            return obj
+            # Handle timedelta objects
+            if isinstance(obj, timedelta):
+                return obj.total_seconds()
             
-        return convert_dataclass(self)
+            # Handle Enum objects
+            if isinstance(obj, Enum):
+                return obj.value
+            
+            # Handle UUID objects
+            if hasattr(obj, 'hex'):  # UUID objects
+                return str(obj)
+            
+            # Prevent infinite recursion
+            obj_id = id(obj)
+            if obj_id in seen:
+                return str(obj)
+            seen.add(obj_id)
+            
+            try:
+                # Handle lists and tuples
+                if isinstance(obj, (list, tuple)):
+                    result = [serialize_value(item, seen) for item in obj]
+                    seen.remove(obj_id)
+                    return result
+                
+                # Handle sets
+                if isinstance(obj, set):
+                    result = [serialize_value(item, seen) for item in obj]
+                    seen.remove(obj_id)
+                    return result
+                
+                # Handle dictionaries
+                if isinstance(obj, dict):
+                    result = {str(k): serialize_value(v, seen) for k, v in obj.items()}
+                    seen.remove(obj_id)
+                    return result
+                
+                # Handle dataclasses and objects with __dict__
+                if hasattr(obj, '__dict__'):
+                    result = {}
+                    for k, v in obj.__dict__.items():
+                        try:
+                            result[k] = serialize_value(v, seen)
+                        except Exception as e:
+                            # If serialization fails for a field, convert to string
+                            result[k] = str(v)
+                    seen.remove(obj_id)
+                    return result
+                
+                # Fallback: convert to string
+                seen.remove(obj_id)
+                return str(obj)
+                
+            except Exception:
+                # Final fallback
+                if obj_id in seen:
+                    seen.remove(obj_id)
+                return str(obj)
+            
+        return serialize_value(self)
     
     def get_stage_progress_percentage(self) -> int:
         """Get current stage progress as percentage"""

@@ -5,4 +5,5 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
-# Models will be imported when needed to avoid circular imports
+# Import all models so they are registered with SQLAlchemy
+from app.models import *  # noqa: F403,F401

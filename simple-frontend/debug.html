@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OSINT Debug</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #1a1a1a; color: white; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #2a2a2a; }
+        button { padding: 10px 20px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        pre { background: #333; padding: 10px; overflow: auto; font-size: 12px; }
+        .investigation { border: 1px solid #555; margin: 10px 0; padding: 10px; }
+        .btn-generate { background: #2196F3; }
+        .btn-print { background: #FF9800; }
+    </style>
+</head>
+<body>
+    <h1>🔍 OSINT Investigation Debug Page</h1>
+    
+    <div class="section">
+        <h2>Quick Test</h2>
+        <button onclick="createTestInvestigation()">Create Test Investigation</button>
+        <button onclick="showInvestigations()">Show All Investigations</button>
+        <button onclick="clearStorage()">Clear Storage</button>
+    </div>
+
+    <div class="section">
+        <h2>API Test</h2>
+        <button onclick="testAPI()">Test API Connection</button>
+        <pre id="api-result">Click "Test API Connection" to see results...</pre>
+    </div>
+
+    <div class="section">
+        <h2>LocalStorage Data</h2>
+        <pre id="storage-data">Click "Show All Investigations" to see data...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Investigations</h2>
+        <div id="investigations-list">No investigations loaded yet.</div>
+    </div>
+
+    <script>
+        let investigations = [];
+
+        function createTestInvestigation() {
+            const testInv = {
+                id: 'test-' + Date.now(),
+                target: 'debug-test.com',
+                investigation_type: 'comprehensive',
+                type: 'comprehensive',
+                status: 'processing',
+                created_at: Date.now() / 1000,
+                priority: 'high',
+                investigator: 'Debug User',
+                progress: 0,
+                report_generated: false
+            };
+            
+            investigations.push(testInv);
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            
+            alert('Test investigation created!');
+            showInvestigations();
+        }
+
+        function showInvestigations() {
+            // Load from localStorage
+            const stored = localStorage.getItem('osint_investigations');
+            document.getElementById('storage-data').textContent = stored || 'No data in localStorage';
+            
+            if (stored) {
+                try {
+                    investigations = JSON.parse(stored);
+                } catch (e) {
+                    document.getElementById('storage-data').textContent = 'ERROR parsing localStorage: ' + e.message;
+                    return;
+                }
+            }
+
+            // Display investigations
+            const container = document.getElementById('investigations-list');
+            
+            if (investigations.length === 0) {
+                container.innerHTML = '<p>No investigations found.</p>';
+                return;
+            }
+
+            container.innerHTML = investigations.map(inv => `
+                <div class="investigation">
+                    <h3>${inv.target || 'Unknown Target'}</h3>
+                    <p><strong>ID:</strong> ${inv.id}</p>
+                    <p><strong>Status:</strong> ${inv.status || 'Unknown'}</p>
+                    <p><strong>Type:</strong> ${inv.type || inv.investigation_type || 'Unknown'}</p>
+                    <p><strong>Created:</strong> ${new Date(inv.created_at * 1000 || inv.created_at).toLocaleString()}</p>
+                    <p><strong>Investigator:</strong> ${inv.investigator || 'System'}</p>
+                    
+                    <button class="btn-generate" onclick="generateReport('${inv.id}')">📄 Generate Report</button>
+                    ${inv.report_generated ? 
+                        `<button class="btn-print" onclick="printReport('${inv.id}')">🖨️ Print Report</button>` : 
+                        ''
+                    }
+                </div>
+            `).join('');
+        }
+
+        function generateReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) {
+                alert('Investigation not found!');
+                return;
+            }
+            
+            investigation.report_generated = true;
+            investigation.report_generated_at = new Date().toISOString();
+            
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            
+            alert('Report generated successfully!');
+            showInvestigations();
+        }
+
+        function printReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) {
+                alert('Investigation not found!');
+                return;
+            }
+            
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>OSINT Report - ${investigation.target}</title>
+                    <style>
+                        body { font-family: Arial; margin: 2cm; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
+                        .section { margin-bottom: 2rem; }
+                        .meta { background: #f5f5f5; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🔍 Enterprise OSINT Investigation Report</h1>
+                        <h2>Target: ${investigation.target}</h2>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Investigation Details</h3>
+                        <div class="meta">
+                            <p><strong>Investigation ID:</strong> ${investigation.id}</p>
+                            <p><strong>Type:</strong> ${investigation.type || investigation.investigation_type}</p>
+                            <p><strong>Priority:</strong> ${investigation.priority || 'Normal'}</p>
+                            <p><strong>Investigator:</strong> ${investigation.investigator || 'System'}</p>
+                            <p><strong>Created:</strong> ${new Date(investigation.created_at * 1000 || investigation.created_at).toLocaleString()}</p>
+                            <p><strong>Status:</strong> ${investigation.status}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Investigation Summary</h3>
+                        <p>This is a demonstration OSINT report for target: <strong>${investigation.target}</strong></p>
+                        <p>Investigation type: ${(investigation.type || investigation.investigation_type || 'comprehensive').toUpperCase()}</p>
+                        <p>This report contains simulated OSINT findings for demonstration purposes.</p>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Security Notice</h3>
+                        <p style="color: red;"><strong>DEMO REPORT:</strong> This is a demonstration of the Enterprise OSINT Platform.</p>
+                        <p>Report generated: ${new Date().toLocaleString()}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function testAPI() {
+            document.getElementById('api-result').textContent = 'Testing API...';
+            
+            // Test GET investigations
+            fetch('/api/v1/demo/investigations')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('api-result').textContent = 
+                        'API Response:\n' + JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    document.getElementById('api-result').textContent = 
+                        'API Error: ' + error.message;
+                });
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('osint_investigations');
+            investigations = [];
+            alert('Storage cleared!');
+            showInvestigations();
+        }
+
+        // Auto-load on page start
+        showInvestigations();
+    </script>
+</body>
+</html>

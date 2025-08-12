@@ -1,0 +1,78 @@
+---
+# Simple Vault Deployment for Development
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+        component: secret-management
+    spec:
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.4
+          args:
+            - "vault"
+            - "server"
+            - "-dev"
+            - "-dev-root-token-id=dev-only-token"
+            - "-dev-listen-address=0.0.0.0:8200"
+          env:
+            - name: VAULT_ADDR
+              value: "http://localhost:8200"
+            - name: VAULT_TOKEN
+              value: "dev-only-token"
+          ports:
+            - name: vault-port
+              containerPort: 8200
+              protocol: TCP
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+spec:
+  type: ClusterIP
+  selector:
+    app: vault
+  ports:
+  - name: vault
+    port: 8200
+    targetPort: 8200
+    protocol: TCP

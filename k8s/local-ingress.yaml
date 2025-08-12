@@ -1,0 +1,157 @@
+---
+# Ingress for Enterprise OSINT Platform - Local Development
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-platform-ingress
+  namespace: osint-platform
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # Load balancing and performance
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Rate limiting for production-like behavior
+    nginx.ingress.kubernetes.io/rate-limit-connections: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-burst: "50"
+    # Health checks
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+spec:
+  rules:
+  - host: osint.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-backend-metrics
+            port:
+              number: 8000
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+  - host: flower.osint.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-celery-flower
+            port:
+              number: 5555
+---
+# Additional ingress for direct IP access (localhost alternative)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-platform-ingress-localhost
+  namespace: osint-platform
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /osint-api(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+      - path: /osint-flower(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: osint-celery-flower
+            port:
+              number: 5555
+      - path: /osint-metrics(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: osint-fastapi-backend-metrics
+            port:
+              number: 8000
+---
+# Service for external access to ingress
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-platform-external
+  namespace: osint-platform
+  labels:
+    app: osint-platform-external
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 443
+    protocol: TCP
+    name: https
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+---
+# ConfigMap for custom NGINX configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: osint-nginx-config
+  namespace: ingress-nginx
+data:
+  # Performance optimizations for local development
+  worker-processes: "auto"
+  worker-connections: "1024"
+  keepalive-requests: "100"
+  keepalive-timeout: "65s"
+  client-max-body-size: "10m"
+  proxy-buffer-size: "8k"
+  proxy-buffers: "8 8k"
+  # Load balancing method
+  upstream-keepalive-connections: "32"
+  upstream-keepalive-requests: "100"
+  # Logging for debugging
+  error-log-level: "info"
+  access-log-params: "buffer=16k flush=5s"

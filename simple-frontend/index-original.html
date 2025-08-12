@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise OSINT Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            background-image: 
+                radial-gradient(circle at 25% 25%, #1a1a1a 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, #2a2a2a 0%, transparent 50%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            color: #9ca3af;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #60a5fa;
+            box-shadow: 0 20px 40px rgba(96, 165, 250, 0.1);
+        }
+        
+        .card h3 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            color: #d1d5db;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .online { 
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .offline { 
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        .warning {
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+        
+        .investigation-form {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #f3f4f6;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #374151;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #111827;
+            color: #f3f4f6;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+        
+        .investigation-list {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+        }
+        
+        .investigation-item {
+            border-bottom: 1px solid #374151;
+            padding: 1.5rem 0;
+            position: relative;
+        }
+        
+        .investigation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .investigation-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .investigation-title {
+            flex: 1;
+        }
+        
+        .investigation-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .investigation-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .meta-item {
+            color: #9ca3af;
+        }
+        
+        .meta-value {
+            color: #f3f4f6;
+            font-weight: 500;
+        }
+        
+        .report-status {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #111827;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+        
+        .report-expired {
+            color: #f59e0b;
+        }
+        
+        .report-available {
+            color: #10b981;
+        }
+        
+        .health-check {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            border: 1px solid #374151;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .timer {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .expired {
+            color: #ef4444;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #374151;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width 0.3s ease;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 2s infinite;
+        }
+        
+        /* World Clocks Styling */
+        .world-clocks-card {
+            grid-column: span 2;
+        }
+        
+        .world-clocks {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        
+        .clock-item {
+            text-align: center;
+        }
+        
+        .clock-face {
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .clock-face:hover {
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+        
+        .clock-label {
+            color: #9ca3af;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .clock-time {
+            color: #60a5fa;
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 0.2rem;
+        }
+        
+        .clock-date {
+            color: #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 1200px) {
+            .world-clocks-card {
+                grid-column: span 1;
+            }
+            
+            .world-clocks {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .world-clocks {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .investigation-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Enterprise OSINT Platform</h1>
+            <p>Professional Open Source Intelligence Research & Analysis</p>
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h3>🛡️ System Status</h3>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Backend API: Online</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Database: Connected</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>MCP Servers: 3 Online</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot warning"></div>
+                    <span>Report Retention: 10min</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📊 Quick Stats</h3>
+                <p><strong>Investigations Today:</strong> <span id="todayCount">0</span></p>
+                <p><strong>Reports Generated:</strong> <span id="reportCount">0</span></p>
+                <p><strong>Active Reports:</strong> <span id="activeReports">0</span></p>
+                <p><strong>System Uptime:</strong> 99.9%</p>
+            </div>
+            
+            <div class="card">
+                <h3>🌐 MCP Servers</h3>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Social Media Intelligence</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Infrastructure Assessment</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Threat Intelligence</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🕐 Report Retention</h3>
+                <p><strong>Active Reports:</strong> <span id="activeCount">0</span></p>
+                <p><strong>Expiring Soon:</strong> <span id="expiringSoon">0</span></p>
+                <p><strong>Total History:</strong> <span id="historyCount">0</span></p>
+                <p><strong>Security:</strong> 10-minute expiry</p>
+            </div>
+            
+            <div class="card world-clocks-card">
+                <h3>🌍 Global Operations</h3>
+                <div class="world-clocks">
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-la">
+                            <div class="clock-label">Los Angeles</div>
+                            <div class="clock-time" id="time-la">--:--:--</div>
+                            <div class="clock-date" id="date-la">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-ny">
+                            <div class="clock-label">New York</div>
+                            <div class="clock-time" id="time-ny">--:--:--</div>
+                            <div class="clock-date" id="date-ny">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-london">
+                            <div class="clock-label">London</div>
+                            <div class="clock-time" id="time-london">--:--:--</div>
+                            <div class="clock-date" id="date-london">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-tokyo">
+                            <div class="clock-label">Tokyo</div>
+                            <div class="clock-time" id="time-tokyo">--:--:--</div>
+                            <div class="clock-date" id="date-tokyo">--/--/----</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="investigation-form">
+            <h3>🎯 Start New Investigation</h3>
+            <form id="investigationForm">
+                <div class="form-group">
+                    <label for="target">Investigation Target</label>
+                    <input type="text" id="target" placeholder="example.com, company name, or individual" required>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="type">Investigation Type</label>
+                        <select id="type">
+                            <option value="comprehensive">Comprehensive Investigation</option>
+                            <option value="corporate">Corporate Intelligence</option>
+                            <option value="infrastructure">Infrastructure Assessment</option>
+                            <option value="social_media">Social Media Analysis</option>
+                            <option value="threat_assessment">Threat Assessment</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="priority">Priority</label>
+                        <select id="priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="investigator">Investigator Name</label>
+                    <input type="text" id="investigator" placeholder="Your name for audit trail" required>
+                </div>
+                
+                <button type="submit" class="btn">🚀 Start Investigation</button>
+            </form>
+        </div>
+        
+        <div class="investigation-list">
+            <h3>📋 Investigation History</h3>
+            <div id="investigations">
+                <p>No investigations yet. Start your first investigation above!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="health-check">
+        <div style="display: flex; align-items: center;">
+            <div class="status-dot online"></div>
+            <strong>System Health: OK</strong>
+        </div>
+    </div>
+
+    <script>
+        // Track investigations and reports
+        let investigations = [];
+        let reportTimers = {};
+        
+        // World Clock Functions
+        function updateWorldClocks() {
+            const now = new Date();
+            
+            // Los Angeles (Pacific Time)
+            const laTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+            document.getElementById('time-la').textContent = laTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-la').textContent = laTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // New York (Eastern Time)
+            const nyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            document.getElementById('time-ny').textContent = nyTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-ny').textContent = nyTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // London (Greenwich Mean Time)
+            const londonTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+            document.getElementById('time-london').textContent = londonTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-london').textContent = londonTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // Tokyo (Japan Standard Time)
+            const tokyoTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+            document.getElementById('time-tokyo').textContent = tokyoTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-tokyo').textContent = tokyoTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+        }
+        
+        // Update stats
+        function updateStats() {
+            const today = new Date().toDateString();
+            const todayInvestigations = investigations.filter(inv => 
+                new Date(inv.created_at).toDateString() === today
+            );
+            
+            document.getElementById('todayCount').textContent = todayInvestigations.length;
+            document.getElementById('reportCount').textContent = investigations.filter(inv => inv.report_generated).length;
+            document.getElementById('historyCount').textContent = investigations.length;
+            
+            // Count active reports (not expired)
+            const activeReports = investigations.filter(inv => {
+                if (!inv.report_generated) return false;
+                const reportTime = new Date(inv.report_generated_at);
+                const now = new Date();
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                return minutesElapsed < 10;
+            });
+            
+            document.getElementById('activeReports').textContent = activeReports.length;
+            document.getElementById('activeCount').textContent = activeReports.length;
+            
+            // Count reports expiring soon (less than 2 minutes left)
+            const expiringSoon = activeReports.filter(inv => {
+                const reportTime = new Date(inv.report_generated_at);
+                const now = new Date();
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                return minutesElapsed > 8; // Less than 2 minutes left
+            });
+            
+            document.getElementById('expiringSoon').textContent = expiringSoon.length;
+        }
+        
+        // Format time remaining
+        function formatTimeRemaining(minutes, seconds) {
+            return `${Math.floor(minutes)}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Update report timers
+        function updateReportTimers() {
+            investigations.forEach(inv => {
+                if (inv.report_generated) {
+                    const reportTime = new Date(inv.report_generated_at);
+                    const now = new Date();
+                    const totalSeconds = Math.floor((now - reportTime) / 1000);
+                    const remainingSeconds = Math.max(0, 600 - totalSeconds); // 10 minutes = 600 seconds
+                    
+                    const timerElement = document.getElementById(`timer_${inv.id}`);
+                    if (timerElement) {
+                        if (remainingSeconds > 0) {
+                            const minutes = Math.floor(remainingSeconds / 60);
+                            const seconds = remainingSeconds % 60;
+                            timerElement.innerHTML = `⏱️ Expires in: <span class="timer">${formatTimeRemaining(minutes, seconds)}</span>`;
+                            timerElement.className = 'report-status report-available';
+                        } else {
+                            timerElement.innerHTML = `🔴 <span class="expired">Report Expired</span>`;
+                            timerElement.className = 'report-status report-expired';
+                        }
+                    }
+                }
+            });
+            updateStats();
+        }
+        
+        // Generate PDF report (mock for now)
+        function generateReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) return;
+            
+            // Mark as report generated
+            investigation.report_generated = true;
+            investigation.report_generated_at = new Date().toISOString();
+            
+            // Save to localStorage for persistence
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            
+            // Update display
+            loadInvestigations();
+            
+            alert('Report generated successfully! You have 10 minutes to download before it expires.');
+        }
+        
+        // Print report
+        function printReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) return;
+            
+            // Check if report is still valid
+            if (investigation.report_generated) {
+                const reportTime = new Date(investigation.report_generated_at);
+                const now = new Date();
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                
+                if (minutesElapsed >= 10) {
+                    alert('Report has expired. Please generate a new report.');
+                    return;
+                }
+            }
+            
+            // Create printable content
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>OSINT Report - ${investigation.target}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 2cm; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
+                        .section { margin-bottom: 2rem; }
+                        .meta { background: #f5f5f5; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+                        .footer { position: fixed; bottom: 1cm; left: 2cm; right: 2cm; text-align: center; font-size: 0.8em; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🔍 Enterprise OSINT Investigation Report</h1>
+                        <h2>Target: ${investigation.target}</h2>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Investigation Metadata</h3>
+                        <div class="meta">
+                            <p><strong>Investigation ID:</strong> ${investigation.id}</p>
+                            <p><strong>Type:</strong> ${investigation.type}</p>
+                            <p><strong>Priority:</strong> ${investigation.priority}</p>
+                            <p><strong>Investigator:</strong> ${investigation.investigator || 'Unknown'}</p>
+                            <p><strong>Created:</strong> ${new Date(investigation.created_at).toLocaleString()}</p>
+                            <p><strong>Status:</strong> ${investigation.status}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Executive Summary</h3>
+                        <p>This report contains the results of an OSINT investigation conducted on ${investigation.target}.</p>
+                        <p>Investigation type: ${investigation.type.replace('_', ' ').toUpperCase()}</p>
+                        <p>Priority level: ${investigation.priority.toUpperCase()}</p>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Findings</h3>
+                        <p>Target analysis for ${investigation.target} has been completed using multiple intelligence sources.</p>
+                        <p>This is a demonstration report. In production, this would contain detailed OSINT findings.</p>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Security Notice</h3>
+                        <p style="color: red;"><strong>CONFIDENTIAL:</strong> This report expires 10 minutes after generation for security purposes.</p>
+                        <p>Report generated: ${investigation.report_generated_at ? new Date(investigation.report_generated_at).toLocaleString() : 'Not generated'}</p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Generated by Enterprise OSINT Platform | Confidential and Proprietary</p>
+                        <p>Report ID: ${investigation.id} | Generated: ${new Date().toLocaleString()}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            // Open print dialog
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        // Investigation form handler
+        document.getElementById('investigationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                target: document.getElementById('target').value,
+                type: document.getElementById('type').value,
+                priority: document.getElementById('priority').value,
+                investigator: document.getElementById('investigator').value
+            };
+            
+            try {
+                const response = await fetch('/api/investigations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const investigation = await response.json();
+                    investigation.investigator = formData.investigator;
+                    alert(`Investigation ${investigation.id} started successfully!`);
+                    loadInvestigations();
+                    document.getElementById('investigationForm').reset();
+                } else {
+                    alert('Failed to start investigation');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting investigation');
+            }
+        });
+        
+        // Load investigations
+        async function loadInvestigations() {
+            try {
+                // Load from localStorage for persistence
+                const stored = localStorage.getItem('osint_investigations');
+                if (stored) {
+                    investigations = JSON.parse(stored);
+                }
+                
+                // Also load from API
+                const response = await fetch('/api/investigations');
+                const apiInvestigations = await response.json();
+                
+                // Merge API data with stored data
+                apiInvestigations.forEach(apiInv => {
+                    const existing = investigations.find(inv => inv.id === apiInv.id);
+                    if (!existing) {
+                        investigations.push(apiInv);
+                    } else {
+                        // Update existing with API data, but keep report info
+                        Object.assign(existing, apiInv, {
+                            report_generated: existing.report_generated,
+                            report_generated_at: existing.report_generated_at,
+                            investigator: existing.investigator
+                        });
+                    }
+                });
+                
+                const container = document.getElementById('investigations');
+                if (investigations.length === 0) {
+                    container.innerHTML = '<p>No investigations yet. Start your first investigation above!</p>';
+                    return;
+                }
+                
+                // Sort by creation date (newest first)
+                investigations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                container.innerHTML = investigations.map(inv => {
+                    const canGenerateReport = inv.status === 'completed' || inv.status === 'pending';
+                    const reportExpired = inv.report_generated && 
+                        ((new Date() - new Date(inv.report_generated_at)) / (1000 * 60) >= 10);
+                    
+                    return `
+                        <div class="investigation-item">
+                            <div class="investigation-header">
+                                <div class="investigation-title">
+                                    <h4>${inv.target}</h4>
+                                    <p style="color: #60a5fa;">${inv.type.replace('_', ' ').toUpperCase()}</p>
+                                </div>
+                                <div class="investigation-actions">
+                                    ${canGenerateReport ? 
+                                        `<button class="btn btn-success" onclick="generateReport('${inv.id}')" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                            📄 Generate Report
+                                        </button>` : ''
+                                    }
+                                    ${inv.report_generated && !reportExpired ? 
+                                        `<button class="btn" onclick="printReport('${inv.id}')" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                            🖨️ Print Report
+                                        </button>` : ''
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="investigation-meta">
+                                <div class="meta-item">
+                                    <strong>Status:</strong> 
+                                    <span class="meta-value">${inv.status.toUpperCase()}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <strong>Priority:</strong> 
+                                    <span class="meta-value">${inv.priority.toUpperCase()}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <strong>Investigator:</strong> 
+                                    <span class="meta-value">${inv.investigator || 'System'}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <strong>Created:</strong> 
+                                    <span class="meta-value">${new Date(inv.created_at).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            
+                            ${inv.report_generated ? 
+                                `<div class="report-status" id="timer_${inv.id}">
+                                    <!-- Timer will be updated by JavaScript -->
+                                </div>` : ''
+                            }
+                        </div>
+                    `;
+                }).join('');
+                
+                // Save updated investigations
+                localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+                
+                // Update stats
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading investigations:', error);
+            }
+        }
+        
+        // Initialize clocks on page load
+        updateWorldClocks();
+        
+        // Load investigations on page load
+        loadInvestigations();
+        
+        // Update world clocks every second
+        setInterval(updateWorldClocks, 1000);
+        
+        // Update timers every second
+        setInterval(updateReportTimers, 1000);
+        
+        // Auto-refresh investigations every 30 seconds
+        setInterval(loadInvestigations, 30000);
+        
+        // Clean up expired reports from localStorage periodically
+        setInterval(() => {
+            const stored = localStorage.getItem('osint_investigations');
+            if (stored) {
+                let storedInvestigations = JSON.parse(stored);
+                storedInvestigations.forEach(inv => {
+                    if (inv.report_generated) {
+                        const reportTime = new Date(inv.report_generated_at);
+                        const now = new Date();
+                        const minutesElapsed = (now - reportTime) / (1000 * 60);
+                        
+                        if (minutesElapsed >= 10) {
+                            // Remove report data but keep investigation history
+                            delete inv.report_generated;
+                            delete inv.report_generated_at;
+                        }
+                    }
+                });
+                localStorage.setItem('osint_investigations', JSON.stringify(storedInvestigations));
+            }
+        }, 60000); // Check every minute
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+---
+# FastAPI Backend with Authentication
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-fastapi-backend
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+    component: backend
+    version: v2.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: osint-fastapi-backend
+  template:
+    metadata:
+      labels:
+        app: osint-fastapi-backend
+        component: backend
+        version: v2.0.0
+    spec:
+      containers:
+      - name: backend
+        image: osint-platform/fastapi-backend:v2.1.0-reports
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        # Database Configuration
+        - name: POSTGRES_SERVER
+          value: "osint-platform-postgresql"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "GlbGVmgFxi"
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_SERVER):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+        
+        # Redis Configuration
+        - name: REDIS_HOST
+          value: "osint-platform-redis-master"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: REDIS_URL
+          value: "redis://$(REDIS_HOST):$(REDIS_PORT)/$(REDIS_DB)"
+        
+        # Celery Configuration
+        - name: CELERY_BROKER_URL
+          value: "redis://$(REDIS_HOST):$(REDIS_PORT)/$(REDIS_DB)"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://$(REDIS_HOST):$(REDIS_PORT)/$(REDIS_DB)"
+        
+        # Application Configuration
+        - name: DEBUG
+          value: "true"
+        - name: API_V1_STR
+          value: "/api/v1"
+        - name: PROJECT_NAME
+          value: "Enterprise OSINT Platform"
+        
+        # Security Configuration
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          value: "240"
+        - name: REFRESH_TOKEN_EXPIRE_DAYS
+          value: "7"
+        
+        # External API Keys
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        
+        # MCP Server URLs
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        
+        # Vault Configuration
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          value: "dev-only-token"
+        - name: USE_VAULT
+          value: "false"
+        
+        # Frontend URL for email verification
+        - name: FRONTEND_URL
+          value: "https://osint.local"
+          
+        # Health check
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+            
+        # Volume mounts for reports
+        volumeMounts:
+        - name: reports-storage
+          mountPath: /app/reports
+          
+      volumes:
+      - name: reports-storage
+        persistentVolumeClaim:
+          claimName: reports-pvc
+
+---
+# FastAPI Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-fastapi-backend
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+spec:
+  selector:
+    app: osint-fastapi-backend
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+
+---
+# Persistent Volume Claim for Reports
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reports-pvc
+  namespace: osint-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

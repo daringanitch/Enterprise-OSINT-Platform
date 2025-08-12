@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise OSINT Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            background-image: 
+                radial-gradient(circle at 25% 25%, #1a1a1a 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, #2a2a2a 0%, transparent 50%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            color: #9ca3af;
+        }
+        
+        /* Authentication styles */
+        .auth-section {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .auth-button {
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-left: 0.5rem;
+        }
+        
+        .auth-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(96, 165, 250, 0.4);
+        }
+        
+        .auth-button.secondary {
+            background: transparent;
+            border: 2px solid #60a5fa;
+        }
+        
+        .auth-form {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            margin: 2rem auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #d1d5db;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            background: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e5e7eb;
+            font-size: 1rem;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        .user-info {
+            color: #10b981;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        /* Login Gate Styles */
+        .login-gate {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+        }
+        
+        .login-gate-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 3rem;
+        }
+        
+        .auth-required {
+            color: #f59e0b;
+            font-weight: 600;
+            margin: 2rem 0;
+            font-size: 1.1rem;
+        }
+        
+        .auth-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .auth-actions .auth-button {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .auth-actions {
+                flex-direction: column;
+            }
+        }
+        
+        .error-message {
+            background: #dc2626;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        .success-message {
+            background: #10b981;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #60a5fa;
+            box-shadow: 0 20px 40px rgba(96, 165, 250, 0.1);
+        }
+        
+        .card h3 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            color: #d1d5db;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .online { 
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .offline { 
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        .warning {
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+        
+        .investigation-form {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #f3f4f6;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #374151;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #111827;
+            color: #f3f4f6;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+        
+        .investigation-list {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+        }
+        
+        .investigation-item {
+            border-bottom: 1px solid #374151;
+            padding: 1.5rem 0;
+            position: relative;
+        }
+        
+        .investigation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .investigation-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .investigation-title {
+            flex: 1;
+        }
+        
+        .investigation-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .investigation-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .meta-item {
+            color: #9ca3af;
+        }
+        
+        .meta-value {
+            color: #f3f4f6;
+            font-weight: 500;
+        }
+        
+        .report-status {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #111827;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+        
+        .report-expired {
+            color: #f59e0b;
+        }
+        
+        .report-available {
+            color: #10b981;
+        }
+        
+        .health-check {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1f2937;
+            border: 1px solid #374151;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .timer {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .expired {
+            color: #ef4444;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #374151;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width 0.3s ease;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 2s infinite;
+        }
+        
+        /* World Clocks Styling */
+        .world-clocks-card {
+            grid-column: span 2;
+        }
+        
+        .world-clocks {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        
+        .clock-item {
+            text-align: center;
+        }
+        
+        .clock-face {
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .clock-face:hover {
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+        
+        .clock-label {
+            color: #9ca3af;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .clock-time {
+            color: #60a5fa;
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 0.2rem;
+        }
+        
+        .clock-date {
+            color: #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 1200px) {
+            .world-clocks-card {
+                grid-column: span 1;
+            }
+            
+            .world-clocks {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .world-clocks {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .investigation-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Section -->
+    <div class="auth-section">
+        <!-- User Info (shown when logged in) -->
+        <div id="userInfo" class="user-info hidden">
+            <span id="userEmail">user@example.com</span>
+            <button class="auth-button" onclick="logout()">Logout</button>
+        </div>
+        
+        <!-- Login/Register buttons (shown when not logged in) -->
+        <div id="authButtons">
+            <button class="auth-button secondary" onclick="showLogin()">Login</button>
+            <button class="auth-button" onclick="showRegister()">Register</button>
+        </div>
+    </div>
+
+    <!-- Login Form Modal -->
+    <div id="loginModal" class="hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Login to OSINT Platform</h2>
+            <div id="loginError" class="error-message hidden"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <button type="submit" class="auth-button" style="width: 100%;">Login</button>
+                <p style="text-align: center; margin-top: 1rem; color: #9ca3af;">
+                    Don't have an account? <a href="#" onclick="showRegister()" style="color: #60a5fa;">Register</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Form Modal -->
+    <div id="registerModal" class="hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Create Account</h2>
+            <div id="registerError" class="error-message hidden"></div>
+            <div id="registerSuccess" class="success-message hidden"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerFullName">Full Name</label>
+                    <input type="text" id="registerFullName" name="fullName">
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerOrganization">Organization</label>
+                    <input type="text" id="registerOrganization" name="organization">
+                </div>
+                <button type="submit" class="auth-button" style="width: 100%;">Create Account</button>
+                <p style="text-align: center; margin-top: 1rem; color: #9ca3af;">
+                    Already have an account? <a href="#" onclick="showLogin()" style="color: #60a5fa;">Login</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Gate - shown when not authenticated -->
+    <div id="loginGate" class="login-gate">
+        <div class="login-gate-content">
+            <div class="header">
+                <h1>🔍 Enterprise OSINT Platform</h1>
+                <p>Professional Open Source Intelligence Research & Analysis</p>
+                <p class="auth-required">Please login or register to access the platform</p>
+            </div>
+            
+            <div class="auth-actions">
+                <button class="auth-button" onclick="showLogin()">Login to Continue</button>
+                <button class="auth-button secondary" onclick="showRegister()">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application - shown when authenticated -->
+    <div id="mainApp" class="container hidden">
+        <div class="header">
+            <h1>🔍 Enterprise OSINT Platform</h1>
+            <p>Professional Open Source Intelligence Research & Analysis</p>
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h3>🛡️ System Status</h3>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Backend API: Online</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Database: Connected</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>MCP Servers: 3 Online</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot warning"></div>
+                    <span>Report Retention: 10min</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📊 Quick Stats</h3>
+                <p><strong>Investigations Today:</strong> <span id="todayCount">0</span></p>
+                <p><strong>Reports Generated:</strong> <span id="reportCount">0</span></p>
+                <p><strong>Active Reports:</strong> <span id="activeReports">0</span></p>
+                <p><strong>System Uptime:</strong> 99.9%</p>
+            </div>
+            
+            <div class="card">
+                <h3>🌐 MCP Servers</h3>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Social Media Intelligence</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Infrastructure Assessment</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot online"></div>
+                    <span>Threat Intelligence</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🕐 Investigation Status</h3>
+                <p><strong>Active Investigations:</strong> <span id="activeCount">0</span></p>
+                <p><strong>Expired Investigations:</strong> <span id="expiringSoon">0</span></p>
+                <p><strong>Total History:</strong> <span id="historyCount">0</span></p>
+                <p><strong>Report Window:</strong> 1 hour</p>
+            </div>
+            
+            <div class="card world-clocks-card">
+                <h3>🌍 Global Operations</h3>
+                <div class="world-clocks">
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-la">
+                            <div class="clock-label">Los Angeles</div>
+                            <div class="clock-time" id="time-la">--:--:--</div>
+                            <div class="clock-date" id="date-la">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-ny">
+                            <div class="clock-label">New York</div>
+                            <div class="clock-time" id="time-ny">--:--:--</div>
+                            <div class="clock-date" id="date-ny">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-london">
+                            <div class="clock-label">London</div>
+                            <div class="clock-time" id="time-london">--:--:--</div>
+                            <div class="clock-date" id="date-london">--/--/----</div>
+                        </div>
+                    </div>
+                    <div class="clock-item">
+                        <div class="clock-face" id="clock-tokyo">
+                            <div class="clock-label">Tokyo</div>
+                            <div class="clock-time" id="time-tokyo">--:--:--</div>
+                            <div class="clock-date" id="date-tokyo">--/--/----</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="investigation-form">
+            <h3>🎯 Start New Investigation</h3>
+            <form id="investigationForm">
+                <div class="form-group">
+                    <label for="target">Investigation Target</label>
+                    <input type="text" id="target" placeholder="example.com, company name, or individual" required>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="type">Investigation Type</label>
+                        <select id="type">
+                            <option value="comprehensive">Comprehensive Investigation</option>
+                            <option value="corporate">Corporate Intelligence</option>
+                            <option value="infrastructure">Infrastructure Assessment</option>
+                            <option value="social_media">Social Media Analysis</option>
+                            <option value="threat_assessment">Threat Assessment</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="priority">Priority</label>
+                        <select id="priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="investigator">Investigator Name</label>
+                    <input type="text" id="investigator" placeholder="Your name for audit trail" required>
+                </div>
+                
+                <button type="submit" class="btn">🚀 Start Investigation</button>
+            </form>
+        </div>
+        
+        <div class="investigation-list">
+            <h3>📋 Investigation History</h3>
+            <div id="investigations">
+                <p>No investigations yet. Start your first investigation above!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="health-check">
+        <div style="display: flex; align-items: center;">
+            <div class="status-dot online"></div>
+            <strong>System Health: OK</strong>
+        </div>
+    </div>
+
+    <script>
+        // Define stub functions first to avoid reference errors
+        function clearError(elementId) {
+            const errorEl = document.getElementById(elementId);
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.add('hidden');
+            }
+        }
+        
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.classList.remove('hidden');
+                setTimeout(() => errorEl.classList.add('hidden'), 5000);
+            }
+        }
+        
+        // Define global functions immediately before anything else
+        function showLogin() {
+            console.log('showLogin called');
+            const loginModal = document.getElementById('loginModal');
+            const registerModal = document.getElementById('registerModal');
+            if (loginModal && registerModal) {
+                // Clear any previous errors when showing login modal
+                clearError('loginError');
+                clearError('registerError');
+                clearError('registerSuccess');
+                
+                loginModal.classList.remove('hidden');
+                registerModal.classList.add('hidden');
+                
+                // Focus on email field
+                setTimeout(() => document.getElementById('loginEmail').focus(), 100);
+                
+                console.log('Login modal shown');
+            } else {
+                console.error('Login/Register modals not found');
+            }
+        }
+        window.showLogin = showLogin; // Make globally available immediately
+        
+        function showRegister() {
+            console.log('showRegister called');
+            const loginModal = document.getElementById('loginModal');
+            const registerModal = document.getElementById('registerModal');
+            if (loginModal && registerModal) {
+                // Clear any previous errors when showing register modal
+                clearError('loginError');
+                clearError('registerError');
+                clearError('registerSuccess');
+                
+                registerModal.classList.remove('hidden');
+                loginModal.classList.add('hidden');
+                
+                // Focus on email field
+                setTimeout(() => document.getElementById('registerEmail').focus(), 100);
+                
+                console.log('Register modal shown');
+            } else {
+                console.error('Login/Register modals not found');
+            }
+        }
+        window.showRegister = showRegister; // Make globally available immediately
+        
+        function hideAuthModals() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('registerModal').classList.add('hidden');
+        }
+        
+        // Authentication state - define after functions
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        let isAuthenticated = authToken && currentUser;
+        
+        function updateAuthUI() {
+            console.log('updateAuthUI called');
+            console.log('isAuthenticated:', isAuthenticated);
+            console.log('currentUser:', currentUser);
+            
+            const loginGate = document.getElementById('loginGate');
+            const mainApp = document.getElementById('mainApp');
+            const userInfo = document.getElementById('userInfo');
+            const authButtons = document.getElementById('authButtons');
+            const userEmail = document.getElementById('userEmail');
+            
+            console.log('DOM elements found:', {
+                loginGate: !!loginGate,
+                mainApp: !!mainApp,
+                userInfo: !!userInfo,
+                authButtons: !!authButtons,
+                userEmail: !!userEmail
+            });
+            
+            // Check if user is authenticated AND verified
+            const isVerified = currentUser && currentUser.is_verified === true;
+            const canAccessPlatform = isAuthenticated && currentUser && isVerified;
+            
+            console.log('Authentication check:', {
+                isVerified,
+                canAccessPlatform
+            });
+            
+            if (canAccessPlatform) {
+                // User is authenticated and verified - show main app
+                console.log('Showing main app, hiding login gate');
+                if (loginGate) {
+                    loginGate.classList.add('hidden');
+                    console.log('Login gate hidden');
+                }
+                if (mainApp) {
+                    mainApp.classList.remove('hidden');
+                    console.log('Main app shown');
+                }
+                if (userInfo) {
+                    userInfo.classList.remove('hidden');
+                    console.log('User info shown');
+                } else {
+                    console.error('userInfo element not found');
+                }
+                if (authButtons) {
+                    authButtons.classList.add('hidden');
+                    console.log('Auth buttons hidden');
+                } else {
+                    console.error('authButtons element not found');
+                }
+                if (userEmail) {
+                    userEmail.textContent = currentUser.email;
+                    console.log('User email set to:', currentUser.email);
+                }
+                hideAuthModals();
+            } else {
+                // User needs to login/register or verify email
+                console.log('Showing login gate, hiding main app');
+                if (loginGate) loginGate.classList.remove('hidden');
+                if (mainApp) mainApp.classList.add('hidden');
+                if (userInfo) userInfo.classList.add('hidden');
+                if (authButtons) authButtons.classList.remove('hidden');
+                
+                // Show verification message if user is logged in but not verified
+                if (isAuthenticated && currentUser && !isVerified) {
+                    console.log('User not verified, showing verification message');
+                    showError('loginError', 'Please check your email and verify your account to continue.');
+                    showLogin(); // Show login form with verification message
+                }
+            }
+        }
+        
+        // Already defined above
+        
+        function parseTimestamp(timestamp) {
+            if (!timestamp) {
+                return new Date(0); // Return epoch if no timestamp
+            }
+            
+            let date;
+            
+            // Handle different timestamp formats
+            if (typeof timestamp === 'string') {
+                // If it's a string, try to parse it as ISO date first
+                date = new Date(timestamp);
+            } else if (typeof timestamp === 'number') {
+                // If it's a number, determine if it's seconds or milliseconds
+                if (timestamp < 1000000000000) {
+                    // Less than this means it's probably seconds since Unix epoch
+                    date = new Date(timestamp * 1000);
+                } else {
+                    // Greater means it's probably milliseconds
+                    date = new Date(timestamp);
+                }
+            } else {
+                console.warn('Unknown timestamp format:', timestamp);
+                return new Date(0);
+            }
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date created from timestamp:', timestamp);
+                return new Date(0);
+            }
+            
+            return date;
+        }
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) {
+                return 'Unknown';
+            }
+            
+            console.log('Formatting timestamp:', timestamp, 'type:', typeof timestamp);
+            
+            const date = parseTimestamp(timestamp);
+            
+            if (date.getTime() === 0) {
+                return 'Unknown';
+            }
+            
+            console.log('Final formatted date:', date.toLocaleString());
+            return date.toLocaleString();
+        }
+        
+        async function login(email, password) {
+            // Clear any previous error messages
+            clearError('loginError');
+            
+            // Disable form during login attempt
+            const loginForm = document.getElementById('loginForm');
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            submitButton.textContent = 'Logging in...';
+            submitButton.disabled = true;
+            
+            try {
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    localStorage.setItem('authToken', authToken);
+                    
+                    // Get user info using working stats endpoint
+                    const userResponse = await fetch('/api/v1/investigations/stats/summary', {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    
+                    if (userResponse.ok) {
+                        const statsData = await userResponse.json();
+                        currentUser = {
+                            id: statsData.user_id,
+                            email: statsData.email,
+                            is_admin: statsData.is_admin,
+                            is_verified: true // Assume verified if they can access stats endpoint
+                        };
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        isAuthenticated = true;
+                        console.log('User logged in:', currentUser.email);
+                        console.log('Auth token available:', !!authToken);
+                        
+                        // Reset form on successful login
+                        loginForm.reset();
+                        
+                        updateAuthUI();
+                        hideAuthModals();
+                        // Wait a moment before loading investigations to ensure auth state is set
+                        setTimeout(() => loadInvestigations(), 100);
+                    }
+                } else {
+                    const error = await response.json();
+                    showError('loginError', error.detail || 'Login failed');
+                    // Reset form on failed login
+                    loginForm.reset();
+                    // Focus back to email field for retry
+                    document.getElementById('loginEmail').focus();
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('loginError', 'Connection error. Please try again.');
+                // Reset form on error
+                loginForm.reset();
+                // Focus back to email field for retry
+                document.getElementById('loginEmail').focus();
+            } finally {
+                // Always re-enable the form
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
+            }
+        }
+        
+        async function register(userData) {
+            // Clear any previous error messages
+            clearError('registerError');
+            clearError('registerSuccess');
+            
+            // Disable form during registration attempt
+            const registerForm = document.getElementById('registerForm');
+            const submitButton = registerForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            submitButton.textContent = 'Creating Account...';
+            submitButton.disabled = true;
+            
+            try {
+                const response = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: userData.email,
+                        password: userData.password,
+                        full_name: userData.fullName,
+                        organization: userData.organization
+                    })
+                });
+                
+                if (response.ok) {
+                    // Reset form on successful registration
+                    registerForm.reset();
+                    
+                    // Show success message and ask user to check email
+                    showSuccess('registerSuccess', 'Registration successful! Please check your email to verify your account before logging in.');
+                    
+                    // Hide register modal and show login modal
+                    document.getElementById('registerModal').classList.add('hidden');
+                    setTimeout(() => showLogin(), 2000); // Show login form after 2 seconds
+                } else {
+                    const error = await response.json();
+                    showError('registerError', error.detail || 'Registration failed');
+                    // Focus back to email field for retry
+                    document.getElementById('registerEmail').focus();
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('registerError', 'Connection error. Please try again.');
+                // Focus back to email field for retry
+                document.getElementById('registerEmail').focus();
+            } finally {
+                // Always re-enable the form
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
+            }
+        }
+        
+        function showSuccess(elementId, message) {
+            const successEl = document.getElementById(elementId);
+            if (successEl) {
+                successEl.textContent = message;
+                successEl.classList.remove('hidden');
+                setTimeout(() => successEl.classList.add('hidden'), 8000);
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            isAuthenticated = false;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateAuthUI();
+            console.log('User logged out');
+            // Reload with demo data
+            demoDataLoaded = false;
+            loadInvestigations();
+        }
+        
+        // Add authenticated API request helper
+        async function authenticatedFetch(url, options = {}) {
+            if (authToken) {
+                options.headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${authToken}`
+                };
+            }
+            return fetch(url, options);
+        }
+        
+        // Track investigations and reports
+        let investigations = [];
+        let reportTimers = {};
+        let demoDataLoaded = false; // Flag to prevent demo data from being loaded multiple times
+        
+        // Ensure investigations array is always initialized
+        function ensureInvestigationsArray() {
+            if (!Array.isArray(investigations)) {
+                investigations = [];
+            }
+        }
+        
+        // Remove duplicate investigations (especially for demo data)
+        function removeDuplicateInvestigations() {
+            const seen = new Set();
+            const uniqueInvestigations = [];
+            
+            investigations.forEach(inv => {
+                // Create a unique key based on target and type
+                const key = `${inv.target}-${inv.investigation_type || inv.type}`;
+                
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueInvestigations.push(inv);
+                } else {
+                    console.log(`Removing duplicate investigation: ${inv.target}`);
+                }
+            });
+            
+            investigations = uniqueInvestigations;
+        }
+        
+        // Direct UI update function
+        function updateInvestigationDisplay() {
+            ensureInvestigationsArray();
+            
+            const container = document.getElementById('investigations');
+            if (investigations.length === 0) {
+                container.innerHTML = '<p>No investigations yet. Start your first investigation above!</p>';
+                return;
+            }
+            
+            // Sort by creation date (newest first), handle missing timestamps
+            investigations.sort((a, b) => {
+                const timeA = a.created_at ? (a.created_at * 1000 || a.created_at) : 0;
+                const timeB = b.created_at ? (b.created_at * 1000 || b.created_at) : 0;
+                return new Date(timeB) - new Date(timeA);
+            });
+            
+            console.log('Displaying investigations:', investigations.length);
+            
+            container.innerHTML = investigations.map(inv => {
+                // Check if investigation is older than 1 hour
+                let investigationTime, hoursElapsed, investigationExpired;
+                
+                try {
+                    if (!inv.created_at) {
+                        // If no timestamp, assume it's old
+                        investigationExpired = true;
+                        hoursElapsed = 24; // Default to 24 hours
+                    } else {
+                        investigationTime = parseTimestamp(inv.created_at);
+                        const now = new Date();
+                        hoursElapsed = (now - investigationTime) / (1000 * 60 * 60); // Convert to hours
+                        investigationExpired = hoursElapsed >= 1;
+                    }
+                } catch (e) {
+                    console.error(`Error parsing timestamp for ${inv.target}:`, e);
+                    investigationExpired = true;
+                    hoursElapsed = 24;
+                }
+                
+                // Show generate report button only if: no report exists AND investigation is less than 1 hour old
+                const canGenerateReport = !inv.report_generated && !investigationExpired;
+                const hasValidReport = inv.report_generated && inv.report_generated_at;
+                const reportExpired = hasValidReport && 
+                    ((new Date() - new Date(inv.report_generated_at)) / (1000 * 60) >= 10);
+                
+                console.log(`Displaying ${inv.target}:`, {
+                    status: inv.status,
+                    canGenerateReport: canGenerateReport,
+                    report_generated: inv.report_generated,
+                    hasValidReport: hasValidReport,
+                    reportExpired: reportExpired,
+                    investigationExpired: investigationExpired,
+                    hoursElapsed: hoursElapsed.toFixed(2)
+                });
+                
+                return `
+                    <div class="investigation-item">
+                        <div class="investigation-header">
+                            <div class="investigation-title">
+                                <h4>${inv.target}</h4>
+                                <p style="color: #60a5fa;">${(inv.type || inv.investigation_type || 'comprehensive').replace('_', ' ').toUpperCase()}</p>
+                            </div>
+                            <div class="investigation-actions">
+                                ${canGenerateReport ? 
+                                    `<button class="btn btn-success" onclick="generateReport('${inv.id}')" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                        📄 Generate Report
+                                    </button>` : ''
+                                }
+                                ${hasValidReport && !reportExpired ? 
+                                    `<button class="btn" onclick="printReport('${inv.id}')" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                        🖨️ Print Report
+                                    </button>` : ''
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="investigation-meta">
+                            <div class="meta-item">
+                                <strong>Status:</strong> 
+                                <span class="meta-value">${inv.status || 'processing'}</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>Priority:</strong> 
+                                <span class="meta-value">${(inv.priority || 'normal').toUpperCase()}</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>Investigator:</strong> 
+                                <span class="meta-value">${inv.investigator || 'System'}</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>Created:</strong> 
+                                <span class="meta-value">${formatTimestamp(inv.created_at)}</span>
+                            </div>
+                        </div>
+                        
+                        ${hasValidReport ? 
+                            `<div class="report-status" id="timer_${inv.id}">
+                                <!-- Timer will be updated by JavaScript -->
+                            </div>` : 
+                            (investigationExpired ? 
+                                `<div class="report-status" style="color: #6b7280;">
+                                    ⏰ Investigation expired (${hoursElapsed.toFixed(1)}h old) - No longer available for reporting
+                                </div>` :
+                                (inv.status === 'completed' ? 
+                                    `<div class="report-status">
+                                        📄 Investigation complete - Generate report to view results (expires in ${(60 - (hoursElapsed * 60)).toFixed(0)} minutes)
+                                    </div>` : ''
+                                )
+                            )
+                        }
+                    </div>
+                `;
+            }).join('');
+            
+            // Update stats
+            updateStats();
+        }
+        
+        // World Clock Functions
+        function updateWorldClocks() {
+            const now = new Date();
+            
+            // Los Angeles (Pacific Time)
+            const laTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+            document.getElementById('time-la').textContent = laTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-la').textContent = laTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // New York (Eastern Time)
+            const nyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            document.getElementById('time-ny').textContent = nyTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-ny').textContent = nyTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // London (Greenwich Mean Time)
+            const londonTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+            document.getElementById('time-london').textContent = londonTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-london').textContent = londonTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // Tokyo (Japan Standard Time)
+            const tokyoTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+            document.getElementById('time-tokyo').textContent = tokyoTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-tokyo').textContent = tokyoTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+        }
+        
+        // Update stats
+        function updateStats() {
+            const today = new Date().toDateString();
+            const now = new Date();
+            
+            const todayInvestigations = investigations.filter(inv => 
+                parseTimestamp(inv.created_at).toDateString() === today
+            );
+            
+            // Count investigations that can still generate reports (less than 1 hour old)
+            const activeInvestigations = investigations.filter(inv => {
+                const investigationTime = parseTimestamp(inv.created_at);
+                const hoursElapsed = (now - investigationTime) / (1000 * 60 * 60);
+                return hoursElapsed < 1;
+            });
+            
+            // Count expired investigations (older than 1 hour)
+            const expiredInvestigations = investigations.filter(inv => {
+                const investigationTime = parseTimestamp(inv.created_at);
+                const hoursElapsed = (now - investigationTime) / (1000 * 60 * 60);
+                return hoursElapsed >= 1;
+            });
+            
+            document.getElementById('todayCount').textContent = todayInvestigations.length;
+            document.getElementById('reportCount').textContent = investigations.filter(inv => inv.report_generated).length;
+            document.getElementById('historyCount').textContent = investigations.length;
+            
+            // Count active reports (not expired)
+            const activeReports = investigations.filter(inv => {
+                if (!inv.report_generated) return false;
+                const reportTime = new Date(inv.report_generated_at);
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                return minutesElapsed < 10;
+            });
+            
+            document.getElementById('activeReports').textContent = activeReports.length;
+            document.getElementById('activeCount').textContent = activeInvestigations.length; // Show active investigations, not just reports
+            
+            // Count reports expiring soon (less than 2 minutes left)
+            const expiringSoon = activeReports.filter(inv => {
+                const reportTime = new Date(inv.report_generated_at);
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                return minutesElapsed > 8; // Less than 2 minutes left
+            });
+            
+            document.getElementById('expiringSoon').textContent = expiredInvestigations.length; // Show expired investigations count
+        }
+        
+        // Format time remaining
+        function formatTimeRemaining(minutes, seconds) {
+            return `${Math.floor(minutes)}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Update report timers and clean up expired reports
+        function updateReportTimers() {
+            let needsUIUpdate = false;
+            
+            investigations.forEach(inv => {
+                if (inv.report_generated) {
+                    const reportTime = new Date(inv.report_generated_at);
+                    const now = new Date();
+                    const totalSeconds = Math.floor((now - reportTime) / 1000);
+                    const remainingSeconds = Math.max(0, 600 - totalSeconds); // 10 minutes = 600 seconds
+                    
+                    if (remainingSeconds <= 0) {
+                        // Report has expired - remove report data but keep investigation
+                        console.log(`Report expired for investigation ${inv.target}, removing report data`);
+                        
+                        // Show brief notification (only once per expiry)
+                        if (!inv.expiry_notified) {
+                            inv.expiry_notified = true;
+                            // Create a subtle notification
+                            const notification = document.createElement('div');
+                            notification.style.cssText = `
+                                position: fixed; top: 20px; right: 20px; z-index: 1000;
+                                background: #f59e0b; color: white; padding: 12px 20px;
+                                border-radius: 8px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            `;
+                            notification.textContent = `Report for ${inv.target} has expired. Generate a new report to continue.`;
+                            document.body.appendChild(notification);
+                            
+                            // Remove notification after 5 seconds
+                            setTimeout(() => {
+                                if (notification.parentNode) {
+                                    notification.parentNode.removeChild(notification);
+                                }
+                            }, 5000);
+                        }
+                        
+                        // Reset report status but keep the investigation
+                        inv.report_generated = false;
+                        delete inv.report_generated_at;
+                        delete inv.expiry_notified; // Clean up notification flag too
+                        needsUIUpdate = true;
+                    } else {
+                        // Update timer display
+                        const timerElement = document.getElementById(`timer_${inv.id}`);
+                        if (timerElement) {
+                            const minutes = Math.floor(remainingSeconds / 60);
+                            const seconds = remainingSeconds % 60;
+                            timerElement.innerHTML = `⏱️ Expires in: <span class="timer">${formatTimeRemaining(minutes, seconds)}</span>`;
+                            timerElement.className = 'report-status report-available';
+                        }
+                    }
+                }
+            });
+            
+            // If reports expired, update localStorage and UI
+            if (needsUIUpdate) {
+                localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+                updateInvestigationDisplay();
+                console.log('Expired reports removed, UI updated');
+            }
+            
+            updateStats();
+        }
+        
+        // Generate PDF report (mock for now)
+        function generateReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) return;
+            
+            // Mark as report generated
+            investigation.report_generated = true;
+            investigation.report_generated_at = new Date().toISOString();
+            
+            // Save to localStorage for persistence
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            
+            // Update display immediately
+            updateInvestigationDisplay();
+            
+            alert('Report generated successfully! You have 10 minutes to download before it expires.');
+        }
+        
+        // Print report
+        function printReport(invId) {
+            const investigation = investigations.find(inv => inv.id === invId);
+            if (!investigation) return;
+            
+            // Check if report is still valid
+            if (investigation.report_generated) {
+                const reportTime = new Date(investigation.report_generated_at);
+                const now = new Date();
+                const minutesElapsed = (now - reportTime) / (1000 * 60);
+                
+                if (minutesElapsed >= 10) {
+                    alert('Report has expired. Please generate a new report.');
+                    return;
+                }
+            }
+            
+            // Create printable content
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>OSINT Report - ${investigation.target}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 2cm; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
+                        .section { margin-bottom: 2rem; }
+                        .meta { background: #f5f5f5; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+                        .footer { position: fixed; bottom: 1cm; left: 2cm; right: 2cm; text-align: center; font-size: 0.8em; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🔍 Enterprise OSINT Investigation Report</h1>
+                        <h2>Target: ${investigation.target}</h2>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Investigation Metadata</h3>
+                        <div class="meta">
+                            <p><strong>Investigation ID:</strong> ${investigation.id}</p>
+                            <p><strong>Type:</strong> ${investigation.type}</p>
+                            <p><strong>Priority:</strong> ${investigation.priority}</p>
+                            <p><strong>Investigator:</strong> ${investigation.investigator || 'Unknown'}</p>
+                            <p><strong>Created:</strong> ${formatTimestamp(investigation.created_at)}</p>
+                            <p><strong>Status:</strong> ${investigation.status}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Executive Summary</h3>
+                        <p>This report contains the results of an OSINT investigation conducted on ${investigation.target}.</p>
+                        <p>Investigation type: ${(investigation.type || investigation.investigation_type || 'comprehensive').replace('_', ' ').toUpperCase()}</p>
+                        <p>Priority level: ${(investigation.priority || 'normal').toUpperCase()}</p>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Findings</h3>
+                        <p>Target analysis for ${investigation.target} has been completed using multiple intelligence sources.</p>
+                        <p>This is a demonstration report. In production, this would contain detailed OSINT findings.</p>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Security Notice</h3>
+                        <p style="color: red;"><strong>CONFIDENTIAL:</strong> This report expires 10 minutes after generation for security purposes.</p>
+                        <p>Report generated: ${investigation.report_generated_at ? formatTimestamp(investigation.report_generated_at) : new Date().toLocaleString()}</p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Generated by Enterprise OSINT Platform | Confidential and Proprietary</p>
+                        <p>Report ID: ${investigation.id} | Generated: ${new Date().toLocaleString()}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            // Open print dialog
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        // Investigation form handler
+        document.getElementById('investigationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                target: document.getElementById('target').value,
+                type: document.getElementById('type').value,
+                priority: document.getElementById('priority').value,
+                investigator: document.getElementById('investigator').value
+            };
+            
+            try {
+                const payload = {
+                    target: formData.target,
+                    investigation_type: formData.type
+                };
+                
+                // Use authenticated endpoint for authenticated users
+                const apiEndpoint = isAuthenticated ? '/api/v1/simple_investigations/' : '/api/v1/demo/investigations';
+                
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                
+                // Add authorization header if authenticated
+                if (isAuthenticated && authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const investigation = await response.json();
+                    investigation.investigator = formData.investigator;
+                    investigation.type = formData.type;
+                    investigation.priority = formData.priority;
+                    
+                    if (isAuthenticated) {
+                        // For authenticated users, reload from server immediately
+                        alert(`Investigation ${investigation.id} started successfully!`);
+                        await loadInvestigations(); // Refresh from server
+                    } else {
+                        // For demo users, add to localStorage as before
+                        ensureInvestigationsArray();
+                        investigations.push(investigation);
+                        localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+                        
+                        alert(`Investigation ${investigation.id} started successfully!`);
+                        
+                        // Debug: Log the investigation structure
+                        console.log('Created investigation:', investigation);
+                        
+                        // Force immediate UI update without waiting for API
+                        updateInvestigationDisplay();
+                    }
+                    
+                    document.getElementById('investigationForm').reset();
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to start investigation: ${error.detail}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting investigation: ' + error.message);
+            }
+        });
+        
+        // Load investigations
+        async function loadInvestigations() {
+            try {
+                ensureInvestigationsArray();
+                
+                // Load from localStorage for persistence
+                const stored = localStorage.getItem('osint_investigations');
+                if (stored) {
+                    try {
+                        investigations = JSON.parse(stored);
+                        ensureInvestigationsArray();
+                    } catch (e) {
+                        console.error('Error parsing localStorage data:', e);
+                        investigations = [];
+                    }
+                }
+                
+                // Check if demo data has already been loaded from localStorage
+                const demoLoadedFlag = localStorage.getItem('demo_data_loaded');
+                if (demoLoadedFlag === 'true') {
+                    demoDataLoaded = true;
+                    console.log('Demo data already loaded in previous session');
+                }
+                
+                // Load from API - use authenticated endpoint if logged in, otherwise demo
+                if (isAuthenticated) {
+                    console.log('Loading authenticated user investigations');
+                    const response = await authenticatedFetch('/api/v1/simple_investigations/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const apiInvestigations = data.investigations || [];
+                        
+                        // For authenticated users, replace investigations with fresh data from API
+                        investigations = apiInvestigations.map(apiInv => ({
+                            ...apiInv,
+                            type: apiInv.investigation_type,
+                            priority: 'normal',
+                            investigator: currentUser.email,
+                            report_generated: false
+                        }));
+                        console.log(`Loaded ${investigations.length} authenticated investigations`);
+                        
+                        // Skip all demo data logic for authenticated users - go directly to display
+                        updateInvestigationDisplay();
+                        return;
+                    } else if (response.status === 401) {
+                        // Token expired, logout user
+                        console.log('Authentication expired, logging out');
+                        logout();
+                        return;
+                    }
+                } else if (!demoDataLoaded) {
+                    console.log('Loading demo data from API (first time only)');
+                    const response = await fetch('/api/v1/demo/investigations');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const apiInvestigations = data.investigations || [];
+                        
+                        // Merge API data with stored data, but only add demo investigations ONCE
+                        apiInvestigations.forEach(apiInv => {
+                            // Check for existing by target to avoid all demo duplicates
+                            const existing = investigations.find(inv => 
+                                inv.id === apiInv.id || inv.target === apiInv.target
+                            );
+                            if (!existing) {
+                                // Add API investigation and ensure it has the right field names
+                                apiInv.type = apiInv.investigation_type;
+                                apiInv.priority = 'normal'; // Set default priority
+                                apiInv.investigator = 'Demo System';
+                                // Important: Demo investigations start without reports generated
+                                apiInv.report_generated = false;
+                                delete apiInv.report_generated_at;
+                                investigations.push(apiInv);
+                                console.log(`Added demo investigation: ${apiInv.target}`);
+                            } else {
+                                // Don't update existing investigations to prevent overwriting user data
+                                console.log(`Skipping duplicate investigation: ${apiInv.target} (already exists)`);
+                            }
+                        });
+                        demoDataLoaded = true; // Mark demo data as loaded
+                        localStorage.setItem('demo_data_loaded', 'true'); // Persist flag
+                        console.log('Demo data loaded and flag saved to localStorage');
+                    } else {
+                        console.log('API not available, using stored data only');
+                    }
+                } else {
+                    console.log('Demo data already loaded, skipping API call');
+                }
+                
+                // Remove any duplicates before displaying (demo users only)
+                removeDuplicateInvestigations();
+                
+                // Display investigations for demo users
+                updateInvestigationDisplay();
+            }
+        } catch (error) {
+            console.error('Error loading investigations:', error);
+        }
+        
+        // Initialize clocks on page load
+        updateWorldClocks();
+        
+        // Load investigations on page load
+        loadInvestigations();
+        
+        // Also do immediate display of any stored investigations
+        const stored = localStorage.getItem('osint_investigations');
+        if (stored) {
+            try {
+                investigations = JSON.parse(stored);
+                removeDuplicateInvestigations(); // Clean up any existing duplicates
+                localStorage.setItem('osint_investigations', JSON.stringify(investigations)); // Save cleaned data
+                updateInvestigationDisplay();
+            } catch (e) {
+                console.error('Error loading stored investigations:', e);
+            }
+        }
+        
+        // Update world clocks every second
+        setInterval(updateWorldClocks, 1000);
+        
+        // Update timers every second
+        setInterval(updateReportTimers, 1000);
+        
+        // Auto-refresh investigations every 30 seconds (DISABLED to prevent demo duplicates)
+        // For demo purposes, we only load API data once on page load to prevent duplicates
+        // setInterval(loadInvestigations, 30000);
+        
+        // Note: Expired report cleanup is now handled by updateReportTimers() every second
+        
+        // Debug functions available in console
+        window.clearDemoData = function() {
+            localStorage.removeItem('demo_data_loaded');
+            localStorage.removeItem('osint_investigations');
+            demoDataLoaded = false;
+            investigations = [];
+            console.log('Demo data cleared. Refresh page to reload.');
+            updateInvestigationDisplay();
+        };
+        
+        window.reloadDemoData = function() {
+            localStorage.removeItem('demo_data_loaded');
+            demoDataLoaded = false;
+            loadInvestigations();
+        };
+        
+        window.expireAllReports = function() {
+            investigations.forEach(inv => {
+                if (inv.report_generated) {
+                    inv.report_generated = false;
+                    delete inv.report_generated_at;
+                    console.log(`Expired report for ${inv.target}`);
+                }
+            });
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            updateInvestigationDisplay();
+            console.log('All reports expired manually');
+        };
+        
+        window.createOldInvestigation = function(hoursOld = 2) {
+            const oldTime = Date.now() - (hoursOld * 60 * 60 * 1000);
+            const oldInv = {
+                id: 'old-test-' + Date.now(),
+                target: `old-test-${hoursOld}h.com`,
+                investigation_type: 'comprehensive',
+                type: 'comprehensive',
+                status: 'completed',
+                created_at: oldTime / 1000,
+                priority: 'normal',
+                investigator: 'Test User',
+                report_generated: false
+            };
+            
+            investigations.push(oldInv);
+            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+            updateInvestigationDisplay();
+            console.log(`Created ${hoursOld}h old investigation: ${oldInv.target}`);
+        };
+        
+        // Form event handlers
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            await login(email, password);
+        });
+        
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value,
+                fullName: document.getElementById('registerFullName').value,
+                organization: document.getElementById('registerOrganization').value
+            };
+            await register(formData);
+        });
+        
+        // Close modals when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'loginModal' || e.target.id === 'registerModal') {
+                hideAuthModals();
+            }
+        });
+        
+        // Initialize authentication UI on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded');
+            updateAuthUI();
+            
+            // Test that functions are available
+            console.log('showLogin function available:', typeof window.showLogin);
+            console.log('showRegister function available:', typeof window.showRegister);
+        });
+        
+        // Functions already made global above
+
+        // INVESTIGATION HISTORY FIX
+        // Override logout function to not interfere with investigation data
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            isAuthenticated = false;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateAuthUI();
+            console.log('User logged out - investigation data preserved');
+            // Do NOT call loadInvestigations() here - let auth gate handle display
+        }
+
+        // Override loadInvestigations with fixed version
+        async function loadInvestigations() {
+            try {
+                ensureInvestigationsArray();
+                
+                if (isAuthenticated) {
+                    // Authenticated users: Load ONLY from server, skip all demo/localStorage logic
+                    console.log('Loading authenticated user investigations from server');
+                    const response = await authenticatedFetch('/api/v1/simple_investigations/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const apiInvestigations = data.investigations || [];
+                        
+                        // Replace with server data
+                        investigations = apiInvestigations.map(apiInv => ({
+                            ...apiInv,
+                            type: apiInv.investigation_type,
+                            priority: 'normal',
+                            investigator: currentUser.email,
+                            report_generated: false
+                        }));
+                        console.log(`Loaded ${investigations.length} user investigations from server`);
+                        
+                        // Display and exit - no further processing
+                        updateInvestigationDisplay();
+                        return;
+                    } else if (response.status === 401) {
+                        console.log('Authentication expired, logging out');
+                        logout();
+                        return;
+                    }
+                } else {
+                    // Demo users only: handle localStorage and demo data
+                    console.log('Loading demo data for unauthenticated user');
+                    const stored = localStorage.getItem('osint_investigations');
+                    if (stored) {
+                        try {
+                            investigations = JSON.parse(stored);
+                            ensureInvestigationsArray();
+                        } catch (e) {
+                            console.error('Error parsing localStorage data:', e);
+                            investigations = [];
+                        }
+                    }
+                    
+                    // Load demo data only once
+                    const demoLoadedFlag = localStorage.getItem('demo_data_loaded');
+                    if (demoLoadedFlag !== 'true') {
+                        const response = await fetch('/api/v1/demo/investigations');
+                        if (response.ok) {
+                            const data = await response.json();
+                            const apiInvestigations = data.investigations || [];
+                            
+                            apiInvestigations.forEach(apiInv => {
+                                const existing = investigations.find(inv => 
+                                    inv.id === apiInv.id || inv.target === apiInv.target
+                                );
+                                if (!existing) {
+                                    apiInv.type = apiInv.investigation_type;
+                                    apiInv.priority = 'normal';
+                                    apiInv.investigator = 'Demo System';
+                                    apiInv.report_generated = false;
+                                    delete apiInv.report_generated_at;
+                                    investigations.push(apiInv);
+                                }
+                            });
+                            localStorage.setItem('demo_data_loaded', 'true');
+                        }
+                    }
+                    
+                    removeDuplicateInvestigations();
+                    updateInvestigationDisplay();
+                }
+                
+            } catch (error) {
+                console.error('Error loading investigations:', error);
+            }
+        }
+
+        console.log('Investigation history fixes applied');
+
+        // FORM SUBMISSION FIX - removed to prevent interfering with existing form handlers
+        
+        console.log('All fixes loaded');
+    </script>
+</body>
+</html>

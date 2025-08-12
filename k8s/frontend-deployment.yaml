@@ -1,0 +1,45 @@
+---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-frontend
+  namespace: osint-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: osint-frontend
+  template:
+    metadata:
+      labels:
+        app: osint-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: osint-platform/simple-frontend:v1.0.0-demo-final
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-frontend
+  namespace: osint-platform
+spec:
+  selector:
+    app: osint-frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer

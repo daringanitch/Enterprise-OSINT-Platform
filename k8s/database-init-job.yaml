@@ -1,0 +1,109 @@
+---
+# Database Initialization Job
+# Runs Alembic migrations and creates initial admin user
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: osint-database-init
+  namespace: osint-platform
+  labels:
+    app: osint-database-init
+    component: database-setup
+spec:
+  template:
+    metadata:
+      labels:
+        app: osint-database-init
+        component: database-setup
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: database-init
+        image: osint-platform/fastapi-backend:v2.0.0-auth-debug
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Starting database initialization..."
+          
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_SERVER -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT 1" > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "PostgreSQL not ready (attempt $i/30)..."
+            sleep 2
+            if [ $i -eq 30 ]; then
+              echo "PostgreSQL connection timeout"
+              exit 1
+            fi
+          done
+          
+          # Run Alembic migrations
+          echo "Running database migrations..."
+          cd /app
+          alembic upgrade head
+          
+          # Create initial admin user via API endpoint
+          echo "Starting FastAPI server in background for user creation..."
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          FASTAPI_PID=$!
+          
+          # Wait for server to start
+          echo "Waiting for FastAPI server..."
+          sleep 10
+          
+          # Create admin user
+          echo "Creating initial admin user..."
+          curl -X POST "http://localhost:8000/api/v1/auth/create-admin" \
+            -H "Content-Type: application/json" || echo "Admin user creation failed (may already exist)"
+          
+          # Clean up
+          kill $FASTAPI_PID || true
+          
+          echo "Database initialization completed successfully!"
+          
+        env:
+        # Database Configuration
+        - name: POSTGRES_SERVER
+          value: "osint-platform-postgresql"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: osint-platform-postgresql
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_SERVER):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+        
+        # Security Configuration
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+              
+        # Application Configuration
+        - name: DEBUG
+          value: "true"
+        - name: PROJECT_NAME
+          value: "Enterprise OSINT Platform"
+          
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300

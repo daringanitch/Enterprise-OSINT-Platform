@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Enterprise OSINT Platform - Clean</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .auth-section {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .auth-button {
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .auth-button.secondary {
+            background: transparent;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .auth-form {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            padding: 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            min-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #e0e7ff;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .login-gate {
+            text-align: center;
+            margin-top: 5rem;
+        }
+
+        .login-gate h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .login-gate p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .main-app {
+            margin-top: 2rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #60a5fa;
+        }
+
+        .investigation-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .investigation-form input,
+        .investigation-form select {
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .investigation-form button {
+            padding: 1rem;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .investigation-form button:hover {
+            background: #059669;
+        }
+
+        .investigations-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .investigation-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .investigation-item h4 {
+            color: #60a5fa;
+            margin-bottom: 0.5rem;
+        }
+
+        .investigation-meta {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+
+        .error-message {
+            background: #ef4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Section -->
+    <div class="auth-section">
+        <!-- User Info (shown when logged in) -->
+        <div id="userInfo" class="user-info hidden">
+            <span id="userEmail">user@example.com</span>
+            <button class="auth-button" onclick="logout()">Logout</button>
+        </div>
+        
+        <!-- Login/Register buttons (shown when not logged in) -->
+        <div id="authButtons">
+            <button class="auth-button secondary" onclick="showLogin()">Login</button>
+            <button class="auth-button" onclick="showRegister()">Register</button>
+        </div>
+    </div>
+
+    <!-- Login Form Modal -->
+    <div id="loginModal" class="modal hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Login to OSINT Platform</h2>
+            <div id="loginError" class="error-message hidden"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="auth-button secondary" onclick="hideModals()">Cancel</button>
+                    <button type="submit" class="auth-button">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Form Modal -->
+    <div id="registerModal" class="modal hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Register for OSINT Platform</h2>
+            <div id="registerError" class="error-message hidden"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerFullName">Full Name</label>
+                    <input type="text" id="registerFullName" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerOrganization">Organization</label>
+                    <input type="text" id="registerOrganization" name="organization" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="auth-button secondary" onclick="hideModals()">Cancel</button>
+                    <button type="submit" class="auth-button">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Gate - shown when not authenticated -->
+    <div id="loginGate" class="login-gate">
+        <div class="container">
+            <div class="header">
+                <h1>🔍 Enterprise OSINT Platform</h1>
+                <p>Professional Open Source Intelligence Research & Analysis</p>
+            </div>
+            
+            <div class="login-gate">
+                <h2>Welcome to the Platform</h2>
+                <p>Please login or register to access the investigation tools</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+                    <button class="auth-button" onclick="showLogin()">Login to Continue</button>
+                    <button class="auth-button secondary" onclick="showRegister()">Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application - shown when authenticated -->
+    <div id="mainApp" class="container main-app hidden">
+        <div class="header">
+            <h1>🔍 Enterprise OSINT Platform</h1>
+            <p>Professional Open Source Intelligence Research & Analysis</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- Investigation Form -->
+            <div class="card">
+                <h3>🎯 Start New Investigation</h3>
+                <form id="investigationForm" class="investigation-form">
+                    <input type="text" id="target" name="target" placeholder="Target (domain, IP, email, etc.)" required>
+                    <select id="type" name="type" required>
+                        <option value="">Select Investigation Type</option>
+                        <option value="domain">Domain Analysis</option>
+                        <option value="ip">IP Address Investigation</option>
+                        <option value="email">Email Investigation</option>
+                        <option value="social">Social Media Analysis</option>
+                        <option value="comprehensive">Comprehensive Analysis</option>
+                    </select>
+                    <select id="priority" name="priority">
+                        <option value="normal">Normal Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                    <input type="text" id="investigator" name="investigator" placeholder="Investigator Name" required>
+                    <button type="submit">🚀 Start Investigation</button>
+                </form>
+            </div>
+
+            <!-- Recent Investigations -->
+            <div class="card">
+                <h3>📋 Recent Investigations</h3>
+                <div id="investigationsList" class="investigations-list">
+                    <p>No investigations yet. Start your first investigation!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        let isAuthenticated = authToken && currentUser;
+        let investigations = [];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            updateAuthUI();
+            setupEventListeners();
+            if (isAuthenticated) {
+                loadInvestigations();
+            }
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Login form
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Register form  
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            
+            // Investigation form
+            document.getElementById('investigationForm').addEventListener('submit', handleInvestigation);
+        }
+
+        // Handle login
+        async function handleLogin(event) {
+            event.preventDefault();
+            console.log('Login attempt started');
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                console.log('Sending login request for:', email);
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.access_token) {
+                    console.log('Login successful, saving token');
+                    localStorage.setItem('authToken', data.access_token);
+                    
+                    // Fetch user data
+                    console.log('Fetching user data...');
+                    const userResponse = await fetch('/api/v1/auth/me', {
+                        headers: {'Authorization': 'Bearer ' + data.access_token}
+                    });
+                    
+                    if (userResponse.ok) {
+                        const userData = await userResponse.json();
+                        console.log('User data received:', userData);
+                        
+                        localStorage.setItem('currentUser', JSON.stringify(userData));
+                        
+                        // Update global variables
+                        authToken = data.access_token;
+                        currentUser = userData;
+                        isAuthenticated = true;
+                        
+                        console.log('Authentication successful, updating UI');
+                        updateAuthUI();
+                        loadInvestigations();
+                        hideModals();
+                    } else {
+                        console.error('Failed to fetch user data');
+                        showError('loginError', 'Failed to get user information');
+                    }
+                } else {
+                    console.error('Login failed:', data);
+                    showError('loginError', data.message || 'Invalid credentials');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('loginError', 'Connection error. Please try again.');
+            }
+        }
+
+        // Handle registration
+        async function handleRegister(event) {
+            event.preventDefault();
+            console.log('Registration attempt started');
+            
+            const formData = {
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value,
+                full_name: document.getElementById('registerFullName').value,
+                organization: document.getElementById('registerOrganization').value,
+                timezone: 'UTC'
+            };
+            
+            try {
+                const response = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Registration successful! Please check your email to verify your account.');
+                    hideModals();
+                    showLogin();
+                } else {
+                    showError('registerError', data.detail || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('registerError', 'Connection error. Please try again.');
+            }
+        }
+
+        // Handle investigation
+        async function handleInvestigation(event) {
+            event.preventDefault();
+            console.log('Starting new investigation');
+            
+            const formData = {
+                target: document.getElementById('target').value,
+                investigation_type: document.getElementById('type').value
+            };
+            
+            try {
+                const headers = {'Content-Type': 'application/json'};
+                if (authToken) {
+                    headers['Authorization'] = 'Bearer ' + authToken;
+                }
+                
+                const response = await fetch('/api/v1/simple_investigations/', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const investigation = await response.json();
+                    console.log('Investigation started:', investigation);
+                    alert('Investigation started successfully!');
+                    document.getElementById('investigationForm').reset();
+                    loadInvestigations();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to start investigation: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Investigation error:', error);
+                alert('Error starting investigation: ' + error.message);
+            }
+        }
+
+        // Load investigations
+        async function loadInvestigations() {
+            if (!isAuthenticated) return;
+            
+            try {
+                console.log('Loading investigations...');
+                const response = await fetch('/api/v1/simple_investigations/', {
+                    headers: {'Authorization': 'Bearer ' + authToken}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    investigations = data.investigations || [];
+                    console.log('Loaded', investigations.length, 'investigations');
+                    displayInvestigations();
+                } else {
+                    console.error('Failed to load investigations');
+                }
+            } catch (error) {
+                console.error('Error loading investigations:', error);
+            }
+        }
+
+        // Display investigations
+        function displayInvestigations() {
+            const container = document.getElementById('investigationsList');
+            
+            if (investigations.length === 0) {
+                container.innerHTML = '<p>No investigations yet. Start your first investigation!</p>';
+                return;
+            }
+            
+            const html = investigations.map(inv => `
+                <div class="investigation-item">
+                    <h4>${inv.target}</h4>
+                    <div class="investigation-meta">
+                        Type: ${inv.investigation_type} | 
+                        Status: ${inv.status} | 
+                        Created: ${new Date(inv.created_at * 1000).toLocaleString()}
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        // Update authentication UI
+        function updateAuthUI() {
+            console.log('Updating auth UI, authenticated:', isAuthenticated);
+            
+            const loginGate = document.getElementById('loginGate');
+            const mainApp = document.getElementById('mainApp');
+            const userInfo = document.getElementById('userInfo');
+            const authButtons = document.getElementById('authButtons');
+            const userEmail = document.getElementById('userEmail');
+            
+            const canAccess = isAuthenticated && currentUser && currentUser.is_verified;
+            console.log('Can access platform:', canAccess);
+            
+            if (canAccess) {
+                // Show main app
+                loginGate.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                userInfo.classList.remove('hidden');
+                authButtons.classList.add('hidden');
+                userEmail.textContent = currentUser.email;
+            } else {
+                // Show login gate
+                loginGate.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+                userInfo.classList.add('hidden');
+                authButtons.classList.remove('hidden');
+                
+                if (isAuthenticated && currentUser && !currentUser.is_verified) {
+                    showError('loginError', 'Please check your email and verify your account to continue.');
+                    showLogin();
+                }
+            }
+        }
+
+        // Authentication functions
+        function showLogin() {
+            hideModals();
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function showRegister() {
+            hideModals();
+            document.getElementById('registerModal').classList.remove('hidden');
+        }
+
+        function hideModals() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('registerModal').classList.add('hidden');
+            hideErrors();
+        }
+
+        function logout() {
+            console.log('Logging out...');
+            authToken = null;
+            currentUser = null;
+            isAuthenticated = false;
+            investigations = [];
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateAuthUI();
+        }
+
+        // Error handling
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        }
+
+        function hideErrors() {
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('registerError').classList.add('hidden');
+        }
+
+        console.log('Clean frontend script loaded successfully');
+    </script>
+</body>
+</html>

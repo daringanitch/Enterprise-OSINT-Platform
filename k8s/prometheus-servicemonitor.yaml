@@ -1,0 +1,81 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-fastapi-backend-metrics
+  namespace: osint-platform
+  labels:
+    app: osint-fastapi-backend
+    monitoring: "true"
+spec:
+  selector:
+    app: osint-fastapi-backend
+  ports:
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: osint-platform-metrics
+  namespace: osint-platform
+  labels:
+    app: osint-platform
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      monitoring: "true"
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: osint-platform
+data:
+  osint-alerts.yml: |
+    groups:
+    - name: osint-platform
+      rules:
+      - alert: OSINTHighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate in OSINT Platform"
+          description: "Error rate is {{ $value }} errors per second"
+          
+      - alert: OSINTHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency in OSINT Platform"
+          description: "95th percentile latency is {{ $value }} seconds"
+          
+      - alert: CeleryWorkerDown
+        expr: celery_workers_active < 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery workers are down"
+          description: "Only {{ $value }} Celery workers are active"
+          
+      - alert: HighAPIUsageCost
+        expr: rate(osint_api_cost_total[1h]) > 10.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API usage cost"
+          description: "API costs are ${{ $value }} per hour"

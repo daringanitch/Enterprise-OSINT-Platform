@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Enterprise OSINT Platform - Restored</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            background-image: 
+                radial-gradient(circle at 25% 25%, #1a1a1a 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, #2a2a2a 0%, transparent 50%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            color: #9ca3af;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .world-clocks {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid #374151;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .world-clocks h3 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .clock-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .clock {
+            text-align: center;
+            padding: 0.75rem;
+            background: rgba(55, 65, 81, 0.5);
+            border-radius: 0.5rem;
+            border: 1px solid #4b5563;
+        }
+        
+        .clock-city {
+            font-size: 0.9rem;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+        }
+        
+        .clock-time {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffffff;
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .clock-date {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        
+        .system-status {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid #374151;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .system-status h3 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-dot.online {
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+        }
+        
+        .status-dot.offline {
+            background: #ef4444;
+            box-shadow: 0 0 6px #ef4444;
+        }
+        
+        .investigation-form {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid #374151;
+            border-radius: 1rem;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .investigation-form h3 {
+            color: #60a5fa;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #d1d5db;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(55, 65, 81, 0.5);
+            border: 1px solid #4b5563;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .investigation-list {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid #374151;
+            border-radius: 1rem;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            margin-top: 2rem;
+        }
+        
+        .investigation-list h3 {
+            color: #60a5fa;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .investigation-item {
+            background: rgba(55, 65, 81, 0.5);
+            border: 1px solid #4b5563;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .investigation-item:hover {
+            border-color: #60a5fa;
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.1);
+        }
+        
+        .investigation-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .investigation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .investigation-target {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .investigation-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .status-running {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #f59e0b;
+        }
+        
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #059669;
+        }
+        
+        .status-failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #dc2626;
+        }
+        
+        .investigation-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .investigation-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            border: 1px solid #60a5fa;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .btn-small:hover {
+            background: rgba(96, 165, 250, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .health-check {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            color: #10b981;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Authentication Styles */
+        .auth-section {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .auth-button {
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .auth-button.secondary {
+            background: transparent;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .auth-form {
+            background: rgba(17, 24, 39, 0.95);
+            padding: 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            min-width: 400px;
+            border: 1px solid #374151;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .login-gate {
+            text-align: center;
+            margin-top: 5rem;
+        }
+
+        .login-gate h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #60a5fa;
+        }
+
+        .login-gate p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+
+        .error-message {
+            background: #ef4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .clock-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .clock-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .investigation-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .investigation-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .investigation-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Section -->
+    <div class="auth-section">
+        <!-- User Info (shown when logged in) -->
+        <div id="userInfo" class="user-info hidden">
+            <span id="userEmail">user@example.com</span>
+            <button class="auth-button" onclick="logout()">Logout</button>
+        </div>
+        
+        <!-- Login/Register buttons (shown when not logged in) -->
+        <div id="authButtons">
+            <button class="auth-button secondary" onclick="showLogin()">Login</button>
+            <button class="auth-button" onclick="showRegister()">Register</button>
+        </div>
+    </div>
+
+    <!-- Login Form Modal -->
+    <div id="loginModal" class="modal hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Login to OSINT Platform</h2>
+            <div id="loginError" class="error-message hidden"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="auth-button secondary" onclick="hideModals()">Cancel</button>
+                    <button type="submit" class="auth-button">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Form Modal -->
+    <div id="registerModal" class="modal hidden">
+        <div class="auth-form">
+            <h2 style="text-align: center; color: #60a5fa; margin-bottom: 2rem;">Register for OSINT Platform</h2>
+            <div id="registerError" class="error-message hidden"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerFullName">Full Name</label>
+                    <input type="text" id="registerFullName" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerOrganization">Organization</label>
+                    <input type="text" id="registerOrganization" name="organization" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="auth-button secondary" onclick="hideModals()">Cancel</button>
+                    <button type="submit" class="auth-button">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Gate - shown when not authenticated -->
+    <div id="loginGate" class="login-gate">
+        <div class="container">
+            <div class="header">
+                <h1>🔍 Enterprise OSINT Platform</h1>
+                <p>Professional Open Source Intelligence Research & Analysis</p>
+            </div>
+            
+            <div class="login-gate">
+                <h2>Welcome to the Platform</h2>
+                <p>Please login or register to access the investigation tools</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+                    <button class="auth-button" onclick="showLogin()">Login to Continue</button>
+                    <button class="auth-button secondary" onclick="showRegister()">Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application - shown when authenticated -->
+    <div id="mainApp" class="container hidden">
+        <div class="header">
+            <h1>🔍 Enterprise OSINT Platform</h1>
+            <p>Professional Open Source Intelligence Research & Analysis</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="world-clocks">
+                <h3>🌍 World Clocks</h3>
+                <div class="clock-grid">
+                    <div class="clock">
+                        <div class="clock-city">Los Angeles</div>
+                        <div class="clock-time" id="time-la">--:--:--</div>
+                        <div class="clock-date" id="date-la">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">New York</div>
+                        <div class="clock-time" id="time-ny">--:--:--</div>
+                        <div class="clock-date" id="date-ny">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">London</div>
+                        <div class="clock-time" id="time-london">--:--:--</div>
+                        <div class="clock-date" id="date-london">--/--/----</div>
+                    </div>
+                    <div class="clock">
+                        <div class="clock-city">Tokyo</div>
+                        <div class="clock-time" id="time-tokyo">--:--:--</div>
+                        <div class="clock-date" id="date-tokyo">--/--/----</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="system-status">
+                <h3>⚡ System Status</h3>
+                <div class="status-item">
+                    <span style="display: flex; align-items: center;">
+                        <div class="status-dot online"></div>
+                        API Gateway
+                    </span>
+                    <span>Online</span>
+                </div>
+                <div class="status-item">
+                    <span style="display: flex; align-items: center;">
+                        <div class="status-dot online"></div>
+                        OSINT Services
+                    </span>
+                    <span>Online</span>
+                </div>
+                <div class="status-item">
+                    <span style="display: flex; align-items: center;">
+                        <div class="status-dot online"></div>
+                        Database
+                    </span>
+                    <span>Online</span>
+                </div>
+                <div class="status-item">
+                    <span style="display: flex; align-items: center;">
+                        <div class="status-dot online"></div>
+                        Analytics Engine
+                    </span>
+                    <span>Online</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="investigation-form">
+            <h3>🎯 Start New Investigation</h3>
+            <form id="investigationForm">
+                <div class="form-group">
+                    <label for="target">Investigation Target</label>
+                    <input type="text" id="target" placeholder="domain.com, email@domain.com, 192.168.1.1" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="type">Investigation Type</label>
+                        <select id="type" required>
+                            <option value="">Select Type</option>
+                            <option value="domain">🌐 Domain Analysis</option>
+                            <option value="ip">🖥️ IP Address Investigation</option>
+                            <option value="email">📧 Email Investigation</option>
+                            <option value="social">👥 Social Media Analysis</option>
+                            <option value="comprehensive">🔍 Comprehensive Analysis</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="priority">Priority Level</label>
+                        <select id="priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="investigator">Investigator Name</label>
+                    <input type="text" id="investigator" placeholder="Your name for audit trail" required>
+                </div>
+                
+                <button type="submit" class="btn">🚀 Start Investigation</button>
+            </form>
+        </div>
+        
+        <div class="investigation-list">
+            <h3>📋 Investigation History</h3>
+            <div id="investigations">
+                <p>No investigations yet. Start your first investigation above!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="health-check">
+        <div style="display: flex; align-items: center;">
+            <div class="status-dot online"></div>
+            <strong>System Health: OK</strong>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        let isAuthenticated = authToken && currentUser;
+        let investigations = [];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Enterprise OSINT Platform loaded, initializing...');
+            updateAuthUI();
+            setupEventListeners();
+            if (isAuthenticated) {
+                loadInvestigations();
+                updateWorldClocks();
+                setInterval(updateWorldClocks, 1000);
+            }
+        });
+
+        // World Clock Functions
+        function updateWorldClocks() {
+            const now = new Date();
+            
+            // Los Angeles (Pacific Time)
+            const laTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}));
+            document.getElementById('time-la').textContent = laTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-la').textContent = laTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // New York (Eastern Time)
+            const nyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            document.getElementById('time-ny').textContent = nyTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-ny').textContent = nyTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // London (Greenwich Mean Time)
+            const londonTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+            document.getElementById('time-london').textContent = londonTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-london').textContent = londonTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+            
+            // Tokyo (Japan Standard Time)
+            const tokyoTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+            document.getElementById('time-tokyo').textContent = tokyoTime.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('date-tokyo').textContent = tokyoTime.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Login form
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Register form  
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            
+            // Investigation form
+            document.getElementById('investigationForm').addEventListener('submit', handleInvestigation);
+        }
+
+        // Handle login
+        async function handleLogin(event) {
+            event.preventDefault();
+            console.log('Login attempt started');
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                console.log('Sending login request for:', email);
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.access_token) {
+                    console.log('Login successful, saving token');
+                    localStorage.setItem('authToken', data.access_token);
+                    
+                    // Fetch user data
+                    console.log('Fetching user data...');
+                    const userResponse = await fetch('/api/v1/auth/me', {
+                        headers: {'Authorization': 'Bearer ' + data.access_token}
+                    });
+                    
+                    if (userResponse.ok) {
+                        const userData = await userResponse.json();
+                        console.log('User data received:', userData);
+                        
+                        localStorage.setItem('currentUser', JSON.stringify(userData));
+                        
+                        // Update global variables
+                        authToken = data.access_token;
+                        currentUser = userData;
+                        isAuthenticated = true;
+                        
+                        console.log('Authentication successful, updating UI');
+                        updateAuthUI();
+                        loadInvestigations();
+                        updateWorldClocks();
+                        setInterval(updateWorldClocks, 1000);
+                        hideModals();
+                    } else {
+                        console.error('Failed to fetch user data');
+                        showError('loginError', 'Failed to get user information');
+                    }
+                } else {
+                    console.error('Login failed:', data);
+                    showError('loginError', data.message || 'Invalid credentials');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('loginError', 'Connection error. Please try again.');
+            }
+        }
+
+        // Handle registration
+        async function handleRegister(event) {
+            event.preventDefault();
+            console.log('Registration attempt started');
+            
+            const formData = {
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value,
+                full_name: document.getElementById('registerFullName').value,
+                organization: document.getElementById('registerOrganization').value,
+                timezone: 'UTC'
+            };
+            
+            try {
+                const response = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Registration successful! Please check your email to verify your account.');
+                    hideModals();
+                    showLogin();
+                } else {
+                    showError('registerError', data.detail || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('registerError', 'Connection error. Please try again.');
+            }
+        }
+
+        // Handle investigation
+        async function handleInvestigation(event) {
+            event.preventDefault();
+            console.log('Starting new investigation');
+            
+            const formData = {
+                target: document.getElementById('target').value,
+                investigation_type: document.getElementById('type').value
+            };
+            
+            try {
+                const headers = {'Content-Type': 'application/json'};
+                if (authToken) {
+                    headers['Authorization'] = 'Bearer ' + authToken;
+                }
+                
+                const response = await fetch('/api/v1/simple_investigations/', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const investigation = await response.json();
+                    console.log('Investigation started:', investigation);
+                    alert('Investigation started successfully!');
+                    document.getElementById('investigationForm').reset();
+                    loadInvestigations();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to start investigation: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Investigation error:', error);
+                alert('Error starting investigation: ' + error.message);
+            }
+        }
+
+        // Load investigations
+        async function loadInvestigations() {
+            if (!isAuthenticated) return;
+            
+            try {
+                console.log('Loading investigations...');
+                const response = await fetch('/api/v1/simple_investigations/', {
+                    headers: {'Authorization': 'Bearer ' + authToken}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    investigations = data.investigations || [];
+                    console.log('Loaded', investigations.length, 'investigations');
+                    displayInvestigations();
+                } else {
+                    console.error('Failed to load investigations');
+                }
+            } catch (error) {
+                console.error('Error loading investigations:', error);
+            }
+        }
+
+        // Display investigations
+        function displayInvestigations() {
+            const container = document.getElementById('investigations');
+            
+            if (investigations.length === 0) {
+                container.innerHTML = '<p>No investigations yet. Start your first investigation above!</p>';
+                return;
+            }
+            
+            const html = investigations.map(inv => {
+                const createdDate = new Date(inv.created_at * 1000);
+                const statusClass = inv.status === 'completed' ? 'status-completed' : 
+                                  inv.status === 'failed' ? 'status-failed' : 'status-running';
+                
+                return `
+                    <div class="investigation-item">
+                        <div class="investigation-header">
+                            <div class="investigation-target">${inv.target}</div>
+                            <div class="investigation-status ${statusClass}">${inv.status}</div>
+                        </div>
+                        <div class="investigation-meta">
+                            <div class="meta-item">🔍 ${inv.investigation_type}</div>
+                            <div class="meta-item">📅 ${createdDate.toLocaleDateString()}</div>
+                            <div class="meta-item">⏰ ${createdDate.toLocaleTimeString()}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+
+        // Update authentication UI
+        function updateAuthUI() {
+            console.log('Updating auth UI, authenticated:', isAuthenticated);
+            
+            const loginGate = document.getElementById('loginGate');
+            const mainApp = document.getElementById('mainApp');
+            const userInfo = document.getElementById('userInfo');
+            const authButtons = document.getElementById('authButtons');
+            const userEmail = document.getElementById('userEmail');
+            
+            const canAccess = isAuthenticated && currentUser && currentUser.is_verified;
+            console.log('Can access platform:', canAccess);
+            
+            if (canAccess) {
+                // Show main app
+                loginGate.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                userInfo.classList.remove('hidden');
+                authButtons.classList.add('hidden');
+                userEmail.textContent = currentUser.email;
+            } else {
+                // Show login gate
+                loginGate.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+                userInfo.classList.add('hidden');
+                authButtons.classList.remove('hidden');
+                
+                if (isAuthenticated && currentUser && !currentUser.is_verified) {
+                    showError('loginError', 'Please check your email and verify your account to continue.');
+                    showLogin();
+                }
+            }
+        }
+
+        // Authentication functions
+        function showLogin() {
+            hideModals();
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function showRegister() {
+            hideModals();
+            document.getElementById('registerModal').classList.remove('hidden');
+        }
+
+        function hideModals() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('registerModal').classList.add('hidden');
+            hideErrors();
+        }
+
+        function logout() {
+            console.log('Logging out...');
+            authToken = null;
+            currentUser = null;
+            isAuthenticated = false;
+            investigations = [];
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateAuthUI();
+        }
+
+        // Error handling
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        }
+
+        function hideErrors() {
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('registerError').classList.add('hidden');
+        }
+
+        console.log('Enterprise OSINT Platform - Clean Restored Version Loaded');
+    </script>
+</body>
+</html>

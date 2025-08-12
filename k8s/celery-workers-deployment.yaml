@@ -1,0 +1,269 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-celery-worker
+  namespace: osint-platform
+  labels:
+    app: osint-celery-worker
+    component: worker
+    type: celery
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: osint-celery-worker
+  template:
+    metadata:
+      labels:
+        app: osint-celery-worker
+        component: worker
+        type: celery
+    spec:
+      containers:
+      - name: worker
+        image: osint-platform/fastapi-backend:latest
+        imagePullPolicy: Never
+        command: ["celery"]
+        args: 
+          - "-A"
+          - "app.core.celery_app"
+          - "worker"
+          - "--loglevel=info"
+          - "--concurrency=4"
+          - "--max-tasks-per-child=1000"
+          - "-Q"
+          - "celery,osint,reports"
+        env:
+        - name: POSTGRES_SERVER
+          value: "postgresql"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: CELERY_TASK_TIME_LIMIT
+          value: "3600"
+        - name: CELERY_TASK_SOFT_TIME_LIMIT
+          value: "3300"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: openai-api-key
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: twitter-bearer-token
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: shodan-api-key
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: virustotal-api-key
+        - name: MCP_SOCIAL_MEDIA_URL
+          value: "http://mcp-social-media:8010"
+        - name: MCP_INFRASTRUCTURE_URL
+          value: "http://mcp-infrastructure:8020"
+        - name: MCP_THREAT_INTEL_URL
+          value: "http://mcp-threat-intel:8030"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: reports
+          mountPath: /app/reports
+      volumes:
+      - name: reports
+        persistentVolumeClaim:
+          claimName: osint-reports-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-celery-beat
+  namespace: osint-platform
+  labels:
+    app: osint-celery-beat
+    component: scheduler
+    type: celery
+spec:
+  replicas: 1  # Only one beat scheduler
+  selector:
+    matchLabels:
+      app: osint-celery-beat
+  template:
+    metadata:
+      labels:
+        app: osint-celery-beat
+        component: scheduler
+        type: celery
+    spec:
+      containers:
+      - name: beat
+        image: osint-platform/fastapi-backend:latest
+        imagePullPolicy: Never
+        command: ["celery"]
+        args: 
+          - "-A"
+          - "app.core.celery_app"
+          - "beat"
+          - "--loglevel=info"
+        env:
+        - name: POSTGRES_SERVER
+          value: "postgresql"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: "osint_audit"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-celery-flower
+  namespace: osint-platform
+  labels:
+    app: osint-celery-flower
+    component: monitoring
+    type: celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: osint-celery-flower
+  template:
+    metadata:
+      labels:
+        app: osint-celery-flower
+        component: monitoring
+        type: celery
+    spec:
+      containers:
+      - name: flower
+        image: osint-platform/fastapi-backend:latest
+        imagePullPolicy: Never
+        command: ["celery"]
+        args: 
+          - "-A"
+          - "app.core.celery_app"
+          - "flower"
+          - "--port=5555"
+          - "--basic_auth=admin:admin"  # Change in production
+        ports:
+        - containerPort: 5555
+          name: http
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: CELERY_BROKER_URL
+          value: "redis://redis:6379/0"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-celery-flower
+  namespace: osint-platform
+  labels:
+    app: osint-celery-flower
+spec:
+  type: ClusterIP
+  selector:
+    app: osint-celery-flower
+  ports:
+  - name: http
+    port: 5555
+    targetPort: 5555
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-celery-worker-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-celery-worker
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 5
+        periodSeconds: 60

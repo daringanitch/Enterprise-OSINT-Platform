@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-fixed-ingress
+  namespace: osint-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+        path: /api
+        pathType: Prefix
+      - backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+        path: /health
+        pathType: Prefix
+      - backend:
+          service:
+            name: osint-fastapi-backend
+            port:
+              number: 8000
+        path: /metrics
+        pathType: Prefix
+      - backend:
+          service:
+            name: osint-simple-frontend
+            port:
+              number: 80
+        path: /
+        pathType: Prefix

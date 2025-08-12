@@ -348,7 +348,7 @@ class ProfessionalReportGenerator:
         
         if investigation.social_intelligence:
             data_sources.update(investigation.social_intelligence.data_sources)
-            intelligence_items += len(investigation.social_intelligence.mentions)
+            intelligence_items += len(getattr(investigation.social_intelligence, 'mentions', []))
             
         if investigation.infrastructure_intelligence:
             data_sources.add("infrastructure")
@@ -357,7 +357,7 @@ class ProfessionalReportGenerator:
             
         if investigation.threat_intelligence:
             data_sources.add("threat_intelligence")
-            intelligence_items += len(investigation.threat_intelligence.iocs)
+            intelligence_items += len(getattr(investigation.threat_intelligence, 'iocs', []))
         
         # Compliance status
         compliance_status = "Compliant"
@@ -394,8 +394,8 @@ class ProfessionalReportGenerator:
                 'domains': investigation.infrastructure_intelligence.domains,
                 'subdomains': investigation.infrastructure_intelligence.subdomains,
                 'ip_addresses': investigation.infrastructure_intelligence.ip_addresses,
-                'ssl_certificates': investigation.infrastructure_intelligence.ssl_certificates,
-                'dns_records': investigation.infrastructure_intelligence.dns_records
+                'ssl_certificates': getattr(investigation.infrastructure_intelligence, 'ssl_certificates', []),
+                'dns_records': getattr(investigation.infrastructure_intelligence, 'dns_records', {})
             }
             domains_analyzed = len(investigation.infrastructure_intelligence.domains)
             ip_addresses_investigated = len(investigation.infrastructure_intelligence.ip_addresses)
@@ -407,7 +407,7 @@ class ProfessionalReportGenerator:
         if investigation.social_intelligence:
             social_intelligence = {
                 'platforms': list(investigation.social_intelligence.platforms),
-                'mentions': investigation.social_intelligence.mentions,
+                'mentions': getattr(investigation.social_intelligence, 'mentions', []),
                 'sentiment_analysis': investigation.social_intelligence.sentiment_analysis,
                 'reputation_score': investigation.social_intelligence.reputation_score
             }
@@ -418,8 +418,8 @@ class ProfessionalReportGenerator:
         malware_samples_analyzed = 0
         
         if investigation.threat_intelligence:
-            threat_indicators = investigation.threat_intelligence.iocs
-            malware_samples_analyzed = len(investigation.threat_intelligence.malware_samples)
+            threat_indicators = getattr(investigation.threat_intelligence, 'iocs', [])
+            malware_samples_analyzed = len(getattr(investigation.threat_intelligence, 'malware_samples', []))
         
         # Vulnerabilities (derived from findings)
         vulnerabilities = self._extract_vulnerabilities(investigation)
@@ -456,7 +456,7 @@ class ProfessionalReportGenerator:
         
         # Add findings from investigation
         for finding in investigation.key_findings:
-            findings.append(finding['description'])
+            findings.append(finding)
         
         # Add risk-based findings
         if hasattr(investigation, 'risk_assessment') and investigation.risk_assessment:
@@ -476,8 +476,9 @@ class ProfessionalReportGenerator:
         
         # Add infrastructure findings
         if investigation.infrastructure_intelligence:
-            if investigation.infrastructure_intelligence.exposed_services:
-                findings.append(f"Exposed services detected: {len(investigation.infrastructure_intelligence.exposed_services)} services")
+            exposed_services = getattr(investigation.infrastructure_intelligence, 'exposed_services', [])
+            if exposed_services:
+                findings.append(f"Exposed services detected: {len(exposed_services)} services")
         
         return findings
     
@@ -500,7 +501,7 @@ class ProfessionalReportGenerator:
                     recommendations.extend(report.recommendations[:2])  # Top 2 per report
         
         # Infrastructure recommendations
-        if investigation.infrastructure_intelligence and investigation.infrastructure_intelligence.exposed_services:
+        if investigation.infrastructure_intelligence and getattr(investigation.infrastructure_intelligence, 'exposed_services', []):
             recommendations.append("Review and secure exposed services to reduce attack surface")
         
         # General strategic recommendations
@@ -548,7 +549,7 @@ class ProfessionalReportGenerator:
                 })
         
         # Adjust based on specific findings
-        if investigation.infrastructure_intelligence and investigation.infrastructure_intelligence.exposed_services:
+        if investigation.infrastructure_intelligence and getattr(investigation.infrastructure_intelligence, 'exposed_services', []):
             if len(investigation.infrastructure_intelligence.exposed_services) > 5:
                 impact["operational"] = "High"
         

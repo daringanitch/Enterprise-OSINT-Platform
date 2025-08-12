@@ -1,8 +1,9 @@
 """
 Audit log model - placeholder
 """
-from sqlalchemy import Column, String, DateTime, Text
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 
@@ -12,5 +13,8 @@ class AuditLog(Base):
     id = Column(String, primary_key=True)
     action = Column(String, nullable=False)
     details = Column(Text)
-    user_id = Column(String)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship
+    user = relationship("User", back_populates="audit_logs")

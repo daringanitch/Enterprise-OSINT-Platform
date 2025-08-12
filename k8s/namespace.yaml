@@ -4,7 +4,4 @@ metadata:
   name: osint-platform
   labels:
     name: osint-platform
-    purpose: enterprise-osint
-    security: restricted
-  annotations:
-    description: "Enterprise OSINT Platform with Vault and PostgreSQL"
+    app: osint

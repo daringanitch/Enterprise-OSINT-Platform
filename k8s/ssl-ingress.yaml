@@ -1,0 +1,68 @@
+---
+# SSL-enabled ingress for osint.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-ssl-ingress
+  namespace: osint-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - osint.local
+    - api.osint.local
+    secretName: osint-local-tls
+  rules:
+  - host: osint.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-simple-frontend
+            port:
+              number: 80
+  - host: api.osint.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000

@@ -344,7 +344,7 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  storageClassName: standard
+  storageClassName: hostpath
 
 ---
 # PostgreSQL Service

@@ -1,0 +1,167 @@
+---
+# HorizontalPodAutoscaler for FastAPI Backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-fastapi-backend-hpa-optimized
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-fastapi-backend
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 300
+---
+# HorizontalPodAutoscaler for Celery Workers
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-celery-worker-hpa-optimized
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-celery-worker
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 300
+---
+# PodDisruptionBudget for FastAPI Backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-fastapi-backend-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osint-fastapi-backend
+---
+# PodDisruptionBudget for Celery Workers
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-celery-worker-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: osint-celery-worker
+---
+# NetworkPolicy for micro-segmentation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: osint-platform-network-policy
+  namespace: osint-platform
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: osint-platform
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  - ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 5555
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+  egress:
+  - {}
+---
+# ConfigMap for performance tuning
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: osint-performance-config
+  namespace: osint-platform
+data:
+  # FastAPI/Gunicorn optimization
+  WORKERS_PER_CORE: "2"
+  MAX_WORKERS: "8"
+  WEB_CONCURRENCY: "4"
+  KEEP_ALIVE: "5"
+  
+  # Database connection pooling
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "30"
+  DB_POOL_RECYCLE: "3600"
+  
+  # Redis optimization
+  REDIS_MAX_CONNECTIONS: "50"
+  REDIS_CONNECTION_POOL_SIZE: "20"
+  
+  # Celery optimization
+  CELERY_WORKER_PREFETCH_MULTIPLIER: "4"
+  CELERY_WORKER_MAX_TASKS_PER_CHILD: "100"
+  CELERY_TASK_TIME_LIMIT: "1800"
+  CELERY_TASK_SOFT_TIME_LIMIT: "1500"
+  
+  # Logging optimization
+  LOG_LEVEL: "INFO"
+  ACCESS_LOG: "false"

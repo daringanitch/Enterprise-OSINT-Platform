@@ -1,0 +1,50 @@
+---
+# HTTP ingress for localhost access (for convenience)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: osint-localhost-ingress
+  namespace: osint-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: localhost
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-fastapi-manual
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: osint-simple-frontend
+            port:
+              number: 80

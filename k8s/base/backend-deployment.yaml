@@ -20,7 +20,7 @@ spec:
       serviceAccountName: osint-backend
       containers:
       - name: backend
-        image: osint-platform/backend:latest
+        image: osint-platform/backend:local
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
@@ -86,7 +86,7 @@ spec:
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health
             port: http
           initialDelaySeconds: 5
           periodSeconds: 5

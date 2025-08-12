@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: osint-platform/simple-backend:v1.0.0-auth
+        image: osint-platform/simple-backend:v1.0.2-consistent-audit
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -28,13 +28,16 @@ spec:
         - name: FLASK_ENV
           value: "development"
         - name: POSTGRES_HOST
-          value: "postgresql"
+          value: "osint-platform-postgresql"
         - name: POSTGRES_PORT
           value: "5432"
         - name: POSTGRES_USER
           value: "postgres"
         - name: POSTGRES_PASSWORD
-          value: "password123"
+          valueFrom:
+            secretKeyRef:
+              name: osint-platform-postgresql
+              key: postgres-password
         - name: POSTGRES_DB
           value: "osint_audit"
         - name: VAULT_ADDR
@@ -68,14 +71,17 @@ spec:
               name: osint-api-keys
               key: virustotal-api-key
         - name: REDIS_URL
-          value: "redis://redis:6379/0"
+          value: "redis://osint-platform-redis-master:6379/0"
         - name: CELERY_BROKER_URL
-          value: "redis://redis:6379/0"
+          value: "redis://osint-platform-redis-master:6379/0"
         - name: JWT_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: osint-secrets
               key: jwt-secret-key
+        volumeMounts:
+        - name: audit-history-storage
+          mountPath: /tmp
         resources:
           requests:
             memory: "256Mi"
@@ -83,6 +89,9 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+      volumes:
+      - name: audit-history-storage
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
