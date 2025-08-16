@@ -1,0 +1,179 @@
+{{/* Infrastructure Enhanced MCP Server */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint-platform.fullname" . }}-mcp-infrastructure-enhanced
+  labels:
+    {{- include "osint-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-infrastructure-enhanced
+spec:
+  replicas: {{ .Values.replicaCount.mcpInfrastructureEnhanced }}
+  selector:
+    matchLabels:
+      {{- include "osint-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp-infrastructure-enhanced
+  template:
+    metadata:
+      labels:
+        {{- include "osint-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp-infrastructure-enhanced
+    spec:
+      containers:
+        - name: infrastructure-enhanced
+          image: "{{ .Values.mcp.infrastructureEnhanced.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mcp.infrastructureEnhanced.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.mcp.infrastructureEnhanced.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+
+---
+{{/* Threat Enhanced MCP Server */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint-platform.fullname" . }}-mcp-threat-enhanced
+  labels:
+    {{- include "osint-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-threat-enhanced
+spec:
+  replicas: {{ .Values.replicaCount.mcpThreatEnhanced }}
+  selector:
+    matchLabels:
+      {{- include "osint-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp-threat-enhanced
+  template:
+    metadata:
+      labels:
+        {{- include "osint-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp-threat-enhanced
+    spec:
+      containers:
+        - name: threat-enhanced
+          image: "{{ .Values.mcp.threatEnhanced.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mcp.threatEnhanced.port }}
+              protocol: TCP
+          env:
+            {{- if .Values.apiKeys.externalSecrets.enabled }}
+            - name: VIRUSTOTAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: virustotal-api-key
+            - name: ABUSEIPDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: abuseipdb-api-key
+            - name: SHODAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: shodan-api-key
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.mcp.threatEnhanced.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+
+---
+{{/* Technical Enhanced (AI) MCP Server */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint-platform.fullname" . }}-mcp-technical-enhanced
+  labels:
+    {{- include "osint-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-technical-enhanced
+spec:
+  replicas: {{ .Values.replicaCount.mcpTechnicalEnhanced }}
+  selector:
+    matchLabels:
+      {{- include "osint-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp-technical-enhanced
+  template:
+    metadata:
+      labels:
+        {{- include "osint-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp-technical-enhanced
+    spec:
+      containers:
+        - name: technical-enhanced
+          image: "{{ .Values.mcp.technicalEnhanced.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mcp.technicalEnhanced.port }}
+              protocol: TCP
+          env:
+            {{- if .Values.apiKeys.externalSecrets.enabled }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: openai-api-key
+            {{- end }}
+            - name: OPENAI_MODEL
+              value: "gpt-4-turbo-preview"
+            - name: OPENAI_MAX_TOKENS
+              value: "4000"
+            - name: OPENAI_TEMPERATURE
+              value: "0.3"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.mcp.technicalEnhanced.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false

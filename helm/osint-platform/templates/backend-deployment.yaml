@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint-platform.fullname" . }}-backend
+  labels:
+    {{- include "osint-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.replicaCount.backend }}
+  selector:
+    matchLabels:
+      {{- include "osint-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "osint-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: {{ include "osint-platform.serviceAccountName" . }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/system/status
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/system/status
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          env:
+            - name: FLASK_ENV
+              value: {{ .Values.backend.env.FLASK_ENV | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.backend.env.LOG_LEVEL | quote }}
+            - name: POSTGRES_URL
+              value: {{ .Values.backend.env.POSTGRES_URL | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-postgresql
+                  key: postgres-password
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-secrets
+                  key: jwt-secret-key
+            - name: MCP_INFRASTRUCTURE_URL
+              value: "http://{{ include "osint-platform.fullname" . }}-mcp-infrastructure-enhanced:{{ .Values.mcp.infrastructureEnhanced.port }}"
+            - name: MCP_THREAT_URL
+              value: "http://{{ include "osint-platform.fullname" . }}-mcp-threat-enhanced:{{ .Values.mcp.threatEnhanced.port }}"
+            - name: MCP_AI_URL
+              value: "http://{{ include "osint-platform.fullname" . }}-mcp-technical-enhanced:{{ .Values.mcp.technicalEnhanced.port }}"
+            - name: MCP_SOCIAL_URL
+              value: "http://{{ include "osint-platform.fullname" . }}-mcp-social-enhanced:{{ .Values.mcp.socialEnhanced.port }}"
+            - name: MCP_FINANCIAL_URL
+              value: "http://{{ include "osint-platform.fullname" . }}-mcp-financial-enhanced:{{ .Values.mcp.financialEnhanced.port }}"
+            {{- if .Values.apiKeys.externalSecrets.enabled }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: openai-api-key
+            - name: VIRUSTOTAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osint-platform.fullname" . }}-api-keys
+                  key: virustotal-api-key
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

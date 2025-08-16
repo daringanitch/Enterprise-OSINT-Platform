@@ -1,16 +1,18 @@
 # Default values for osint-platform
+# Enterprise OSINT Platform Helm Chart - Current Architecture
 replicaCount:
-  frontend: 3
-  backend: 3
-  celeryWorker: 4
-  mcpSocialMedia: 2
-  mcpInfrastructure: 2
-  mcpThreatIntel: 2
+  frontend: 2
+  backend: 2
+  mcpInfrastructureEnhanced: 2
+  mcpThreatEnhanced: 1
+  mcpTechnicalEnhanced: 1
+  mcpSocialEnhanced: 1
+  mcpFinancialEnhanced: 1
 
 image:
   registry: ""
   pullPolicy: IfNotPresent
-  tag: "v1.0.0-auth"
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -21,7 +23,7 @@ serviceAccount:
   annotations: {}
   name: ""
 
-# Frontend configuration
+# Frontend configuration (React SPA)
 frontend:
   image:
     repository: osint-platform/simple-frontend
@@ -36,10 +38,10 @@ frontend:
       cpu: 50m
       memory: 128Mi
 
-# Backend configuration
+# Backend configuration (Flask REST API)
 backend:
   image:
-    repository: osint-platform/fastapi-backend
+    repository: osint-platform/simple-backend
   service:
     type: ClusterIP
     port: 5000
@@ -48,35 +50,20 @@ backend:
       cpu: 1000m
       memory: 1Gi
     requests:
-      cpu: 250m
+      cpu: 200m
       memory: 512Mi
+  env:
+    FLASK_ENV: production
+    LOG_LEVEL: INFO
+    POSTGRES_URL: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/osint_audit"
 
-# Celery configuration
-celery:
-  worker:
-    concurrency: 2
-    resources:
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-      requests:
-        cpu: 500m
-        memory: 1Gi
-  beat:
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 256Mi
-
-# MCP Servers configuration
+# Enhanced MCP Servers configuration (Current Architecture)
 mcp:
-  socialMedia:
+  # Infrastructure Advanced MCP Server (FastAPI)
+  infrastructureEnhanced:
     image:
-      repository: osint-platform/mcp-social-media
-    port: 8010
+      repository: osint-platform/infrastructure-advanced
+    port: 8021
     resources:
       limits:
         cpu: 500m
@@ -84,10 +71,18 @@ mcp:
       requests:
         cpu: 100m
         memory: 256Mi
+    capabilities:
+      - certificate_transparency
+      - passive_dns
+      - asn_lookup
+      - reverse_ip
+      - port_scan
+      - web_technologies
   
-  infrastructure:
+  # Threat Intelligence Aggregator (FastAPI)
+  threatEnhanced:
     image:
-      repository: osint-platform/mcp-infrastructure
+      repository: osint-platform/threat-aggregator
     port: 8020
     resources:
       limits:
@@ -96,11 +91,34 @@ mcp:
       requests:
         cpu: 100m
         memory: 256Mi
+    capabilities:
+      - threat_check_ip
+      - threat_check_domain
+      - threat_check_hash
+      - threat_hunt
   
-  threatIntel:
+  # AI-Powered Analyzer (FastAPI)
+  technicalEnhanced:
     image:
-      repository: osint-platform/mcp-threat-intel
-    port: 8030
+      repository: osint-platform/ai-analyzer
+    port: 8050
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+    capabilities:
+      - ai_generate_executive_summary
+      - ai_threat_assessment
+      - ai_risk_analysis
+  
+  # Social Media Enhanced (Flask)
+  socialEnhanced:
+    image:
+      repository: osint-platform/social-media-enhanced
+    port: 8010
     resources:
       limits:
         cpu: 500m
@@ -108,20 +126,52 @@ mcp:
       requests:
         cpu: 100m
         memory: 256Mi
+    capabilities:
+      - social_twitter_profile
+      - social_linkedin_company
+      - social_reddit_search
+  
+  # Financial Enhanced (Flask)
+  financialEnhanced:
+    image:
+      repository: osint-platform/financial-enhanced
+    port: 8040
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    capabilities:
+      - financial_sec_filings
+      - financial_company_analysis
 
-# PostgreSQL configuration
+# PostgreSQL configuration (Audit Database)
 postgresql:
   enabled: true
   auth:
-    username: osint_user
-    password: "changeme"
-    database: osint_db
+    username: postgres
+    password: "changeme-secure-password"
+    database: osint_audit
   primary:
     persistence:
       enabled: true
       size: 50Gi
+      storageClass: "fast-ssd"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
   metrics:
     enabled: true
+  audit:
+    enabled: true
+    logConnections: true
+    logDisconnections: true
 
 # Redis configuration
 redis:
@@ -174,18 +224,31 @@ security:
   secretKey: "changeme-to-random-string"
   jwtSecretKey: "changeme-to-random-jwt-secret"
 
-# API Keys - MUST be provided via secrets in production
+# API Keys - MUST be provided via External Secrets in production
 apiKeys:
+  # External Secrets configuration (recommended)
+  externalSecrets:
+    enabled: true
+    secretStore: vault-backend
+    refreshInterval: 5m
+  
+  # AI Enhancement APIs
   openai: ""
-  twitterBearer: ""
-  shodan: ""
+  
+  # Threat Intelligence APIs
   virustotal: ""
+  abuseipdb: ""
+  shodan: ""
+  alienvault: ""
+  
+  # Social Media APIs
+  twitterBearer: ""
   redditClientId: ""
   redditClientSecret: ""
-  abuseipdb: ""
-  alienvault: ""
-  mispUrl: ""
-  mispApiKey: ""
+  
+  # Financial APIs
+  alphaVantage: ""
+  secApi: ""
 
 # Monitoring
 monitoring:

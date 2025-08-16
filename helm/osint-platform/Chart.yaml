@@ -1,9 +1,9 @@
 apiVersion: v2
 name: osint-platform
-description: Enterprise OSINT Research Platform with MCP Integration
+description: Enterprise OSINT Research Platform with Enhanced MCP Architecture
 type: application
-version: 1.0.0
-appVersion: "1.0.0"
+version: 2.0.0
+appVersion: "2.0.0"
 keywords:
   - osint
   - intelligence
@@ -26,3 +26,7 @@ dependencies:
     version: "17.x.x"
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
+  - name: external-secrets
+    version: "0.9.x"
+    repository: https://charts.external-secrets.io
+    condition: apiKeys.externalSecrets.enabled
