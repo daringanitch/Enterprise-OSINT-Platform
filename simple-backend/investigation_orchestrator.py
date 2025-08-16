@@ -18,6 +18,25 @@ from models import (
     SocialIntelligence, InfrastructureIntelligence, ThreatIntelligence,
     ComplianceReport, InvestigationError, IntelligenceSource
 )
+try:
+    from observability import trace_operation, trace_investigation, add_trace_attributes, record_error
+except ImportError:
+    # Fallback stubs when observability module not available
+    def trace_operation(name, attributes=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def trace_investigation(investigation_type):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def add_trace_attributes(**kwargs):
+        pass
+    
+    def record_error(error, error_type=None):
+        pass
 from mcp_clients import MCPClientManager
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from risk_assessment_engine import RiskAssessmentEngine, RiskAssessmentResult
@@ -51,6 +70,52 @@ class InvestigationOrchestrator:
             InvestigationStatus.GENERATING_REPORT: self._stage_report_generation
         }
     
+    def create_investigation(self, 
+                           target: str,
+                           investigation_type: InvestigationType,
+                           investigator_name: str,
+                           priority: Priority = Priority.NORMAL,
+                           scope: Optional[InvestigationScope] = None) -> str:
+        """
+        Create a new OSINT investigation (without execution)
+        
+        Args:
+            target: Primary target identifier (domain, company, etc.)
+            investigation_type: Type of investigation to perform
+            investigator_name: Name of investigator for audit trail
+            priority: Investigation priority level
+            scope: Investigation scope and constraints
+            
+        Returns:
+            Investigation ID
+        """
+        
+        # Create target profile
+        target_profile = TargetProfile(
+            target_id=f"target_{int(time.time())}",
+            target_type="domain",  # Will be auto-detected in profiling stage
+            primary_identifier=target,
+            created_at=datetime.utcnow()
+        )
+        
+        # Create investigation (without execution)
+        investigation = OSINTInvestigation(
+            id=f"osint_{uuid.uuid4().hex[:12]}",
+            target_profile=target_profile,
+            investigation_type=investigation_type,
+            investigator_name=investigator_name,
+            priority=priority,
+            scope=scope or InvestigationScope(),
+            status=InvestigationStatus.QUEUED,  # Start as queued
+            created_at=datetime.utcnow()
+        )
+        
+        # Store investigation
+        self.investigations[investigation.id] = investigation
+        
+        logger.info(f"Created investigation {investigation.id} for target {target}")
+        return investigation.id
+
     def start_investigation(self, 
                           target: str,
                           investigation_type: InvestigationType,
@@ -141,6 +206,7 @@ class InvestigationOrchestrator:
             except Exception as e:
                 logger.error(f"Progress callback error: {e}")
     
+    @trace_investigation("complete_workflow")
     def _execute_investigation(self, investigation_id: str):
         """
         Execute complete investigation workflow
@@ -148,9 +214,23 @@ class InvestigationOrchestrator:
         """
         investigation = self.active_investigations[investigation_id]
         
+        # Add investigation attributes to trace
+        add_trace_attributes(
+            investigation_id=investigation_id,
+            target=investigation.target_profile.primary_identifier,
+            investigation_type=investigation.investigation_type.value,
+            priority=investigation.priority.value
+        )
+        
         try:
             investigation.started_at = datetime.utcnow()
             logger.info(f"Executing investigation {investigation_id}")
+            
+            # Record investigation start in trace
+            add_trace_attributes(
+                investigation_started=investigation.started_at.isoformat(),
+                estimated_duration_hours=2.0
+            )
             
             # Stage 1: Investigation Planning & Compliance Assessment
             self._transition_to_stage(investigation, InvestigationStatus.PLANNING)
@@ -197,9 +277,125 @@ class InvestigationOrchestrator:
             investigation.status = InvestigationStatus.FAILED
             investigation.completed_at = datetime.utcnow()
             investigation.progress.warnings.append(f"Investigation failed: {str(e)}")
+            
+            # Record error in trace
+            record_error(e, "investigation_execution_error")
+            add_trace_attributes(
+                investigation_failed=True,
+                failure_reason=str(e)
+            )
         
         finally:
             self._notify_progress(investigation_id, investigation)
+    
+    def execute_investigation_async(self, investigation_id: str, job_data: dict):
+        """
+        Execute investigation asynchronously - designed to run in RQ worker
+        
+        Args:
+            investigation_id: ID of investigation to execute
+            job_data: Job context data (target, type, etc.)
+        
+        Returns:
+            Investigation results dictionary
+        """
+        from job_queue import update_job_progress, mark_job_failed
+        import os
+        
+        # Get current job ID from context
+        job_id = job_data.get('job_id')
+        if not job_id:
+            # Try to get from RQ context
+            from rq import get_current_job
+            current_job = get_current_job()
+            job_id = current_job.id if current_job else 'unknown'
+        
+        # Set trace context for logging
+        trace_id = job_data.get('trace_id')
+        if trace_id:
+            os.environ['TRACE_ID'] = trace_id
+        
+        try:
+            logger.info("Starting async investigation execution", extra={
+                'investigation_id': investigation_id,
+                'job_id': job_id,
+                'trace_id': trace_id,
+                'target': job_data.get('target')
+            })
+            
+            # Get investigation
+            investigation = self.investigations.get(investigation_id)
+            if not investigation:
+                raise ValueError(f"Investigation {investigation_id} not found")
+            
+            # Update status to running
+            investigation.status = InvestigationStatus.PLANNING
+            self.active_investigations[investigation_id] = investigation
+            
+            # Update job progress
+            if job_id:
+                update_job_progress(job_id, 5, "Investigation started")
+            
+            # Execute the investigation
+            self._execute_investigation(investigation_id)
+            
+            # Update final progress
+            if job_id:
+                update_job_progress(job_id, 100, "Investigation completed")
+            
+            # Return results
+            results = {
+                'investigation_id': investigation_id,
+                'status': investigation.status.value,
+                'completed_at': investigation.completed_at.isoformat() if investigation.completed_at else None,
+                'processing_time': investigation.processing_time_seconds,
+                'results_summary': {
+                    'infrastructure_results': len(investigation.intelligence_results.infrastructure_intelligence),
+                    'social_results': len(investigation.intelligence_results.social_intelligence), 
+                    'threat_results': len(investigation.intelligence_results.threat_intelligence),
+                    'total_data_points': investigation.progress.data_points_collected
+                }
+            }
+            
+            logger.info("Async investigation completed successfully", extra={
+                'investigation_id': investigation_id,
+                'job_id': job_id,
+                'status': investigation.status.value,
+                'data_points': investigation.progress.data_points_collected
+            })
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"Investigation execution failed: {str(e)}"
+            logger.error("Async investigation failed", extra={
+                'investigation_id': investigation_id,
+                'job_id': job_id,
+                'error': str(e),
+                'trace_id': trace_id
+            })
+            
+            # Mark investigation as failed
+            if investigation_id in self.investigations:
+                investigation = self.investigations[investigation_id]
+                investigation.status = InvestigationStatus.FAILED
+                investigation.completed_at = datetime.utcnow()
+                investigation.progress.warnings.append(error_msg)
+            
+            # Mark job as failed
+            if job_id:
+                mark_job_failed(job_id, error_msg, "investigation_execution_error")
+            
+            raise e
+        
+        finally:
+            # Clean up trace context
+            if 'TRACE_ID' in os.environ:
+                del os.environ['TRACE_ID']
+            
+            # Remove from active investigations
+            if investigation_id in self.active_investigations:
+                del self.active_investigations[investigation_id]
     
     def _transition_to_stage(self, investigation: OSINTInvestigation, stage: InvestigationStatus):
         """Transition investigation to new stage"""
@@ -212,6 +408,7 @@ class InvestigationOrchestrator:
         logger.info(f"Investigation {investigation.id} -> {stage.value}")
         self._notify_progress(investigation.id, investigation)
     
+    @trace_operation("investigation.stage.planning")
     def _stage_planning(self, investigation: OSINTInvestigation):
         """
         Stage 1: Investigation Planning & Compliance Assessment
@@ -262,6 +459,7 @@ class InvestigationOrchestrator:
         investigation.update_progress(1.0, "Investigation planning completed")
         investigation.add_finding(f"Investigation plan created for {target}", "planning")
     
+    @trace_operation("investigation.stage.profiling")
     def _stage_profiling(self, investigation: OSINTInvestigation):
         """
         Stage 2: Target Profiling & Intelligence Scoping
@@ -306,6 +504,7 @@ class InvestigationOrchestrator:
         
         investigation.update_progress(1.0, "Target profiling completed")
     
+    @trace_operation("investigation.stage.collecting")
     def _stage_collecting(self, investigation: OSINTInvestigation):
         """
         Stage 3: Multi-Source Intelligence Collection
@@ -353,6 +552,7 @@ class InvestigationOrchestrator:
         investigation.progress.data_points_collected = len(collection_tasks) * 50  # Simulated
         investigation.update_progress(1.0, f"Intelligence collection completed - {len(collection_tasks)} sources")
     
+    @trace_operation("investigation.collect.social_intelligence")
     async def _collect_social_intelligence(self, investigation: OSINTInvestigation):
         """Collect real social media intelligence using MCP clients"""
         target = investigation.target_profile.primary_identifier
@@ -371,8 +571,16 @@ class InvestigationOrchestrator:
             
             for source_name, results in social_results.items():
                 for result in results:
-                    if result.data_type == 'social_media':
-                        platforms[result.source] = result.processed_data
+                    if result.data_type in ['social_media', 'social_media_profile']:
+                        # Handle both old and enhanced social media sources
+                        if result.source in ['twitter', 'twitter_enhanced']:
+                            platforms['twitter'] = result.processed_data
+                        elif result.source in ['reddit', 'reddit_enhanced']:
+                            platforms['reddit'] = result.processed_data
+                        elif result.source in ['linkedin', 'linkedin_enhanced']:
+                            platforms['linkedin'] = result.processed_data
+                        else:
+                            platforms[result.source] = result.processed_data
                         
                         # Extract sentiment if available
                         if 'sentiment' in result.processed_data:
@@ -419,6 +627,7 @@ class InvestigationOrchestrator:
             # Fall back to simulated data
             self._collect_social_intelligence_fallback(investigation)
     
+    @trace_operation("investigation.collect.infrastructure_intelligence")
     async def _collect_infrastructure_intelligence(self, investigation: OSINTInvestigation):
         """Collect real infrastructure intelligence using MCP clients"""
         target = investigation.target_profile.primary_identifier
@@ -428,6 +637,10 @@ class InvestigationOrchestrator:
             infra_results = await self.mcp_manager.gather_all_intelligence(
                 target, 'infrastructure'
             )
+            
+            logger.info(f"Infrastructure results keys: {list(infra_results.keys())}")
+            for key, results in infra_results.items():
+                logger.info(f"Source {key}: {len(results)} results")
             
             # Process infrastructure results
             domains = []
@@ -442,24 +655,62 @@ class InvestigationOrchestrator:
                 for result in results:
                     if result.data_type == 'infrastructure':
                         processed = result.processed_data
+                        logger.info(f"Processing enhanced data from {result.source} with keys: {list(processed.keys())}")
                         
-                        # WHOIS data
-                        if result.source == 'whois':
+                        # WHOIS data (both old and enhanced)
+                        if result.source in ['whois', 'whois_enhanced', 'whois_lookup_enhanced']:
+                            logger.info(f"Matched WHOIS source: {result.source}")
                             domains.append({
                                 "domain": processed.get('domain', target),
                                 "registrar": processed.get('registrar'),
-                                "creation_date": processed.get('creation_date'),
-                                "expiration_date": processed.get('expiration_date'),
-                                "status": processed.get('status', [])
+                                "creation_date": processed.get('created') or processed.get('creation_date'),
+                                "expiration_date": processed.get('expires') or processed.get('expiration_date'),
+                                "status": processed.get('status', []),
+                                "organization": processed.get('org') or processed.get('organization'),
+                                "country": processed.get('country'),
+                                "name_servers": processed.get('nameservers') or processed.get('name_servers', [])
                             })
                         
-                        # DNS data
-                        elif result.source == 'dns':
-                            if processed.get('a_record'):
+                        # DNS data (both old and enhanced)
+                        elif result.source in ['dns', 'dns_enhanced', 'dns_records_enhanced']:
+                            logger.info(f"Matched DNS source: {result.source}")
+                            # Handle enhanced DNS data structure
+                            records_data = processed.get('records', {})
+                            
+                            # Extract A records for IP addresses
+                            if records_data.get('A'):
+                                for a_record in records_data['A']:
+                                    ip_addresses.append({
+                                        "ip": a_record,
+                                        "source": "dns_resolution_enhanced",
+                                        "record_type": "A"
+                                    })
+                            
+                            # Handle old single A record format
+                            elif processed.get('a_record'):
                                 ip_addresses.append({
                                     "ip": processed['a_record'],
                                     "source": "dns_resolution",
                                     "reverse_dns": processed.get('reverse_dns')
+                                })
+                            
+                            # Store DNS records for enhanced data
+                            if records_data:
+                                dns_records.update({
+                                    'mx_records': records_data.get('MX', []),
+                                    'ns_records': records_data.get('NS', []),
+                                    'txt_records': records_data.get('TXT', []),
+                                    'cname_records': records_data.get('CNAME', []),
+                                    'soa_records': records_data.get('SOA', [])
+                                })
+                            
+                            # Legacy format support
+                            elif processed.get('mx_records') or processed.get('ns_records') or processed.get('txt_records'):
+                                dns_records.update({
+                                    'mx_records': processed.get('mx_records', []),
+                                    'ns_records': processed.get('ns_records', []),
+                                    'txt_records': processed.get('txt_records', []),
+                                    'cname_records': processed.get('cname_records', [])
                                 })
                         
                         # Shodan data
@@ -473,14 +724,17 @@ class InvestigationOrchestrator:
                                         "country": processed.get('country')
                                     })
                         
-                        # SSL Certificate data
-                        elif result.source == 'ssl_certificate':
+                        # SSL Certificate data (both old and enhanced)
+                        elif result.source in ['ssl_certificate', 'ssl_certificate_enhanced', 'ssl_certificate_info_enhanced']:
                             certificates.append({
                                 "subject": processed.get('subject', {}),
                                 "issuer": processed.get('issuer', {}),
                                 "not_before": processed.get('not_before'),
                                 "not_after": processed.get('not_after'),
-                                "algorithm": processed.get('signature_algorithm')
+                                "algorithm": processed.get('signature_algorithm'),
+                                "is_valid": processed.get('is_valid', False),
+                                "days_until_expiry": processed.get('days_until_expiry', 0),
+                                "domain": processed.get('domain', target)
                             })
                         
                         # Track data sources
@@ -513,10 +767,14 @@ class InvestigationOrchestrator:
                 
         except Exception as e:
             logger.error(f"Infrastructure intelligence collection failed: {str(e)}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Exception details: {repr(e)}")
             investigation.progress.warnings.append(f"Infrastructure intelligence failed: {str(e)}")
             # Fall back to simulated data
+            logger.warning("Falling back to simulated infrastructure data due to MCP failure")
             self._collect_infrastructure_intelligence_fallback(investigation)
     
+    @trace_operation("investigation.collect.threat_intelligence")
     async def _collect_threat_intelligence(self, investigation: OSINTInvestigation):
         """Collect real threat intelligence using MCP clients"""
         target = investigation.target_profile.primary_identifier
@@ -540,19 +798,24 @@ class InvestigationOrchestrator:
                     if result.data_type == 'threat_intelligence':
                         processed = result.processed_data
                         
-                        # VirusTotal data
-                        if result.source == 'virustotal':
-                            risk_score = processed.get('risk_score', 0)
-                            risk_scores.append(risk_score)
+                        # VirusTotal data (both old and enhanced)
+                        if result.source in ['virustotal', 'virustotal_enhanced']:
+                            threat_score = processed.get('threat_score', 0)
+                            risk_scores.append(threat_score)
                             confidence_levels.append(result.confidence_score)
                             
                             network_indicators.append({
                                 "type": "domain",
                                 "value": target,
-                                "risk": "high" if risk_score > 50 else "medium" if risk_score > 20 else "low",
-                                "malicious_detections": processed.get('malicious', 0),
-                                "suspicious_detections": processed.get('suspicious', 0),
-                                "reputation": processed.get('reputation', 0)
+                                "risk": "high" if threat_score > 5 else "medium" if threat_score > 2 else "low",
+                                "malicious_detections": processed.get('malicious_detections', 0),
+                                "suspicious_detections": processed.get('suspicious_detections', 0),
+                                "clean_detections": processed.get('clean_detections', 0),
+                                "reputation": processed.get('reputation', 0),
+                                "threat_score": threat_score,
+                                "categories": processed.get('categories', {}),
+                                "registrar": processed.get('registrar'),
+                                "data_source": "VirusTotal Enhanced" if result.source == 'virustotal_enhanced' else "VirusTotal"
                             })
                         
                         # AlienVault OTX data
@@ -612,6 +875,7 @@ class InvestigationOrchestrator:
             # Fall back to simulated data
             self._collect_threat_intelligence_fallback(investigation)
     
+    @trace_operation("investigation.stage.analyzing")
     def _stage_analyzing(self, investigation: OSINTInvestigation):
         """
         Stage 4: Intelligence Analysis & Correlation
@@ -675,6 +939,7 @@ class InvestigationOrchestrator:
         
         investigation.update_progress(1.0, "Intelligence analysis completed")
     
+    @trace_operation("investigation.stage.verifying")
     def _stage_verifying(self, investigation: OSINTInvestigation):
         """
         Stage 5: Compliance Verification & Audit Trail
@@ -901,6 +1166,7 @@ class InvestigationOrchestrator:
         investigation.compliance_reports.append(compliance_report)
         investigation.add_finding("Basic compliance verification completed (fallback mode)", "compliance")
     
+    @trace_operation("investigation.stage.risk_assessment")
     def _stage_risk_assessment(self, investigation: OSINTInvestigation):
         """
         Stage 6: Advanced Risk Assessment with Intelligence Correlation
@@ -916,15 +1182,21 @@ class InvestigationOrchestrator:
             # Extract intelligence data for correlation
             social_intel_data = None
             if investigation.social_intelligence:
+                # Extract mentions from platform data safely
+                all_mentions = []
+                for platform_data in investigation.social_intelligence.platforms.values():
+                    if 'mentions' in platform_data:
+                        all_mentions.extend(platform_data['mentions'])
+                
                 social_intel_data = {
                     'twitter': {
-                        'posts': [mention.get('text', '') for mention in investigation.social_intelligence.mentions],
-                        'followers': investigation.social_intelligence.followers,
+                        'posts': [mention.get('text', '') for mention in all_mentions if 'twitter' in mention.get('source', '')],
+                        'followers': getattr(investigation.social_intelligence, 'followers', 0),
                         'verified': False,  # Could be enhanced with real data
                         'private': False
                     },
                     'reddit': {
-                        'posts': [mention.get('text', '') for mention in investigation.social_intelligence.mentions if 'reddit' in mention.get('source', '')],
+                        'posts': [mention.get('text', '') for mention in all_mentions if 'reddit' in mention.get('source', '')],
                         'karma': 100  # Placeholder
                     }
                 }
@@ -1054,6 +1326,7 @@ class InvestigationOrchestrator:
             
             investigation.add_finding("Risk assessment completed using fallback analysis", "risk_assessment")
     
+    @trace_operation("investigation.stage.report_generation")
     def _stage_report_generation(self, investigation: OSINTInvestigation):
         """
         Stage 7: Intelligence Report Generation

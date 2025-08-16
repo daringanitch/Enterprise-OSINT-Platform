@@ -4,180 +4,190 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**Enterprise OSINT Platform - Flask + React Edition** - A professional-grade Open Source Intelligence investigation platform built with Flask backend and React frontend. Features multi-agent OSINT capabilities, real-time processing, enterprise compliance (GDPR/CCPA/PIPEDA), and production-ready Kubernetes deployment.
+**Enterprise OSINT Platform** - A production-ready Open Source Intelligence investigation platform built with Flask backend, React frontend, and FastAPI-based MCP servers. Features enhanced intelligence gathering capabilities, AI-powered analysis, enterprise compliance, and Kubernetes-native deployment.
 
 ### Core Architecture Components
 
-### 1. Backend Services (`backend/`)
-Flask-based REST API with modular structure:
-- **API Layer** (`api/`) - RESTful endpoints for auth, investigations, reports, MCP integration
-- **Models** (`models/`) - SQLAlchemy ORM for PostgreSQL (users, investigations, reports)
-- **Services** (`services/`) - Business logic (OSINT processing, MCP clients, PDF generation)
-- **Tasks** (`tasks/`) - Celery background tasks for async processing
-- **Utils** - Common utilities and helpers
+### 1. Backend Service (`simple-backend/`)
+Flask-based REST API with integrated features:
+- **Main Application** (`app.py`) - Flask REST API with JWT authentication
+- **Models** (`models.py`) - SQLAlchemy ORM for PostgreSQL audit database
+- **Investigation Engine** (`investigation_orchestrator.py`) - Multi-stage investigation workflow
+- **MCP Communication** (`mcp_clients.py`) - HTTP client for MCP server integration
+- **Reporting** (`professional_report_generator.py`) - PDF report generation
+- **Compliance** (`compliance_framework.py`) - GDPR/CCPA/PIPEDA validation
 
-### 2. Frontend Application (`frontend/`)
-React 18+ TypeScript SPA with Material-UI:
-- **Components** - Reusable UI components
-- **Pages** - Route-specific page components
-- **Services** - API clients and data fetching
-- **Store** - Redux Toolkit state management
-- **Types** - TypeScript type definitions
+### 2. Frontend Application (`simple-frontend/`)
+React 18 SPA with modern JavaScript:
+- **Main Application** (`js/app.js`) - React components and state management
+- **API Client** (`js/api.js`) - Axios-based backend communication
+- **Components** (`js/components.js`) - Reusable UI components
+- **Styling** (`css/styles.css`) - Material-UI integration
 
-### 3. MCP (Model Context Protocol) Servers (`mcp-servers/`)
-Specialized OSINT collection microservices:
-- **Infrastructure MCP** - DNS, WHOIS, certificate analysis
-- **Social Media MCP** - Twitter, LinkedIn, Reddit intelligence
-- **Threat Intel MCP** - VirusTotal, threat feeds, malware analysis
+### 3. Enhanced MCP Servers (`mcp-servers/`)
+FastAPI-based specialized intelligence services:
+- **Infrastructure Advanced** (`infrastructure-advanced/`) - FastAPI server on port 8021
+  - Certificate Transparency, DNS analysis, ASN lookup, port scanning
+- **Threat Aggregator** (`threat-aggregator/`) - FastAPI server on port 8020
+  - Multi-source threat intelligence (VirusTotal, Shodan, AbuseIPDB, OTX)
+- **AI Analyzer** (`ai-analyzer/`) - FastAPI server on port 8050
+  - GPT-4 powered analysis, threat profiling, executive summaries
+- **Social Media Enhanced** (`social-media-enhanced/`) - Flask server on port 8010
+  - Social intelligence gathering across platforms
+- **Financial Enhanced** (`financial-enhanced/`) - Flask server on port 8040
+  - Financial intelligence and SEC analysis
 
-### 4. Simple Architecture Alternative (`simple-backend/`, `simple-frontend/`)
-Lightweight deployment option with minimal dependencies for demos/testing
-
-### 5. Deployment Infrastructure
-- **Docker** containers with multi-stage builds
-- **Kubernetes** manifests with Helm charts
-- **PostgreSQL** audit database with optimized schema
-- **HashiCorp Vault** for secrets management
+### 4. Deployment Infrastructure
+- **Kubernetes** manifests with production-ready configurations
+- **PostgreSQL** 15 with audit schema and persistent storage
+- **Redis** cluster for session management and caching
+- **Docker** containers with security hardening
 
 ## Development Commands
 
 ### Prerequisites
-- **Backend**: Python 3.9+
-- **Frontend**: Node.js 18+, npm/yarn
-- **Container**: Docker for image builds
-- **Orchestration**: Kubernetes cluster (required - local or cloud)
+- **Backend**: Python 3.11+
+- **Frontend**: Node.js 18+, npm
+- **Container**: Docker Desktop with Kubernetes enabled
+- **Tools**: kubectl, helm (optional)
 
-### Backend Development
+### Kubernetes Development (Recommended)
 ```bash
-# Environment setup
-cd backend
+# Create namespace and deploy all services
+kubectl create namespace osint-platform
+
+# Deploy PostgreSQL database
+kubectl apply -f k8s/postgresql-deployment.yaml
+
+# Deploy backend API
+kubectl apply -f k8s/simple-backend-deployment.yaml
+
+# Deploy frontend
+kubectl apply -f k8s/simple-frontend-deployment.yaml
+
+# Deploy enhanced MCP servers
+kubectl apply -f k8s/enhanced-mcp-deployments.yaml
+kubectl apply -f k8s/mcp-threat-enhanced-deployment.yaml
+kubectl apply -f k8s/mcp-technical-enhanced-deployment.yaml
+
+# Access via port forwarding
+kubectl port-forward -n osint-platform svc/osint-simple-frontend 8080:80
+kubectl port-forward -n osint-platform svc/osint-backend 5000:5000
+
+# Frontend: http://localhost:8080
+# Backend API: http://localhost:5000
+```
+
+### Local Development (Alternative)
+```bash
+# Backend development
+cd simple-backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Database setup (requires PostgreSQL running)
+# Set environment variables
 export POSTGRES_URL="postgresql://postgres:password@localhost:5432/osint_audit"
-flask db upgrade
+export JWT_SECRET_KEY="dev-secret-key"
 
-# Run development server
-flask run  # http://localhost:5000
+# Run Flask development server
+python app.py  # http://localhost:5000
 
-# Background tasks (separate terminal)
-celery -A app.celery worker --loglevel=info
-```
-
-### Frontend Development
-```bash
-cd frontend
+# Frontend development
+cd simple-frontend
 npm install
-
-# Development server
-npm start  # http://localhost:3000
-
-# Build production assets
-npm run build
-
-# Code quality
-npm run lint
-npm run format
+npm start  # http://localhost:3000 (if using dev server)
 ```
 
-### Testing & Code Quality
+### MCP Server Development
+```bash
+# Infrastructure Advanced MCP
+cd mcp-servers/infrastructure-advanced
+pip install -r requirements.txt
+python app.py  # FastAPI server on port 8021
+
+# Threat Aggregator MCP
+cd mcp-servers/threat-aggregator
+pip install -r requirements.txt
+python app.py  # FastAPI server on port 8020
+
+# AI Analyzer MCP
+cd mcp-servers/ai-analyzer
+pip install -r requirements.txt
+export OPENAI_API_KEY="your-key"  # Optional
+python app.py  # FastAPI server on port 8050
+```
+
+### Testing & Quality
 ```bash
 # Backend testing
-cd backend
-source venv/bin/activate
-pytest  # Run test suite
-black .  # Format code
-flake8 .  # Lint code
-mypy .   # Type checking
+cd simple-backend
+python -m pytest tests/  # Run test suite
+python -c "import app; print('App imports successfully')"
 
-# Frontend testing  
-cd frontend
-npm test
-npm run lint
-npm run lint:fix
-```
+# Test API endpoints
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
 
-### Kubernetes Development
-```bash
-# Local development cluster setup
-make setup  # Initialize local K8s environment
-
-# Deploy to local Kubernetes
-make deploy  # Full cluster deployment
-kubectl get pods -n osint-platform
-
-# View logs and status
-kubectl logs -f deployment/backend -n osint-platform
-make status  # System health check via API
-```
-
-### Production Deployment
-```bash
-# Production Kubernetes deployment
-make deploy  # Full cluster deployment to current kubectl context
-kubectl get pods -n osint-platform
-
-# Helm deployment (recommended for production)
-cd helm/osint-platform
-helm install osint-platform . -n osint-platform --create-namespace -f values-production.yaml
-
-# Local access via port forwarding
-make port-forward
-kubectl port-forward -n osint-platform svc/osint-backend 5000:5000
-kubectl port-forward -n osint-platform svc/osint-frontend 8080:80
+# Test MCP server connectivity
+curl -s http://localhost:8021/health  # Infrastructure MCP
+curl -s http://localhost:8020/health  # Threat MCP
+curl -s http://localhost:8050/health  # AI MCP
 ```
 
 ## Architecture Patterns
 
 ### Multi-Agent Investigation System
 The platform orchestrates specialized agents for different OSINT domains:
-- **Investigation Orchestrator** manages concurrent investigations
-- **MCP Clients** interface with specialized collection servers
-- **Compliance Framework** ensures regulatory adherence
+- **Investigation Orchestrator** manages concurrent investigations with 7-stage workflow
+- **MCP Clients** interface with specialized FastAPI/Flask collection servers
+- **Compliance Framework** ensures GDPR/CCPA/PIPEDA adherence
 - **Risk Assessment Engine** calculates threat scores and confidence levels
-- **Professional Report Generator** creates executive and technical reports
+- **Professional Report Generator** creates PDF reports with executive summaries
 
 ### Database Schema (PostgreSQL)
-Audit-focused schema with 7 core tables in `osint_audit` database:
-- `audit.events` - System audit trail
-- `audit.investigations` - Investigation lifecycle tracking  
-- `audit.api_key_usage` - API consumption and cost tracking
-- `audit.risk_assessments` - Risk scoring and threat analysis
-- `audit.compliance_assessments` - Regulatory compliance status
-- `audit.system_metrics` - Performance and operational data
-- `audit.configuration_changes` - Configuration audit trail
+Audit-focused schema with core tables in `osint_audit` database:
+- `audit.events` - System audit trail with compliance tracking
+- `audit.investigations` - Investigation lifecycle and results
+- `audit.api_key_usage` - External API consumption monitoring
+- `audit.risk_assessments` - Threat scoring and risk analysis
+- `audit.compliance_assessments` - Regulatory compliance validation
+- `audit.system_metrics` - Performance and operational metrics
 
 ### Security Architecture
-- **Authentication**: JWT tokens with refresh mechanism
-- **Authorization**: Role-based access control (RBAC)
-- **Secrets**: HashiCorp Vault integration
-- **Network**: TLS 1.3, mTLS for service communication
-- **Compliance**: GDPR/CCPA/PIPEDA assessment engines
+- **Authentication**: JWT tokens with configurable expiration
+- **Authorization**: Role-based access control (admin/analyst/viewer)
+- **Network Security**: Kubernetes network policies for pod-to-pod communication
+- **Secrets Management**: Kubernetes secrets for API keys and credentials
+- **Audit Logging**: Complete investigation and system audit trail
 
 ## Key Configuration Files
 
-- `backend/requirements.txt` - Python dependencies (Flask, SQLAlchemy, Celery, etc.)
-- `frontend/package.json` - Node.js dependencies (React, TypeScript, Material-UI)
+- `simple-backend/requirements.txt` - Python dependencies (Flask, SQLAlchemy, aiohttp)
+- `simple-frontend/package.json` - Node.js dependencies (React, Material-UI, Axios)
 - `k8s/` - Kubernetes deployment manifests (base configuration)
-- `k8s/overlays/production/` - Production-specific Kubernetes configs
-- `helm/osint-platform/` - Helm chart for production deployment
-- `Makefile` - Common development and deployment operations
+- `mcp-servers/*/requirements.txt` - MCP server dependencies (FastAPI, uvicorn, domain-specific libraries)
+- `CONFIGURATION.md` - Complete environment and API configuration guide
+- `DEPLOYMENT_GUIDE.md` - Production deployment instructions
 
 ## API Endpoints
 
-### Core REST API (`/api/`)
-- `POST /api/auth/login` - User authentication
-- `GET|POST /api/investigations` - Investigation CRUD operations  
-- `GET /api/investigations/{id}/report` - Generate investigation reports
+### Core REST API (`simple-backend/app.py`)
+- `POST /api/auth/login` - JWT authentication with admin/admin123
+- `POST /api/auth/logout` - Session termination
+- `GET|POST /api/investigations` - Investigation CRUD operations
+- `GET /api/investigations/{id}` - Investigation details and results
+- `GET /api/investigations/{id}/report` - Generate professional PDF reports
+- `GET /api/system/status` - Platform health and component status
 - `GET /api/mcp/servers` - MCP server status and capabilities
-- `POST /api/mcp/execute` - Execute OSINT collection tools
 
-### Real-time Features
-- **WebSocket** support for live investigation progress updates
-- **Background processing** via Celery for long-running OSINT tasks
-- **Real-time dashboards** with investigation metrics and system status
+### Enhanced MCP Server APIs
+- **Infrastructure Advanced (8021)**: `/capabilities`, `/infrastructure/*` endpoints
+- **Threat Aggregator (8020)**: `/capabilities`, `/threat/*` endpoints  
+- **AI Analyzer (8050)**: `/capabilities`, `/ai/*` endpoints
+- **Social Enhanced (8010)**: Social media intelligence endpoints
+- **Financial Enhanced (8040)**: Financial intelligence endpoints
 
 ## Environment Variables
 
@@ -186,70 +196,88 @@ Audit-focused schema with 7 core tables in `osint_audit` database:
 # Database
 POSTGRES_URL="postgresql://user:pass@host:5432/osint_audit"
 
-# Security
-JWT_SECRET_KEY="your-secret-key"
-VAULT_ADDR="http://vault:8200"
-VAULT_TOKEN="vault-token"
+# Security  
+JWT_SECRET_KEY="your-secure-secret-key"
 
-# External APIs (stored in Vault)
-OPENAI_API_KEY="your-openai-key"
-TWITTER_BEARER_TOKEN="your-twitter-token"
-SHODAN_API_KEY="your-shodan-key"
-VIRUSTOTAL_API_KEY="your-vt-key"
+# MCP Server URLs (internal Kubernetes)
+MCP_INFRASTRUCTURE_URL="http://mcp-infrastructure-enhanced:8021"
+MCP_THREAT_URL="http://mcp-threat-enhanced:8020"
+MCP_AI_URL="http://mcp-technical-enhanced:8050"
+```
 
-# Services
-REDIS_URL="redis://localhost:6379"
-CELERY_BROKER_URL="redis://localhost:6379"
+### Optional API Keys (stored in Kubernetes secrets)
+```bash
+# External integrations
+OPENAI_API_KEY="your-openai-key"           # For AI-powered analysis
+VIRUSTOTAL_API_KEY="your-virustotal-key"   # Threat intelligence
+SHODAN_API_KEY="your-shodan-key"           # Network intelligence
+ABUSEIPDB_API_KEY="your-abuseipdb-key"     # IP reputation
 ```
 
 ## Development Workflows
 
 ### Starting New Investigation Feature
-1. Create database migration for new tables/columns
-2. Add SQLAlchemy models in `backend/app/models/`
-3. Implement API endpoints in `backend/app/api/`
-4. Add Celery background tasks if needed
-5. Create React components and pages
-6. Add Redux state management
-7. Write tests for both backend and frontend
+1. Add endpoint to `simple-backend/app.py`
+2. Update investigation orchestrator in `investigation_orchestrator.py`
+3. Modify MCP client communication in `mcp_clients.py`
+4. Add frontend components in `simple-frontend/js/app.js`
+5. Test end-to-end workflow with investigation creation
 
 ### Adding New MCP Server
 1. Create new directory in `mcp-servers/`
-2. Implement MCP protocol server with OSINT tools
-3. Add Docker container configuration
-4. Update Kubernetes manifests for deployment
-5. Register server in MCP client configuration
+2. Implement FastAPI server with `/health`, `/capabilities`, domain-specific endpoints
+3. Add Dockerfile and requirements.txt
+4. Create Kubernetes deployment manifest
+5. Update MCP client configuration in backend
 
-### Compliance Framework Extension
-1. Add new regulatory framework in `compliance_framework.py`
-2. Implement assessment logic and scoring
-3. Update database schema for new compliance data
-4. Add reporting templates and export formats
+### Enhancing Intelligence Capabilities
+1. Add new tools to existing MCP servers or create new specialized server
+2. Update MCP server capabilities endpoint
+3. Integrate new intelligence sources in investigation orchestrator
+4. Add results processing in professional report generator
 
 ## Production Considerations
 
 ### Kubernetes-Native Features
-- **Horizontal Pod Autoscaling** for backend and worker pods
-- **Persistent Volume Claims** for PostgreSQL and Vault data
-- **Network Policies** for micro-segmentation
-- **RBAC** for service account permissions
-- **Ingress Controllers** for external access and SSL termination
+- **Multi-replica deployments** for high availability
+- **Persistent Volume Claims** for PostgreSQL data persistence
+- **Secrets management** for API keys and database credentials
+- **Network Policies** for micro-segmentation between services
+- **Health checks** for all services with automatic restart
+- **Resource limits** and requests for optimal scheduling
 
 ### Database Performance
-- Connection pooling configured for high concurrency
-- Optimized indexes on audit tables for query performance  
-- Automated backup via Kubernetes CronJobs
-- Query performance monitoring with Prometheus metrics
-
-### Scalability
-- Kubernetes HPA for automatic scaling based on CPU/memory
-- Redis caching for frequently accessed data
-- Celery worker scaling via Kubernetes deployments
-- Multi-zone deployment for high availability
+- **Connection pooling** configured for concurrent investigations
+- **Optimized indexes** on investigation and audit tables
+- **Audit retention** policies for compliance requirements
+- **Backup strategies** with PostgreSQL automated snapshots
 
 ### Security Hardening
-- Container images scanned with admission controllers
-- Pod security policies and security contexts
-- Network policies for pod-to-pod communication
-- Vault operator for automated secrets management
-- Comprehensive audit logging to centralized systems
+- **Pod Security Standards** with restricted policies
+- **RBAC** for service account permissions and least privilege
+- **Network policies** for pod-to-pod communication restrictions
+- **TLS termination** at ingress with certificate management
+- **Container security** with non-root users and read-only filesystems
+
+## Current System Status
+
+### Active Services (as of current deployment)
+- ✅ Backend API (2 replicas) - Flask REST API
+- ✅ React Frontend (2 replicas) - Material-UI SPA
+- ✅ PostgreSQL Database (1 replica) - Audit and investigation storage
+- ✅ Redis Cache (3 replicas) - Session and caching
+- ✅ Infrastructure MCP (2 replicas) - FastAPI advanced infrastructure intelligence
+- ✅ Threat MCP (1 replica) - FastAPI multi-source threat aggregation
+- ✅ AI Analyzer MCP (1 replica) - FastAPI GPT-4 powered analysis
+- ✅ Social Media MCP (1 replica) - Social intelligence gathering
+- ✅ Financial MCP (1 replica) - Financial intelligence analysis
+
+### Platform Capabilities
+- **Multi-stage investigations** with real-time progress tracking
+- **Professional PDF reporting** with executive summaries
+- **Enterprise compliance** validation (GDPR/CCPA/PIPEDA)
+- **AI-enhanced analysis** with threat actor profiling
+- **Multi-source threat intelligence** aggregation
+- **Infrastructure analysis** with certificate transparency
+- **Social media intelligence** across platforms
+- **Financial intelligence** with SEC integration

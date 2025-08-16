@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-financial-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-financial-enhanced
+    component: mcp-server
+    intelligence-type: financial-intel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-financial-enhanced
+  template:
+    metadata:
+      labels:
+        app: mcp-financial-enhanced
+        component: mcp-server
+        intelligence-type: financial-intel
+    spec:
+      containers:
+      - name: financial-enhanced
+        image: mcp-financial-enhanced:latest
+        imagePullPolicy: Never  # For local development
+        ports:
+        - containerPort: 8040
+          name: http
+        env:
+        - name: MCP_SERVER_PORT
+          value: "8040"
+        - name: ALPHA_VANTAGE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: alpha-vantage-api-key
+              optional: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8040
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8040
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-financial-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-financial-enhanced
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8040
+    targetPort: 8040
+    protocol: TCP
+    name: http
+  selector:
+    app: mcp-financial-enhanced

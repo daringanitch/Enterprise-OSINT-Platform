@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-technical-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-technical-enhanced
+    component: mcp-server
+    intelligence-type: technical-intel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-technical-enhanced
+  template:
+    metadata:
+      labels:
+        app: mcp-technical-enhanced
+        component: mcp-server
+        intelligence-type: technical-intel
+    spec:
+      containers:
+      - name: technical-enhanced
+        image: osint-platform/ai-analyzer:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8050
+          name: http
+        env:
+        - name: MCP_SERVER_PORT
+          value: "8050"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: github-token
+              optional: true
+        - name: GITLAB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: gitlab-token
+              optional: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8050
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8050
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-technical-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-technical-enhanced
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8050
+    targetPort: 8050
+    protocol: TCP
+    name: http
+  selector:
+    app: mcp-technical-enhanced

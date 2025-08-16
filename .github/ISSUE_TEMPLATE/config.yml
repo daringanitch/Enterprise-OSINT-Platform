@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/your-org/enterprise-osint-flask/wiki
+    about: Check the project documentation and guides
+  - name: 💬 Discussions
+    url: https://github.com/your-org/enterprise-osint-flask/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🔒 Security Policy
+    url: https://github.com/your-org/enterprise-osint-flask/security/policy
+    about: Review our security policy for responsible disclosure

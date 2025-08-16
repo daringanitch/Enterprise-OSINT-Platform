@@ -1,0 +1,125 @@
+---
+# Resource Quota for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: osint-platform-quota
+  namespace: osint-platform
+spec:
+  hard:
+    # Compute Resources
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    
+    # Storage Resources
+    requests.storage: 100Gi
+    persistentvolumeclaims: "10"
+    
+    # Object Count
+    pods: "50"
+    services: "20"
+    configmaps: "20"
+    secrets: "20"
+
+---
+# LimitRange for default pod limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: osint-platform-limits
+  namespace: osint-platform
+spec:
+  limits:
+  # Default limits for containers
+  - default:
+      cpu: 1000m
+      memory: 2Gi
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+    type: Container
+  
+  # Limits for PVCs
+  - type: PersistentVolumeClaim
+    max:
+      storage: 20Gi
+    min:
+      storage: 1Gi
+
+---
+# HorizontalPodAutoscaler for backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-backend-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# HorizontalPodAutoscaler for simple frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-simple-frontend-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-simple-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# PodDisruptionBudget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-backend-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osint-backend
+
+---
+# PodDisruptionBudget for simple frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-simple-frontend-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osint-simple-frontend

@@ -1,0 +1,266 @@
+---
+# Resource Quota for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: osint-platform-quota
+  namespace: osint-platform
+spec:
+  hard:
+    # Compute Resources
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    
+    # Storage Resources
+    requests.storage: 100Gi
+    persistentvolumeclaims: "10"
+    
+    # Object Count
+    pods: "50"
+    services: "20"
+    configmaps: "20"
+    secrets: "20"
+
+---
+# LimitRange for default pod limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: osint-platform-limits
+  namespace: osint-platform
+spec:
+  limits:
+  # Default limits for containers
+  - default:
+      cpu: 1000m
+      memory: 2Gi
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+    type: Container
+  
+  # Limits for PVCs
+  - type: PersistentVolumeClaim
+    max:
+      storage: 20Gi
+    min:
+      storage: 1Gi
+
+---
+# Backend deployment with resource limits
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-backend-resources
+  namespace: osint-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: osint-backend
+  template:
+    metadata:
+      labels:
+        app: osint-backend
+    spec:
+      serviceAccountName: osint-backend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: backend
+        image: osint-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# MCP server deployment with resource limits
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-resources
+  namespace: osint-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: mcp-server
+  template:
+    metadata:
+      labels:
+        component: mcp-server
+    spec:
+      serviceAccountName: mcp-server-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: mcp-server
+        image: mcp-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5010
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+
+---
+# Frontend deployment with resource limits
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-frontend-resources
+  namespace: osint-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: osint-frontend
+  template:
+    metadata:
+      labels:
+        app: osint-frontend
+    spec:
+      serviceAccountName: osint-frontend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101  # nginx user
+        fsGroup: 101
+      containers:
+      - name: frontend
+        image: osint-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+
+---
+# HorizontalPodAutoscaler for backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-backend-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# HorizontalPodAutoscaler for frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-frontend-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# PodDisruptionBudget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-backend-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osint-backend
+
+---
+# PodDisruptionBudget for frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osint-frontend-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osint-frontend

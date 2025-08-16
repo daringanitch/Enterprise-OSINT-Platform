@@ -1,0 +1,200 @@
+---
+# Service Account for Backend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: osint-backend-sa
+  namespace: osint-platform
+  labels:
+    app: osint-backend
+
+---
+# Service Account for MCP Servers
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-server-sa
+  namespace: osint-platform
+  labels:
+    component: mcp-server
+
+---
+# Service Account for Frontend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: osint-frontend-sa
+  namespace: osint-platform
+  labels:
+    app: osint-frontend
+
+---
+# Role for Backend - Access to secrets and configmaps
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: osint-backend-role
+  namespace: osint-platform
+rules:
+# Read secrets for API keys
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+# Read configmaps for configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+# Create/update pods for background tasks
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "create"]
+# Read services for service discovery
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for Backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: osint-backend-rolebinding
+  namespace: osint-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: osint-backend-role
+subjects:
+- kind: ServiceAccount
+  name: osint-backend-sa
+  namespace: osint-platform
+
+---
+# Role for MCP Servers - Limited permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mcp-server-role
+  namespace: osint-platform
+rules:
+# Read secrets for API keys
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames: ["mcp-api-keys", "osint-api-keys"]
+# Read configmaps for configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for MCP Servers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-server-rolebinding
+  namespace: osint-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mcp-server-role
+subjects:
+- kind: ServiceAccount
+  name: mcp-server-sa
+  namespace: osint-platform
+
+---
+# Role for Frontend - Minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: osint-frontend-role
+  namespace: osint-platform
+rules:
+# Read configmaps for frontend configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+  resourceNames: ["frontend-config"]
+
+---
+# RoleBinding for Frontend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: osint-frontend-rolebinding
+  namespace: osint-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: osint-frontend-role
+subjects:
+- kind: ServiceAccount
+  name: osint-frontend-sa
+  namespace: osint-platform
+
+---
+# ClusterRole for monitoring and metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: osint-monitoring-role
+rules:
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding for monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: osint-monitoring-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: osint-monitoring-role
+subjects:
+- kind: ServiceAccount
+  name: osint-backend-sa
+  namespace: osint-platform
+
+---
+# Security Context Constraints (for OpenShift compatibility)
+# This ensures pods run with restricted privileges
+apiVersion: v1
+kind: SecurityContextConstraints
+metadata:
+  name: osint-platform-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+readOnlyRootFilesystem: false
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret

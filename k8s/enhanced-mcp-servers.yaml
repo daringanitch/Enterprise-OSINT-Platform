@@ -1,0 +1,399 @@
+---
+# Infrastructure Advanced MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-infrastructure-advanced
+  namespace: osint-platform
+  labels:
+    app: mcp-infrastructure-advanced
+    component: mcp-server
+    tier: enhanced
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-infrastructure-advanced
+  template:
+    metadata:
+      labels:
+        app: mcp-infrastructure-advanced
+        component: mcp-server
+        tier: enhanced
+    spec:
+      serviceAccountName: mcp-server-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: mcp-server
+        image: mcp-infrastructure-advanced:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5015
+          name: mcp-port
+        env:
+        - name: SECURITYTRAILS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: securitytrails-api-key
+              optional: true
+        - name: CENSYS_API_ID
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: censys-api-id
+              optional: true
+        - name: CENSYS_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: censys-api-secret
+              optional: true
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          tcpSocket:
+            port: 5015
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 5015
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Infrastructure Advanced Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-infrastructure-advanced
+  namespace: osint-platform
+  labels:
+    app: mcp-infrastructure-advanced
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5015
+    targetPort: 5015
+    protocol: TCP
+    name: mcp-port
+  selector:
+    app: mcp-infrastructure-advanced
+
+---
+# Threat Aggregator MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-threat-aggregator
+  namespace: osint-platform
+  labels:
+    app: mcp-threat-aggregator
+    component: mcp-server
+    tier: enhanced
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-threat-aggregator
+  template:
+    metadata:
+      labels:
+        app: mcp-threat-aggregator
+        component: mcp-server
+        tier: enhanced
+    spec:
+      serviceAccountName: mcp-server-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: mcp-server
+        image: mcp-threat-aggregator:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5016
+          name: mcp-port
+        env:
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: virustotal-api-key
+              optional: true
+        - name: ABUSEIPDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: abuseipdb-api-key
+              optional: true
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: shodan-api-key
+              optional: true
+        - name: ALIENVAULT_OTX_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: otx-api-key
+              optional: true
+        - name: URLSCAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: urlscan-api-key
+              optional: true
+        - name: HYBRID_ANALYSIS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: hybrid-analysis-api-key
+              optional: true
+        resources:
+          requests:
+            cpu: 300m
+            memory: 512Mi
+          limits:
+            cpu: 1500m
+            memory: 2Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          tcpSocket:
+            port: 5016
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 5016
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Threat Aggregator Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-threat-aggregator
+  namespace: osint-platform
+  labels:
+    app: mcp-threat-aggregator
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5016
+    targetPort: 5016
+    protocol: TCP
+    name: mcp-port
+  selector:
+    app: mcp-threat-aggregator
+
+---
+# AI Analyzer MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-ai-analyzer
+  namespace: osint-platform
+  labels:
+    app: mcp-ai-analyzer
+    component: mcp-server
+    tier: enhanced
+spec:
+  replicas: 1  # Start with 1 replica due to OpenAI API costs
+  selector:
+    matchLabels:
+      app: mcp-ai-analyzer
+  template:
+    metadata:
+      labels:
+        app: mcp-ai-analyzer
+        component: mcp-server
+        tier: enhanced
+    spec:
+      serviceAccountName: mcp-server-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: mcp-server
+        image: mcp-ai-analyzer:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5017
+          name: mcp-port
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-keys
+              key: openai-api-key
+              optional: true
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          tcpSocket:
+            port: 5017
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 5017
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# AI Analyzer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-ai-analyzer
+  namespace: osint-platform
+  labels:
+    app: mcp-ai-analyzer
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5017
+    targetPort: 5017
+    protocol: TCP
+    name: mcp-port
+  selector:
+    app: mcp-ai-analyzer
+
+---
+# Enhanced MCP API Keys Secret (template)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-api-keys
+  namespace: osint-platform
+  labels:
+    app: mcp-servers
+    component: configuration
+type: Opaque
+stringData:
+  # Infrastructure APIs
+  securitytrails-api-key: ""  # Add your SecurityTrails API key
+  censys-api-id: ""           # Add your Censys API ID
+  censys-api-secret: ""       # Add your Censys API Secret
+  
+  # Threat Intelligence APIs
+  virustotal-api-key: ""      # Add your VirusTotal API key
+  abuseipdb-api-key: ""       # Add your AbuseIPDB API key
+  shodan-api-key: ""          # Add your Shodan API key
+  otx-api-key: ""             # Add your AlienVault OTX API key
+  urlscan-api-key: ""         # Add your URLScan.io API key
+  hybrid-analysis-api-key: "" # Add your Hybrid Analysis API key
+  
+  # AI Analysis
+  openai-api-key: ""          # Add your OpenAI API key
+
+---
+# HorizontalPodAutoscaler for Infrastructure Advanced
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mcp-infrastructure-advanced-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mcp-infrastructure-advanced
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# HorizontalPodAutoscaler for Threat Aggregator
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mcp-threat-aggregator-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mcp-threat-aggregator
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# PodDisruptionBudget for Enhanced MCP Servers
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: enhanced-mcp-servers-pdb
+  namespace: osint-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      tier: enhanced

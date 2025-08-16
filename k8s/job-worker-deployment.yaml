@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-job-workers
+  namespace: osint-platform
+  labels:
+    app: osint-job-workers
+    component: background-workers
+spec:
+  replicas: 2  # Start with 2 workers, can scale up based on queue size
+  selector:
+    matchLabels:
+      app: osint-job-workers
+  template:
+    metadata:
+      labels:
+        app: osint-job-workers
+        component: background-workers
+    spec:
+      containers:
+      - name: job-worker
+        image: osint-simple-backend:latest
+        command:
+          - python
+          - worker.py
+          - --verbose
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: WORKER_TIMEOUT
+          value: "1800"  # 30 minutes
+        - name: WORKER_TTL
+          value: "3600"   # 1 hour
+        - name: WORKER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: FLASK_ENV
+          value: "production"
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: postgres-url
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: jwt-secret-key
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: vault-token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 2
+        volumeMounts:
+        - name: app-logs
+          mountPath: /app/logs
+      volumes:
+      - name: app-logs
+        emptyDir: {}
+      restartPolicy: Always
+
+---
+# Horizontal Pod Autoscaler for job workers
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osint-job-workers-hpa
+  namespace: osint-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osint-job-workers
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+
+---
+# Service for worker metrics (if needed)
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-job-workers-metrics
+  namespace: osint-platform
+  labels:
+    app: osint-job-workers
+spec:
+  selector:
+    app: osint-job-workers
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+---
+# Service monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: osint-job-workers-metrics
+  namespace: osint-platform
+  labels:
+    app: osint-job-workers
+spec:
+  selector:
+    matchLabels:
+      app: osint-job-workers
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

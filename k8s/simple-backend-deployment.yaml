@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: osint-platform/simple-backend:v1.0.2-consistent-audit
-        imagePullPolicy: IfNotPresent
+        image: osint-platform/simple-backend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 5000
           name: http
@@ -28,22 +28,54 @@ spec:
         - name: FLASK_ENV
           value: "development"
         - name: POSTGRES_HOST
-          value: "osint-platform-postgresql"
+          value: "postgresql"
         - name: POSTGRES_PORT
           value: "5432"
         - name: POSTGRES_USER
           value: "postgres"
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: osint-database-config
+              key: postgres-url
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: osint-platform-postgresql
+              name: osint-database-config
               key: postgres-password
         - name: POSTGRES_DB
-          value: "osint_audit"
+          valueFrom:
+            secretKeyRef:
+              name: osint-database-config
+              key: postgres-database
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: OTEL_SERVICE_NAME
+          value: "osint-backend"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "otel-collector.observability:4317"
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: "true"
+        - name: OTEL_ENABLED
+          value: "true"
+        - name: DEPLOYMENT_ENV
+          value: "kubernetes"
         - name: VAULT_ADDR
           value: "http://vault:8200"
         - name: VAULT_TOKEN
-          value: "dev-only-token"
+          valueFrom:
+            secretKeyRef:
+              name: osint-app-secrets
+              key: vault-token
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-app-secrets
+              key: jwt-secret-key
         - name: MCP_SOCIAL_MEDIA_URL
           value: "http://mcp-social-media:8010"
         - name: MCP_INFRASTRUCTURE_URL
@@ -53,23 +85,28 @@ spec:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys
+              name: osint-api-keys  # Managed by External Secrets
               key: openai-api-key
         - name: TWITTER_BEARER_TOKEN
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys
+              name: osint-api-keys  # Managed by External Secrets
               key: twitter-bearer-token
         - name: SHODAN_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys
+              name: osint-api-keys  # Managed by External Secrets
               key: shodan-api-key
         - name: VIRUSTOTAL_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys
+              name: osint-api-keys  # Managed by External Secrets
               key: virustotal-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys  # Managed by External Secrets
+              key: github-token
         - name: REDIS_URL
           value: "redis://osint-platform-redis-master:6379/0"
         - name: CELERY_BROKER_URL

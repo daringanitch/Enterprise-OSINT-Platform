@@ -23,6 +23,7 @@ class InvestigationType(Enum):
 
 class InvestigationStatus(Enum):
     PENDING = "pending"
+    QUEUED = "queued"
     PLANNING = "planning"
     PROFILING = "profiling"
     COLLECTING = "collecting"

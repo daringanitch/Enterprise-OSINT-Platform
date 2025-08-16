@@ -1,0 +1,195 @@
+---
+# Network Policy for Backend Pods
+# Only allow traffic from frontend and ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: osint-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: osint-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    # Allow from frontend pods
+    - podSelector:
+        matchLabels:
+          app: osint-frontend
+    # Allow from ingress controller
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    # Allow from same namespace for health checks
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 5000
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow MCP servers
+  - to:
+    - podSelector:
+        matchLabels:
+          component: mcp-server
+    ports:
+    - protocol: TCP
+      port: 5010
+    - protocol: TCP
+      port: 5011
+    - protocol: TCP
+      port: 5012
+    - protocol: TCP
+      port: 5013
+  # Allow external HTTPS for API calls
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+# Network Policy for Database
+# Only allow traffic from backend pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-network-policy
+  namespace: osint-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: postgresql
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: osint-backend
+    - podSelector:
+        matchLabels:
+          app: osint-fastapi-backend
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# Network Policy for MCP Servers
+# Only allow traffic from backend pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-network-policy
+  namespace: osint-platform
+spec:
+  podSelector:
+    matchLabels:
+      component: mcp-server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: osint-backend
+    - podSelector:
+        matchLabels:
+          app: osint-fastapi-backend
+    ports:
+    - protocol: TCP
+      port: 5010
+    - protocol: TCP
+      port: 5011
+    - protocol: TCP
+      port: 5012
+    - protocol: TCP
+      port: 5013
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external HTTPS for OSINT data collection
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Network Policy for Frontend
+# Allow all egress for API calls
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+  namespace: osint-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: osint-frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    # Allow from ingress controller
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    # Allow from any pod for local development
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow all egress for API calls
+  - {}
+
+---
+# Default deny all traffic policy
+# This ensures pods without specific policies are isolated
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: osint-platform
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

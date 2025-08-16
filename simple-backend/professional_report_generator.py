@@ -348,7 +348,13 @@ class ProfessionalReportGenerator:
         
         if investigation.social_intelligence:
             data_sources.update(investigation.social_intelligence.data_sources)
-            intelligence_items += len(getattr(investigation.social_intelligence, 'mentions', []))
+            # Count mentions from platform data
+            total_mentions = 0
+            if investigation.social_intelligence:
+                for platform_data in investigation.social_intelligence.platforms.values():
+                    if 'mentions' in platform_data:
+                        total_mentions += len(platform_data['mentions'])
+            intelligence_items += total_mentions
             
         if investigation.infrastructure_intelligence:
             data_sources.add("infrastructure")
@@ -407,7 +413,8 @@ class ProfessionalReportGenerator:
         if investigation.social_intelligence:
             social_intelligence = {
                 'platforms': list(investigation.social_intelligence.platforms),
-                'mentions': getattr(investigation.social_intelligence, 'mentions', []),
+                'mentions': [mention for platform_data in investigation.social_intelligence.platforms.values() 
+                           for mention in platform_data.get('mentions', [])],
                 'sentiment_analysis': investigation.social_intelligence.sentiment_analysis,
                 'reputation_score': investigation.social_intelligence.reputation_score
             }

@@ -15,6 +15,19 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+try:
+    from observability import trace_mcp_operation, add_trace_attributes, record_error
+except ImportError:
+    # Fallback if observability module not available
+    def trace_mcp_operation(server, operation):
+        def decorator(func):
+            return func
+        return decorator
+    def add_trace_attributes(**kwargs):
+        pass
+    def record_error(error, error_type="unknown"):
+        pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,8 +120,18 @@ class SocialMediaMCPClient(MCPClientBase):
         self.linkedin_creds = credentials.get('linkedin')
         super().__init__(credentials.get('twitter', APICredentials()))
     
+    @trace_mcp_operation("social_media", "gather_intelligence")
     async def gather_intelligence(self, target: str, **kwargs) -> List[IntelligenceResult]:
         """Gather social media intelligence"""
+        
+        # Add trace attributes
+        add_trace_attributes(
+            mcp_client="social_media",
+            target=target,
+            platforms_enabled=["twitter" if self.twitter_creds else None, 
+                              "reddit" if self.reddit_creds else None,
+                              "linkedin" if self.linkedin_creds else None]
+        )
         results = []
         
         try:
@@ -132,21 +155,52 @@ class SocialMediaMCPClient(MCPClientBase):
         
         except Exception as e:
             logger.error(f"Social media intelligence gathering failed: {str(e)}")
+            record_error(e, "social_media_intelligence_error")
+            add_trace_attributes(social_media_error=str(e))
         
         return results
     
+    @trace_mcp_operation("social_media", "twitter_api")
     async def _gather_twitter_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather Twitter/X intelligence"""
-        await self._rate_limit_check()
+        """Gather Twitter/X intelligence via enhanced social media MCP server"""
         
         try:
-            headers = {
-                'Authorization': f'Bearer {self.twitter_creds.bearer_token}',
-                'Content-Type': 'application/json'
+            # Use enhanced social media MCP server
+            mcp_url = 'http://mcp-social-enhanced:8010/execute'
+            payload = {
+                'tool': 'twitter_profile',
+                'parameters': {'username': target}
             }
             
-            # Search for mentions of the target
-            search_url = 'https://api.twitter.com/2/tweets/search/recent'
+            async with self.session.post(mcp_url, json=payload) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    if data.get('success', False):
+                        result_data = data.get('result', {})
+                        
+                        return IntelligenceResult(
+                            source='twitter_enhanced',
+                            data_type='social_media_profile',
+                            target=target,
+                            raw_data=result_data,
+                            processed_data={
+                                'username': result_data.get('username'),
+                                'name': result_data.get('name'),
+                                'followers': result_data.get('metrics', {}).get('followers_count', 0),
+                                'verified': result_data.get('verified', False),
+                                'location': result_data.get('location'),
+                                'created_at': result_data.get('created_at'),
+                                'description': result_data.get('description')
+                            },
+                            confidence_score=0.9 if 'error' not in result_data else 0.3,
+                            timestamp=datetime.utcnow(),
+                            metadata={
+                                'api_source': result_data.get('data_source', 'Enhanced MCP'),
+                                'intelligence_type': 'REAL',
+                                'processing_time': data.get('metadata', {}).get('processing_time_ms', 0)
+                            }
+                        )
             params = {
                 'query': f'"{target}" -is:retweet',
                 'max_results': 100,
@@ -186,52 +240,58 @@ class SocialMediaMCPClient(MCPClientBase):
         
         return None
     
+    @trace_mcp_operation("social_media", "reddit_api")
     async def _gather_reddit_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather Reddit intelligence"""
-        await self._rate_limit_check()
+        """Gather Reddit intelligence via enhanced social media MCP server"""
         
         try:
-            # Use Reddit's public API (no auth required for basic search)
-            search_url = f'https://www.reddit.com/search.json'
-            params = {
-                'q': target,
-                'sort': 'relevance',
-                'limit': 25,
-                't': 'month'  # Last month
+            # Use enhanced social media MCP server for Reddit profile
+            mcp_url = 'http://mcp-social-enhanced:8010/execute'
+            payload = {
+                'tool': 'reddit_profile',
+                'parameters': {'username': target}
             }
             
-            headers = {
-                'User-Agent': 'OSINT-Platform/1.0'
-            }
-            
-            async with self.session.get(search_url, headers=headers, params=params) as response:
+            async with self.session.post(mcp_url, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
                     
-                    processed_data = {
-                        'platform': 'reddit',
-                        'posts_found': len(data.get('data', {}).get('children', [])),
-                        'subreddits': self._extract_reddit_subreddits(data),
-                        'sentiment': self._analyze_reddit_sentiment(data),
-                        'top_posts': self._extract_reddit_top_posts(data)
-                    }
-                    
-                    return IntelligenceResult(
-                        source='reddit',
-                        data_type='social_media',
-                        target=target,
-                        raw_data=data,
-                        processed_data=processed_data,
-                        confidence_score=0.7,
-                        timestamp=datetime.utcnow(),
-                        metadata={'query_type': 'search', 'timeframe': 'month'}
-                    )
+                    if data.get('success', False):
+                        result_data = data.get('result', {})
+                        
+                        processed_data = {
+                            'platform': 'reddit',
+                            'username': result_data.get('username'),
+                            'link_karma': result_data.get('link_karma', 0),
+                            'comment_karma': result_data.get('comment_karma', 0),
+                            'total_karma': result_data.get('total_karma', 0),
+                            'account_age_days': result_data.get('account_age_days', 0),
+                            'verified': result_data.get('verified', False),
+                            'is_mod': result_data.get('is_mod', False),
+                            'created_date': result_data.get('created_date')
+                        }
+                        
+                        return IntelligenceResult(
+                            source='reddit_enhanced',
+                            data_type='social_media_profile',
+                            target=target,
+                            raw_data=result_data,
+                            processed_data=processed_data,
+                            confidence_score=0.9 if 'error' not in result_data else 0.3,
+                            timestamp=datetime.utcnow(),
+                            metadata={
+                                'api_source': result_data.get('data_source', 'Enhanced MCP'),
+                                'intelligence_type': 'REAL',
+                                'processing_time': data.get('metadata', {}).get('processing_time_ms', 0)
+                            }
+                        )
                     
         except Exception as e:
             logger.error(f"Reddit intelligence gathering failed: {str(e)}")
         
         return None
     
+    @trace_mcp_operation("social_media", "linkedin_api")
     async def _gather_linkedin_intelligence(self, target: str) -> Optional[IntelligenceResult]:
         """Gather LinkedIn intelligence (limited due to API restrictions)"""
         # LinkedIn API has severe restrictions, so this would be placeholder
@@ -421,8 +481,17 @@ class InfrastructureMCPClient(MCPClientBase):
         self.virustotal_creds = credentials.get('virustotal')
         super().__init__(credentials.get('shodan', APICredentials()))
     
+    @trace_mcp_operation("infrastructure", "gather_intelligence")
     async def gather_intelligence(self, target: str, **kwargs) -> List[IntelligenceResult]:
         """Gather infrastructure intelligence"""
+        
+        # Add trace attributes
+        add_trace_attributes(
+            mcp_client="infrastructure",
+            target=target,
+            shodan_enabled=bool(self.shodan_creds and self.shodan_creds.api_key),
+            virustotal_enabled=bool(self.virustotal_creds and self.virustotal_creds.api_key)
+        )
         results = []
         
         try:
@@ -452,78 +521,110 @@ class InfrastructureMCPClient(MCPClientBase):
         
         return results
     
+    @trace_mcp_operation("infrastructure", "whois_lookup")
     async def _gather_whois_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather WHOIS intelligence"""
+        """Gather WHOIS intelligence via enhanced infrastructure MCP server"""
         try:
-            import subprocess
+            # Call enhanced infrastructure MCP server for real WHOIS data
+            mcp_url = 'http://mcp-infrastructure-enhanced:8021/execute'
+            payload = {
+                'tool': 'whois_lookup',
+                'parameters': {'domain': target}
+            }
             
-            # Use system whois command (would use python-whois library in production)
-            result = subprocess.run(['whois', target], capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
-                whois_text = result.stdout
-                
-                # Parse basic WHOIS information
-                processed_data = {
-                    'domain': target,
-                    'registrar': self._extract_whois_field(whois_text, 'Registrar'),
-                    'creation_date': self._extract_whois_field(whois_text, 'Creation Date'),
-                    'expiration_date': self._extract_whois_field(whois_text, 'Registry Expiry Date'),
-                    'name_servers': self._extract_whois_nameservers(whois_text),
-                    'status': self._extract_whois_status(whois_text)
-                }
-                
-                return IntelligenceResult(
-                    source='whois',
-                    data_type='infrastructure',
-                    target=target,
-                    raw_data={'whois_output': whois_text},
-                    processed_data=processed_data,
-                    confidence_score=0.9,
-                    timestamp=datetime.utcnow(),
-                    metadata={'query_type': 'domain_whois'}
-                )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(mcp_url, json=payload, timeout=30) as response:
+                    if response.status == 200:
+                        mcp_result = await response.json()
+                        
+                        if mcp_result.get('success') and 'result' in mcp_result:
+                            whois_data = mcp_result['result']
+                            
+                            # Transform MCP result to our format
+                            processed_data = {
+                                'domain': whois_data.get('domain', target),
+                                'registrar': whois_data.get('registrar', 'Unknown'),
+                                'creation_date': whois_data.get('created', 'Unknown'),
+                                'expiration_date': whois_data.get('expires', 'Unknown'),
+                                'name_servers': whois_data.get('nameservers', []),
+                                'status': whois_data.get('status', 'Unknown'),
+                                'organization': whois_data.get('org', 'Unknown'),
+                                'country': whois_data.get('country', 'Unknown'),
+                                'data_source': whois_data.get('data_source', 'Live WHOIS Query')
+                            }
+                            
+                            return IntelligenceResult(
+                                source='whois_enhanced',
+                                data_type='infrastructure',
+                                target=target,
+                                raw_data={'whois_response': mcp_result, 'raw_whois': whois_data.get('raw_data', '')},
+                                processed_data=processed_data,
+                                confidence_score=0.95,  # Higher confidence for real data
+                                timestamp=datetime.utcnow(),
+                                metadata={
+                                    'query_type': 'domain_whois', 
+                                    'intelligence_type': 'REAL',
+                                    'processing_time_ms': mcp_result.get('metadata', {}).get('processing_time_ms', 0)
+                                }
+                            )
                 
         except Exception as e:
             logger.error(f"WHOIS lookup failed: {str(e)}")
         
         return None
     
+    @trace_mcp_operation("infrastructure", "dns_lookup")
     async def _gather_dns_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather DNS intelligence"""
+        """Gather DNS intelligence via enhanced infrastructure MCP server"""
         try:
-            import socket
-            
-            # Basic DNS resolution
-            try:
-                ip_address = socket.gethostbyname(target)
-            except socket.gaierror:
-                ip_address = None
-            
-            # Get additional DNS records (would use dnspython library in production)
-            processed_data = {
-                'domain': target,
-                'a_record': ip_address,
-                'dns_resolution': 'success' if ip_address else 'failed',
-                'reverse_dns': self._reverse_dns_lookup(ip_address) if ip_address else None
+            # Call enhanced infrastructure MCP server for real DNS data
+            mcp_url = 'http://mcp-infrastructure-enhanced:8021/execute'
+            payload = {
+                'tool': 'dns_records',
+                'parameters': {'domain': target}
             }
             
-            return IntelligenceResult(
-                source='dns',
-                data_type='infrastructure',
-                target=target,
-                raw_data={'ip_address': ip_address},
-                processed_data=processed_data,
-                confidence_score=0.8,
-                timestamp=datetime.utcnow(),
-                metadata={'query_type': 'dns_resolution'}
-            )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(mcp_url, json=payload, timeout=30) as response:
+                    if response.status == 200:
+                        mcp_result = await response.json()
+                        
+                        if mcp_result.get('success') and 'result' in mcp_result:
+                            dns_data = mcp_result['result']
+                            
+                            # Transform MCP result to our format
+                            processed_data = {
+                                'domain': dns_data.get('domain', target),
+                                'a_records': dns_data.get('a_records', []),
+                                'mx_records': dns_data.get('mx_records', []),
+                                'ns_records': dns_data.get('ns_records', []),
+                                'txt_records': dns_data.get('txt_records', []),
+                                'cname_records': dns_data.get('cname_records', []),
+                                'dns_resolution': 'success' if dns_data.get('a_records') else 'failed',
+                                'data_source': dns_data.get('data_source', 'Live DNS Query')
+                            }
+                            
+                            return IntelligenceResult(
+                                source='dns_enhanced',
+                                data_type='infrastructure',
+                                target=target,
+                                raw_data={'dns_response': mcp_result},
+                                processed_data=processed_data,
+                                confidence_score=0.95,  # Higher confidence for real data
+                                timestamp=datetime.utcnow(),
+                                metadata={
+                                    'query_type': 'dns_resolution',
+                                    'intelligence_type': 'REAL',
+                                    'processing_time_ms': mcp_result.get('metadata', {}).get('processing_time_ms', 0)
+                                }
+                            )
             
         except Exception as e:
             logger.error(f"DNS lookup failed: {str(e)}")
         
         return None
     
+    @trace_mcp_operation("infrastructure", "shodan_lookup")
     async def _gather_shodan_intelligence(self, target: str) -> Optional[IntelligenceResult]:
         """Gather Shodan intelligence"""
         await self._rate_limit_check()
@@ -565,39 +666,54 @@ class InfrastructureMCPClient(MCPClientBase):
         
         return None
     
+    @trace_mcp_operation("infrastructure", "certificate_analysis")
     async def _gather_certificate_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather SSL certificate intelligence"""
+        """Gather SSL certificate intelligence via enhanced infrastructure MCP server"""
         try:
-            import ssl
-            import socket
+            # Call enhanced infrastructure MCP server for real SSL certificate data
+            mcp_url = 'http://mcp-infrastructure-enhanced:8021/execute'
+            payload = {
+                'tool': 'ssl_certificate_info',
+                'parameters': {'domain': target, 'port': 443}
+            }
             
-            # Get SSL certificate info
-            context = ssl.create_default_context()
-            
-            with socket.create_connection((target, 443), timeout=10) as sock:
-                with context.wrap_socket(sock, server_hostname=target) as ssock:
-                    cert = ssock.getpeercert()
-                    
-                    processed_data = {
-                        'subject': dict(x[0] for x in cert['subject']),
-                        'issuer': dict(x[0] for x in cert['issuer']),
-                        'version': cert.get('version'),
-                        'serial_number': cert.get('serialNumber'),
-                        'not_before': cert.get('notBefore'),
-                        'not_after': cert.get('notAfter'),
-                        'signature_algorithm': cert.get('signatureAlgorithm')
-                    }
-                    
-                    return IntelligenceResult(
-                        source='ssl_certificate',
-                        data_type='infrastructure',
-                        target=target,
-                        raw_data=cert,
-                        processed_data=processed_data,
-                        confidence_score=0.8,
-                        timestamp=datetime.utcnow(),
-                        metadata={'port': 443, 'protocol': 'https'}
-                    )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(mcp_url, json=payload, timeout=30) as response:
+                    if response.status == 200:
+                        mcp_result = await response.json()
+                        
+                        if mcp_result.get('success') and 'result' in mcp_result:
+                            ssl_data = mcp_result['result']
+                            
+                            # Transform MCP result to our format
+                            processed_data = {
+                                'domain': ssl_data.get('domain', target),
+                                'subject': ssl_data.get('subject', {}),
+                                'issuer': ssl_data.get('issuer', {}),
+                                'version': ssl_data.get('version', 'Unknown'),
+                                'serial_number': ssl_data.get('serial_number', 'Unknown'),
+                                'not_before': ssl_data.get('not_before', 'Unknown'),
+                                'not_after': ssl_data.get('not_after', 'Unknown'),
+                                'signature_algorithm': ssl_data.get('signature_algorithm', 'Unknown'),
+                                'is_valid': ssl_data.get('is_valid', False),
+                                'days_until_expiry': ssl_data.get('days_until_expiry', 0),
+                                'data_source': ssl_data.get('data_source', 'Live SSL Query')
+                            }
+                            
+                            return IntelligenceResult(
+                                source='ssl_certificate_enhanced',
+                                data_type='infrastructure',
+                                target=target,
+                                raw_data={'ssl_response': mcp_result},
+                                processed_data=processed_data,
+                                confidence_score=0.95,  # Higher confidence for real data
+                                timestamp=datetime.utcnow(),
+                                metadata={
+                                    'query_type': 'ssl_certificate',
+                                    'intelligence_type': 'REAL',
+                                    'processing_time_ms': mcp_result.get('metadata', {}).get('processing_time_ms', 0)
+                                }
+                            )
                     
         except Exception as e:
             logger.error(f"SSL certificate lookup failed: {str(e)}")
@@ -686,8 +802,18 @@ class ThreatIntelligenceMCPClient(MCPClientBase):
         self.otx_creds = credentials.get('otx')
         super().__init__(credentials.get('virustotal', APICredentials()))
     
+    @trace_mcp_operation("threat_intelligence", "gather_intelligence")
     async def gather_intelligence(self, target: str, **kwargs) -> List[IntelligenceResult]:
         """Gather threat intelligence"""
+        
+        # Add trace attributes
+        add_trace_attributes(
+            mcp_client="threat_intelligence",
+            target=target,
+            virustotal_enabled=bool(self.virustotal_creds and self.virustotal_creds.api_key),
+            misp_enabled=bool(self.misp_creds),
+            otx_enabled=bool(self.otx_creds)
+        )
         results = []
         
         try:
@@ -713,73 +839,56 @@ class ThreatIntelligenceMCPClient(MCPClientBase):
         
         return results
     
+    @trace_mcp_operation("threat_intelligence", "virustotal_lookup")
     async def _gather_virustotal_intelligence(self, target: str) -> Optional[IntelligenceResult]:
-        """Gather VirusTotal intelligence"""
-        await self._rate_limit_check()
+        """Gather VirusTotal intelligence via enhanced threat intel MCP server"""
         
         try:
-            headers = {
-                'x-apikey': self.virustotal_creds.api_key,
-                'Content-Type': 'application/json'
+            # Use enhanced threat intel MCP server
+            mcp_url = 'http://mcp-threat-enhanced:8020/execute'
+            payload = {
+                'tool': 'virustotal_domain',
+                'parameters': {'domain': target}
             }
             
-            # Determine if target is URL, domain, or IP
-            if target.startswith('http'):
-                # URL scan
-                import base64
-                url_id = base64.urlsafe_b64encode(target.encode()).decode().strip('=')
-                endpoint = f'https://www.virustotal.com/api/v3/urls/{url_id}'
-            else:
-                # Domain/IP scan
-                endpoint = f'https://www.virustotal.com/api/v3/domains/{target}'
-            
-            async with self.session.get(endpoint, headers=headers) as response:
+            async with self.session.post(mcp_url, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
-                    attributes = data.get('data', {}).get('attributes', {})
                     
-                    processed_data = {
-                        'target': target,
-                        'reputation': attributes.get('reputation', 0),
-                        'harmless': attributes.get('last_analysis_stats', {}).get('harmless', 0),
-                        'malicious': attributes.get('last_analysis_stats', {}).get('malicious', 0),
-                        'suspicious': attributes.get('last_analysis_stats', {}).get('suspicious', 0),
-                        'undetected': attributes.get('last_analysis_stats', {}).get('undetected', 0),
-                        'categories': attributes.get('categories', {}),
-                        'last_analysis_date': attributes.get('last_analysis_date'),
-                        'whois_date': attributes.get('whois_date')
-                    }
-                    
-                    # Calculate risk score
-                    total_scans = sum([
-                        processed_data['harmless'],
-                        processed_data['malicious'], 
-                        processed_data['suspicious'],
-                        processed_data['undetected']
-                    ])
-                    
-                    risk_score = 0
-                    if total_scans > 0:
-                        risk_score = (processed_data['malicious'] + processed_data['suspicious'] * 0.5) / total_scans * 100
-                    
-                    processed_data['risk_score'] = round(risk_score, 2)
-                    
-                    return IntelligenceResult(
-                        source='virustotal',
-                        data_type='threat_intelligence',
-                        target=target,
-                        raw_data=data,
-                        processed_data=processed_data,
-                        confidence_score=0.9,
-                        timestamp=datetime.utcnow(),
-                        metadata={'api_version': 'v3', 'scan_engines': total_scans}
-                    )
-                    
+                    if data.get('success', False):
+                        result_data = data.get('result', {})
+                        
+                        return IntelligenceResult(
+                            source='virustotal_enhanced',
+                            data_type='threat_intelligence',
+                            target=target,
+                            raw_data=result_data,
+                            processed_data={
+                                'domain': result_data.get('domain'),
+                                'threat_score': result_data.get('threat_score', 0),
+                                'reputation': result_data.get('reputation', 0),
+                                'malicious_detections': result_data.get('analysis_stats', {}).get('malicious', 0),
+                                'suspicious_detections': result_data.get('analysis_stats', {}).get('suspicious', 0),
+                                'clean_detections': result_data.get('analysis_stats', {}).get('harmless', 0),
+                                'categories': result_data.get('categories', {}),
+                                'registrar': result_data.get('registrar'),
+                                'last_analysis': result_data.get('last_analysis_date')
+                            },
+                            confidence_score=0.9 if 'error' not in result_data else 0.3,
+                            timestamp=datetime.utcnow(),
+                            metadata={
+                                'api_source': result_data.get('data_source', 'Enhanced MCP'),
+                                'intelligence_type': 'REAL',
+                                'processing_time': data.get('metadata', {}).get('processing_time_ms', 0)
+                            }
+                        )
+        
         except Exception as e:
-            logger.error(f"VirusTotal lookup failed: {str(e)}")
+            logger.error(f"VirusTotal intelligence gathering failed: {str(e)}")
         
         return None
     
+    @trace_mcp_operation("threat_intelligence", "otx_lookup")
     async def _gather_otx_intelligence(self, target: str) -> Optional[IntelligenceResult]:
         """Gather AlienVault OTX intelligence"""
         await self._rate_limit_check()
@@ -893,6 +1002,54 @@ class ThreatIntelligenceMCPClient(MCPClientBase):
         return status
 
 
+class EnhancedMCPClient:
+    """Client for enhanced MCP servers via HTTP"""
+    
+    def __init__(self, server_name: str, config: Dict[str, Any]):
+        self.server_name = server_name
+        self.host = config['host']
+        self.port = config['port']
+        self.timeout = config.get('timeout', 30)
+        self.base_url = f"http://{self.host}:{self.port}"
+        
+    async def call_method(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Call an MCP method via HTTP"""
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+                payload = {
+                    'method': method,
+                    'params': params
+                }
+                
+                async with session.post(f"{self.base_url}/mcp", json=payload) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        return {
+                            'success': False,
+                            'error': f'HTTP {response.status}: {await response.text()}'
+                        }
+                        
+        except Exception as e:
+            logger.error(f"Error calling {self.server_name} method {method}: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def get_capabilities(self) -> Dict[str, Any]:
+        """Get server capabilities"""
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with session.get(f"{self.base_url}/capabilities") as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        return {'error': f'HTTP {response.status}'}
+        except Exception as e:
+            return {'error': str(e)}
+
+
 class MCPClientManager:
     """Manager for all MCP intelligence gathering clients"""
     
@@ -950,41 +1107,132 @@ class MCPClientManager:
         }
         
         # Initialize clients
+        # Enhanced MCP Server configurations
+        enhanced_servers = {
+            'infrastructure_advanced': {
+                'host': 'mcp-infrastructure-advanced.osint-platform.svc.cluster.local',
+                'port': 5015,
+                'timeout': 30
+            },
+            'threat_aggregator': {
+                'host': 'mcp-threat-aggregator.osint-platform.svc.cluster.local', 
+                'port': 5016,
+                'timeout': 60
+            },
+            'ai_analyzer': {
+                'host': 'mcp-ai-analyzer.osint-platform.svc.cluster.local',
+                'port': 5017,
+                'timeout': 120
+            }
+        }
+        
+        # Initialize legacy clients
         self.clients['social_media'] = SocialMediaMCPClient(social_creds)
         self.clients['infrastructure'] = InfrastructureMCPClient(infra_creds)
         self.clients['threat_intelligence'] = ThreatIntelligenceMCPClient(threat_creds)
+        
+        # Initialize enhanced MCP clients
+        self.clients['infrastructure_advanced'] = EnhancedMCPClient('infrastructure_advanced', enhanced_servers['infrastructure_advanced'])
+        self.clients['threat_aggregator'] = EnhancedMCPClient('threat_aggregator', enhanced_servers['threat_aggregator'])
+        self.clients['ai_analyzer'] = EnhancedMCPClient('ai_analyzer', enhanced_servers['ai_analyzer'])
     
     async def gather_all_intelligence(self, target: str, investigation_type: str = 'comprehensive') -> Dict[str, List[IntelligenceResult]]:
-        """Gather intelligence from all applicable sources"""
+        """Gather intelligence from enhanced MCP servers via HTTP"""
         results = {}
         
         try:
-            tasks = []
+            # Use direct HTTP calls to enhanced MCP servers
+            import aiohttp
             
-            # Determine which clients to use based on investigation type
-            if investigation_type in ['comprehensive', 'social_media']:
-                async with self.clients['social_media'] as client:
-                    tasks.append(('social_media', client.gather_intelligence(target)))
-            
-            if investigation_type in ['comprehensive', 'infrastructure']:
-                async with self.clients['infrastructure'] as client:
-                    tasks.append(('infrastructure', client.gather_intelligence(target)))
-            
-            if investigation_type in ['comprehensive', 'threat_assessment']:
-                async with self.clients['threat_intelligence'] as client:
-                    tasks.append(('threat_intelligence', client.gather_intelligence(target)))
-            
-            # Execute all intelligence gathering tasks concurrently
-            for client_name, task in tasks:
-                try:
-                    intelligence_results = await task
-                    results[client_name] = intelligence_results
-                except Exception as e:
-                    logger.error(f"Intelligence gathering failed for {client_name}: {str(e)}")
-                    results[client_name] = []
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                
+                # Infrastructure Intelligence
+                if investigation_type in ['comprehensive', 'infrastructure']:
+                    try:
+                        results['infrastructure'] = await self._call_enhanced_mcp(
+                            session, 'http://mcp-infrastructure-enhanced:8021/execute',
+                            [
+                                {'tool': 'whois_lookup', 'parameters': {'domain': target}},
+                                {'tool': 'dns_records', 'parameters': {'domain': target, 'record_type': 'A'}},
+                                {'tool': 'ssl_certificate_info', 'parameters': {'domain': target}}
+                            ],
+                            'infrastructure'
+                        )
+                    except Exception as e:
+                        logger.error(f"Infrastructure intelligence failed: {str(e)}")
+                        results['infrastructure'] = []
+                
+                # Social Media Intelligence
+                if investigation_type in ['comprehensive', 'social_media']:
+                    try:
+                        results['social_media'] = await self._call_enhanced_mcp(
+                            session, 'http://mcp-social-enhanced:8010/execute',
+                            [
+                                {'tool': 'reddit_profile', 'parameters': {'username': target}},
+                                {'tool': 'social_media_search', 'parameters': {'query': target}}
+                            ],
+                            'social_media'
+                        )
+                    except Exception as e:
+                        logger.error(f"Social media intelligence failed: {str(e)}")
+                        results['social_media'] = []
+                
+                # Threat Intelligence
+                if investigation_type in ['comprehensive', 'threat_assessment']:
+                    try:
+                        results['threat_intelligence'] = await self._call_enhanced_mcp(
+                            session, 'http://mcp-threat-enhanced:8020/execute',
+                            [
+                                {'tool': 'virustotal_domain', 'parameters': {'domain': target}}
+                            ],
+                            'threat_intelligence'
+                        )
+                    except Exception as e:
+                        logger.error(f"Threat intelligence failed: {str(e)}")
+                        results['threat_intelligence'] = []
         
         except Exception as e:
             logger.error(f"Intelligence gathering manager failed: {str(e)}")
+        
+        return results
+    
+    async def _call_enhanced_mcp(self, session, mcp_url: str, tools: List[Dict], source_type: str) -> List[IntelligenceResult]:
+        """Call enhanced MCP server and convert to IntelligenceResult"""
+        results = []
+        
+        for tool_call in tools:
+            try:
+                async with session.post(mcp_url, json=tool_call, headers={'Content-Type': 'application/json'}) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        if data.get('success', False):
+                            result_data = data.get('result', {})
+                            
+                            # Convert to IntelligenceResult format
+                            intelligence_result = IntelligenceResult(
+                                source=tool_call['tool'] + '_enhanced',
+                                data_type=source_type,
+                                target=tool_call['parameters'].get('domain', tool_call['parameters'].get('username', tool_call['parameters'].get('query', 'unknown'))),
+                                raw_data=result_data,
+                                processed_data=result_data,
+                                confidence_score=0.9 if 'error' not in result_data else 0.3,
+                                timestamp=datetime.utcnow(),
+                                metadata={
+                                    'api_source': result_data.get('data_source', 'Enhanced MCP'),
+                                    'intelligence_type': 'REAL',
+                                    'mcp_server': mcp_url,
+                                    'processing_time': data.get('metadata', {}).get('processing_time_ms', 0)
+                                }
+                            )
+                            results.append(intelligence_result)
+                        else:
+                            logger.warning(f"MCP call failed: {data}")
+                    else:
+                        logger.error(f"MCP server error: {response.status}")
+                        
+            except Exception as e:
+                logger.error(f"MCP call exception for {tool_call}: {str(e)}")
         
         return results
     
@@ -1004,3 +1252,94 @@ class MCPClientManager:
                 }
         
         return health_results
+    
+    async def gather_enhanced_intelligence(self, target: str, investigation_type: str = 'comprehensive') -> Dict[str, Any]:
+        """Gather intelligence using enhanced MCP servers"""
+        enhanced_results = {
+            'target': target,
+            'investigation_type': investigation_type,
+            'timestamp': datetime.utcnow().isoformat(),
+            'infrastructure_advanced': {},
+            'threat_aggregator': {},
+            'ai_analysis': {}
+        }
+        
+        try:
+            # Infrastructure Advanced Analysis
+            if 'infrastructure_advanced' in self.clients:
+                infra_client = self.clients['infrastructure_advanced']
+                
+                # Comprehensive reconnaissance
+                recon_result = await infra_client.call_method(
+                    'infrastructure/comprehensive_recon',
+                    {'target': target}
+                )
+                enhanced_results['infrastructure_advanced']['reconnaissance'] = recon_result
+                
+                # Certificate transparency
+                ct_result = await infra_client.call_method(
+                    'infrastructure/certificate_transparency',
+                    {'domain': target}
+                )
+                enhanced_results['infrastructure_advanced']['certificate_transparency'] = ct_result
+                
+            # Threat Intelligence Aggregation
+            if 'threat_aggregator' in self.clients:
+                threat_client = self.clients['threat_aggregator']
+                
+                # Check if target is IP or domain
+                if self._is_ip(target):
+                    threat_result = await threat_client.call_method(
+                        'threat/check_ip',
+                        {'ip': target}
+                    )
+                else:
+                    threat_result = await threat_client.call_method(
+                        'threat/check_domain',
+                        {'domain': target}
+                    )
+                enhanced_results['threat_aggregator']['reputation'] = threat_result
+                
+            # AI Analysis (if we have enough data)
+            if 'ai_analyzer' in self.clients and enhanced_results['infrastructure_advanced']:
+                ai_client = self.clients['ai_analyzer']
+                
+                # Generate executive summary
+                summary_result = await ai_client.call_method(
+                    'ai/generate_executive_summary',
+                    {'investigation_data': enhanced_results}
+                )
+                enhanced_results['ai_analysis']['executive_summary'] = summary_result
+                
+                # Predict attack vectors
+                if enhanced_results['infrastructure_advanced'].get('reconnaissance'):
+                    attack_vectors = await ai_client.call_method(
+                        'ai/predict_attack_vectors',
+                        {'target_profile': enhanced_results['infrastructure_advanced']['reconnaissance']}
+                    )
+                    enhanced_results['ai_analysis']['attack_vectors'] = attack_vectors
+                    
+        except Exception as e:
+            logger.error(f"Enhanced intelligence gathering failed: {e}")
+            enhanced_results['error'] = str(e)
+        
+        return enhanced_results
+    
+    def _is_ip(self, target: str) -> bool:
+        """Check if target is an IP address"""
+        import ipaddress
+        try:
+            ipaddress.ip_address(target)
+            return True
+        except ValueError:
+            return False
+    
+    async def get_enhanced_capabilities(self) -> Dict[str, Any]:
+        """Get capabilities of all enhanced MCP servers"""
+        capabilities = {}
+        
+        for name, client in self.clients.items():
+            if isinstance(client, EnhancedMCPClient):
+                capabilities[name] = await client.get_capabilities()
+                
+        return capabilities

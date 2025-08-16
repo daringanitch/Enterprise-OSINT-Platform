@@ -4,7 +4,7 @@ Enterprise OSINT Platform Backend
 Full Intelligence Gathering and Analysis System
 """
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import logging
@@ -13,6 +13,15 @@ import threading
 import time
 import json
 from pathlib import Path
+import bcrypt
+import jwt
+import psycopg2
+from functools import wraps
+from trace_context import TraceContextManager, StructuredLogger, trace_context, inject_trace_headers
+from structured_logging import (
+    configure_structured_logging, get_structured_logger, log_investigation_event,
+    log_mcp_operation, log_security_event, log_operation_timing
+)
 
 # Import OSINT investigation system
 from models import (
@@ -30,12 +39,75 @@ from postgres_audit_client import (
     log_api_call, AuditEvent, EventType, InvestigationAuditRecord
 )
 from api_connection_monitor import APIConnectionMonitor, APIStatus, APIType
+from job_queue import job_queue_manager, update_job_progress
+from problem_json import ProblemJSONMiddleware, InvestigationNotFoundError, MCPServerError
+from observability import (
+    observability_manager, trace_operation, trace_investigation,
+    add_trace_attributes, record_error, get_metrics
+)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure structured logging for the entire application
+configure_structured_logging(
+    level=os.environ.get('LOG_LEVEL', 'INFO'),
+    enable_console=True,
+    enable_file=os.environ.get('ENABLE_FILE_LOGGING', 'false').lower() == 'true',
+    log_file=os.environ.get('LOG_FILE', '/tmp/osint-platform.log')
+)
+
+# Get structured logger with trace correlation
+logger = get_structured_logger(__name__)
+legacy_logger = StructuredLogger(__name__)  # Keep for backward compatibility
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, 
+     origins=['http://localhost:8080', 'http://localhost:*', 'http://127.0.0.1:*', 'http://localhost:5001'],
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+
+# Initialize Problem+JSON error handling middleware
+problem_json = ProblemJSONMiddleware(app)
+
+# Initialize OpenTelemetry instrumentation
+observability_manager.initialize(app)
+
+# Session configuration
+app.config['SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Add trace context middleware
+@app.route('/metrics')
+def metrics():
+    """Prometheus metrics endpoint"""
+    from flask import Response
+    return Response(get_metrics(), mimetype='text/plain')
+
+@app.before_request
+def before_request():
+    """Initialize trace context for every request"""
+    g.trace_id = TraceContextManager.get_or_create_trace_id()
+    g.span_id = TraceContextManager.get_current_span_id()
+    g.request_start_time = time.time()
+    
+    logger.info(f"Request started: {request.method} {request.path}", 
+                method=request.method,
+                path=request.path,
+                remote_addr=request.remote_addr)
+
+@app.after_request
+def after_request(response):
+    """Add trace headers to response and log request completion"""
+    response = inject_trace_headers(response)
+    
+    # Log request completion
+    if hasattr(g, 'request_start_time'):
+        duration_ms = int((time.time() - g.request_start_time) * 1000)
+        logger.info(f"Request completed: {request.method} {request.path}",
+                    method=request.method,
+                    path=request.path,
+                    status_code=response.status_code,
+                    duration_ms=duration_ms)
+    
+    return response
 
 # Initialize OSINT Investigation System
 orchestrator = InvestigationOrchestrator(max_concurrent_investigations=10)
@@ -132,6 +204,134 @@ def save_audit_history():
 
 # Load audit history on startup
 load_audit_history()
+
+# Database connection for authentication
+def get_db_connection():
+    """Get PostgreSQL database connection"""
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('POSTGRES_HOST', 'osint-platform-postgresql'),
+            port=os.environ.get('POSTGRES_PORT', '5432'),
+            database=os.environ.get('POSTGRES_DB', 'osint_audit'),
+            user=os.environ.get('POSTGRES_USER', 'postgres'),
+            password=os.environ.get('POSTGRES_PASSWORD', 'password123')
+        )
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection error: {e}")
+        return None
+
+# Authentication functions
+def hash_password(password):
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, hashed):
+    """Verify a password against its hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def authenticate_user(username, password):
+    """Authenticate user against PostgreSQL database"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT user_id, username, password_hash, full_name, role, clearance_level, is_active
+            FROM public.users 
+            WHERE username = %s AND is_active = true
+        """, (username,))
+        
+        user = cursor.fetchone()
+        if user and verify_password(password, user[2]):
+            # Update last login
+            cursor.execute("""
+                UPDATE public.users 
+                SET last_login = NOW(), failed_login_attempts = 0 
+                WHERE username = %s
+            """, (username,))
+            conn.commit()
+            
+            return {
+                'user_id': user[0],
+                'username': user[1],
+                'full_name': user[3],
+                'role': user[4],
+                'clearance_level': user[5]
+            }
+        else:
+            # Increment failed login attempts
+            cursor.execute("""
+                UPDATE public.users 
+                SET failed_login_attempts = failed_login_attempts + 1 
+                WHERE username = %s
+            """, (username,))
+            conn.commit()
+            return None
+            
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        return None
+    finally:
+        conn.close()
+
+def create_jwt_token(user_info):
+    """Create a JWT token for the user"""
+    payload = {
+        'user_id': user_info['user_id'],
+        'username': user_info['username'],
+        'full_name': user_info['full_name'],
+        'role': user_info['role'],
+        'clearance_level': user_info['clearance_level'],
+        'exp': datetime.utcnow() + timedelta(hours=8),  # 8 hour expiry
+        'iat': datetime.utcnow()
+    }
+    
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def require_auth(f):
+    """Decorator to require authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Get token from Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        try:
+            payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            request.current_user = payload
+            return f(*args, **kwargs)
+        except jwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'error': 'Invalid token'}), 401
+    return decorated_function
+
+def require_role(required_role):
+    """Decorator to require specific role"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not hasattr(request, 'current_user'):
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            role_hierarchy = {'viewer': 1, 'analyst': 2, 'senior_analyst': 3, 'admin': 4}
+            user_level = role_hierarchy.get(request.current_user.get('role'), 0)
+            required_level = role_hierarchy.get(required_role, 99)
+            
+            if user_level < required_level:
+                return jsonify({'error': 'Insufficient permissions'}), 403
+                
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Legacy users dict for compatibility (will be removed)
 users = {
     'admin': {'password': 'admin123', 'role': 'admin'}
 }
@@ -155,11 +355,154 @@ PRIORITY_MAP = {
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy', 'service': 'osint-backend', 'timestamp': datetime.utcnow().isoformat()})
+    """Basic health check - is the service running?"""
+    return jsonify({
+        'status': 'healthy', 
+        'service': 'osint-backend', 
+        'timestamp': datetime.utcnow().isoformat(),
+        'trace_id': getattr(g, 'trace_id', None)
+    })
+
+@app.route('/health/live')
+def liveness():
+    """Kubernetes liveness probe - is the service alive?"""
+    # Basic check that the service can respond
+    return jsonify({
+        'status': 'alive',
+        'service': 'osint-backend',
+        'timestamp': datetime.utcnow().isoformat(),
+        'trace_id': getattr(g, 'trace_id', None)
+    }), 200
+
+@app.route('/health/ready')
+def readiness():
+    """Kubernetes readiness probe - is the service ready to accept traffic?"""
+    checks = {
+        'service': 'osint-backend',
+        'timestamp': datetime.utcnow().isoformat(),
+        'trace_id': getattr(g, 'trace_id', None),
+        'checks': {}
+    }
+    
+    all_healthy = True
+    
+    # Check PostgreSQL
+    try:
+        if postgres_client and postgres_client.test_connection():
+            checks['checks']['postgresql'] = {
+                'status': 'healthy',
+                'message': 'Database connection successful'
+            }
+        else:
+            checks['checks']['postgresql'] = {
+                'status': 'unhealthy',
+                'message': 'Database connection failed'
+            }
+            all_healthy = False
+    except Exception as e:
+        checks['checks']['postgresql'] = {
+            'status': 'unhealthy',
+            'message': f'Database check failed: {str(e)}'
+        }
+        all_healthy = False
+    
+    # Check Vault connectivity
+    try:
+        if vault_client and vault_client.is_healthy():
+            checks['checks']['vault'] = {
+                'status': 'healthy',
+                'message': 'Vault connection successful'
+            }
+        else:
+            checks['checks']['vault'] = {
+                'status': 'degraded',
+                'message': 'Vault not connected (using environment variables)'
+            }
+    except Exception as e:
+        checks['checks']['vault'] = {
+            'status': 'degraded',
+            'message': f'Vault check failed: {str(e)}'
+        }
+    
+    # Check MCP servers
+    mcp_status = {}
+    try:
+        # Check each MCP server endpoint
+        mcp_servers = [
+            ('infrastructure', 'http://mcp-infrastructure-enhanced:8021'),
+            ('social', 'http://mcp-social-enhanced:8010'),
+            ('threat', 'http://mcp-threat-enhanced:8020'),
+            ('financial', 'http://mcp-financial-enhanced:8040'),
+            ('technical', 'http://mcp-technical-enhanced:8050')
+        ]
+        
+        for name, url in mcp_servers:
+            # For now, just track that they're configured
+            # In production, you'd want to actually check connectivity
+            mcp_status[name] = {
+                'status': 'configured',
+                'url': url
+            }
+        
+        checks['checks']['mcp_servers'] = mcp_status
+    except Exception as e:
+        checks['checks']['mcp_servers'] = {
+            'status': 'error',
+            'message': str(e)
+        }
+    
+    # Check API monitor
+    try:
+        if api_monitor:
+            system_status = api_monitor.get_system_status()
+            checks['checks']['api_monitor'] = {
+                'status': 'healthy' if system_status.get('system_status') != 'critical' else 'unhealthy',
+                'total_apis': system_status.get('total_apis', 0),
+                'online_apis': system_status.get('online_apis', 0)
+            }
+    except Exception as e:
+        checks['checks']['api_monitor'] = {
+            'status': 'error',
+            'message': str(e)
+        }
+    
+    # Check job queue (Redis/RQ)
+    try:
+        job_queue_health = job_queue_manager.health_check()
+        if job_queue_health['status'] == 'healthy':
+            checks['checks']['job_queue'] = {
+                'status': 'healthy',
+                'redis_connection': job_queue_health['redis_connection'],
+                'queues': len(job_queue_health['queues']),
+                'workers': len(job_queue_health['workers'])
+            }
+        else:
+            checks['checks']['job_queue'] = {
+                'status': 'unhealthy',
+                'error': job_queue_health.get('error', 'Job queue not healthy')
+            }
+            all_healthy = False
+    except Exception as e:
+        checks['checks']['job_queue'] = {
+            'status': 'error',
+            'message': str(e)
+        }
+        all_healthy = False
+    
+    # Overall status
+    checks['status'] = 'ready' if all_healthy else 'not_ready'
+    
+    # Log health check result
+    logger.info(f"Health check completed: {checks['status']}", 
+                checks=checks['checks'],
+                healthy=all_healthy)
+    
+    return jsonify(checks), 200 if all_healthy else 503
 
 @app.route('/ready')
 def ready():
-    return jsonify({'status': 'ready', 'service': 'osint-backend', 'timestamp': datetime.utcnow().isoformat()})
+    """Legacy ready endpoint - redirect to new health/ready"""
+    return readiness()
 
 @app.route('/api/system/status', methods=['GET'])
 def system_status():
@@ -375,21 +718,57 @@ def trigger_api_health_check():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
+    """User authentication endpoint"""
     data = request.json
     username = data.get('username')
     password = data.get('password')
     
-    if username in users and users[username]['password'] == password:
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    
+    # Authenticate against PostgreSQL
+    user_info = authenticate_user(username, password)
+    if user_info:
+        access_token = create_jwt_token(user_info)
+        
         return jsonify({
             'message': 'Login successful',
-            'user': {'username': username, 'role': users[username]['role']},
-            'access_token': 'mock-jwt-token',
-            'refresh_token': 'mock-refresh-token'
+            'user': {
+                'user_id': user_info['user_id'],
+                'username': user_info['username'],
+                'full_name': user_info['full_name'],
+                'role': user_info['role'],
+                'clearance_level': user_info['clearance_level']
+            },
+            'access_token': access_token
         })
     
     return jsonify({'error': 'Invalid credentials'}), 401
 
+@app.route('/api/auth/logout', methods=['POST'])
+@require_auth
+def logout():
+    """User logout endpoint"""
+    # With JWT tokens, logout is handled client-side by discarding the token
+    return jsonify({'message': 'Logout successful'})
+
+@app.route('/api/auth/me', methods=['GET'])
+@require_auth
+def get_current_user():
+    """Get current user information"""
+    user = request.current_user
+    return jsonify({
+        'user': {
+            'user_id': user['user_id'],
+            'username': user['username'],
+            'full_name': user['full_name'],
+            'role': user['role'],
+            'clearance_level': user['clearance_level']
+        }
+    })
+
 @app.route('/api/investigations', methods=['GET'])
+@require_auth
 def get_investigations():
     # Return all OSINT investigations with detailed status
     result = []
@@ -459,6 +838,8 @@ def get_investigations():
     return jsonify(result)
 
 @app.route('/api/investigations', methods=['POST'])
+@require_auth
+@trace_operation("api.create_investigation")
 def create_investigation():
     data = request.json
     
@@ -468,6 +849,14 @@ def create_investigation():
         investigation_type = data.get('type', 'comprehensive')
         priority = data.get('priority', 'normal')
         investigator_name = data.get('investigator', 'System')
+        
+        # Add trace attributes
+        add_trace_attributes(
+            target=target,
+            investigation_type=investigation_type,
+            priority=priority,
+            investigator=investigator_name
+        )
         # Generate investigator_id from name
         investigator_id = investigator_name.lower().replace(' ', '_').replace('-', '_') if investigator_name != 'System' else 'system'
         
@@ -479,10 +868,10 @@ def create_investigation():
         inv_type = INVESTIGATION_TYPE_MAP.get(investigation_type, InvestigationType.COMPREHENSIVE)
         inv_priority = PRIORITY_MAP.get(priority, Priority.NORMAL)
         
-        # Check API availability and adjust scope based on available services
-        available_social_apis = api_monitor.get_available_apis(APIType.SOCIAL_MEDIA)
-        available_infra_apis = api_monitor.get_available_apis(APIType.INFRASTRUCTURE)
-        available_threat_apis = api_monitor.get_available_apis(APIType.THREAT_INTELLIGENCE)
+        # Check API availability - enhanced MCP servers are always available internally
+        available_social_apis = ['mcp-social-enhanced']  # Enhanced MCP always available
+        available_infra_apis = ['mcp-infrastructure-enhanced']  # Enhanced MCP always available
+        available_threat_apis = ['mcp-threat-enhanced']  # Enhanced MCP always available
         available_ai_apis = api_monitor.get_available_apis(APIType.AI_ML)
         
         # Create investigation scope based on type and API availability
@@ -525,8 +914,8 @@ def create_investigation():
                 'api_status': api_monitor.get_system_status()
             }), 503  # Service Unavailable
         
-        # Start OSINT investigation
-        investigation_id = orchestrator.start_investigation(
+        # Create investigation record (but don't execute yet)
+        investigation_id = orchestrator.create_investigation(
             target=target,
             investigation_type=inv_type,
             investigator_name=investigator_name,
@@ -534,10 +923,24 @@ def create_investigation():
             scope=scope
         )
         
+        # Queue investigation for background processing
+        job_id = job_queue_manager.enqueue_investigation(
+            investigation_id=investigation_id,
+            target=target,
+            investigation_type=investigation_type,
+            priority=priority,
+            investigator_name=investigator_name,
+            scope=scope.to_dict() if hasattr(scope, 'to_dict') else {}
+        )
+        
         # Get investigation details
         investigation = orchestrator.get_investigation(investigation_id)
         if not investigation:
             return jsonify({'error': 'Failed to create investigation'}), 500
+        
+        # Store job ID for progress tracking
+        if job_id:
+            investigation.job_id = job_id
             
         # Ensure the investigation object has the correct investigator_id
         investigation.investigator_id = investigator_id
@@ -588,22 +991,24 @@ def create_investigation():
                 'investigator_name': investigation.investigator_name if hasattr(investigation, 'investigator_name') else investigator_name
             }
         
-        response_data['message'] = 'OSINT investigation started successfully'
+        response_data['message'] = 'OSINT investigation queued for processing'
+        response_data['job_id'] = job_id
+        response_data['status'] = 'queued'
         
         # Include API availability information
         response_data['api_status'] = {
             'fallback_mode': api_monitor.get_system_status()['fallback_mode'],
             'available_apis': {
-                'social_media': len(available_social_apis),
-                'infrastructure': len(available_infra_apis),
-                'threat_intelligence': len(available_threat_apis),
-                'ai_ml': len(available_ai_apis)
+                'social_media': len(available_social_apis) if isinstance(available_social_apis, list) else 1,
+                'infrastructure': len(available_infra_apis) if isinstance(available_infra_apis, list) else 1,
+                'threat_intelligence': len(available_threat_apis) if isinstance(available_threat_apis, list) else 1,
+                'ai_ml': len(available_ai_apis) if isinstance(available_ai_apis, list) else 0
             },
             'warnings': api_warnings,
             'investigation_capabilities': {
-                'social_media_analysis': len(available_social_apis) > 0 and scope.include_social_media,
-                'infrastructure_analysis': len(available_infra_apis) > 0 and scope.include_infrastructure,
-                'threat_intelligence': len(available_threat_apis) > 0 and scope.include_threat_intelligence,
+                'social_media_analysis': (len(available_social_apis) if isinstance(available_social_apis, list) else 1) > 0 and scope.include_social_media,
+                'infrastructure_analysis': (len(available_infra_apis) if isinstance(available_infra_apis, list) else 1) > 0 and scope.include_infrastructure,
+                'threat_intelligence': (len(available_threat_apis) if isinstance(available_threat_apis, list) else 1) > 0 and scope.include_threat_intelligence,
                 'ai_analysis': len(available_ai_apis) > 0
             }
         }
@@ -709,6 +1114,7 @@ def get_investigation(inv_id):
     return jsonify(inv)
 
 @app.route('/api/investigations/<inv_id>/report', methods=['POST'])
+@require_auth
 def generate_report(inv_id):
     # Try OSINT investigation first
     investigation = orchestrator.get_investigation(inv_id)
@@ -928,28 +1334,53 @@ def get_mcp_servers():
     return jsonify([
         {
             'name': 'social_media',
-            'url': 'http://mcp-social-media:8010',
+            'url': 'http://mcp-social-enhanced:8010',
             'status': 'online',
             'tools_count': 3,
-            'description': 'Social Media Intelligence Analysis'
+            'description': 'Enhanced Social Media Intelligence Analysis',
+            'version': '2.0.0',
+            'capabilities': ['Real Twitter API v2', 'Real Reddit Data', 'Social Media Search']
         },
         {
             'name': 'infrastructure',
-            'url': 'http://mcp-infrastructure:8020', 
+            'url': 'http://mcp-infrastructure-enhanced:8021', 
             'status': 'online',
             'tools_count': 4,
-            'description': 'Infrastructure Assessment and Analysis'
+            'description': 'Infrastructure Assessment and Analysis',
+            'version': '1.0.0',
+            'capabilities': ['WHOIS Lookup', 'DNS Records', 'SSL Analysis', 'Subdomain Enum']
         },
         {
             'name': 'threat_intel',
-            'url': 'http://mcp-threat-intel:8030',
+            'url': 'http://mcp-threat-enhanced:8020',
             'status': 'online',
             'tools_count': 3,
-            'description': 'Threat Intelligence and Risk Assessment'
+            'description': 'Enhanced Threat Intelligence with Real APIs',
+            'version': '2.0.0',
+            'capabilities': ['VirusTotal Domain Analysis', 'Shodan Host Intelligence', 'HaveIBeenPwned Breach Check']
+        },
+        {
+            'name': 'financial_intel',
+            'url': 'http://mcp-financial-enhanced:8040',
+            'status': 'online',
+            'tools_count': 3,
+            'description': 'Enhanced Financial Intelligence with Real APIs',
+            'version': '2.0.0',
+            'capabilities': ['SEC EDGAR Company Search', 'SEC Filings Analysis', 'Alpha Vantage Stock Data']
+        },
+        {
+            'name': 'technical_intel',
+            'url': 'http://mcp-technical-enhanced:8050',
+            'status': 'online',
+            'tools_count': 3,
+            'description': 'Enhanced Technical Intelligence with Real APIs',
+            'version': '2.0.0',
+            'capabilities': ['GitHub User Analysis', 'GitHub Repository Analysis', 'Code Pattern Search']
         }
     ])
 
 @app.route('/api/reports/audit-history', methods=['GET'])
+@require_auth
 def get_reports_audit_history():
     """Get complete audit history of all generated reports"""
     
@@ -1217,7 +1648,7 @@ def get_investigation_compliance_reports(inv_id):
     investigation = orchestrator.get_investigation(inv_id)
     
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        raise InvestigationNotFoundError(inv_id)
     
     compliance_reports = []
     for report in investigation.compliance_reports:
@@ -1871,7 +2302,7 @@ def get_investigation_progress(inv_id):
     investigation = orchestrator.get_investigation(inv_id)
     
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        raise InvestigationNotFoundError(inv_id)
     
     return jsonify({
         'investigation_id': inv_id,
@@ -1885,6 +2316,56 @@ def get_investigation_progress(inv_id):
         'warnings': investigation.progress.warnings,
         'last_updated': investigation.progress.last_updated.isoformat()
     })
+
+@app.route('/api/jobs/<job_id>/status', methods=['GET'])
+@require_auth
+def get_job_status(job_id):
+    """Get status of a background job"""
+    try:
+        status = job_queue_manager.get_job_status(job_id)
+        return jsonify(status), 200
+    except Exception as e:
+        logger.error("Failed to get job status", extra={
+            'job_id': job_id,
+            'error': str(e),
+            'trace_id': g.trace_id
+        })
+        return jsonify({'error': f'Failed to get job status: {str(e)}'}), 500
+
+@app.route('/api/jobs/<job_id>/cancel', methods=['POST'])
+@require_auth
+def cancel_job(job_id):
+    """Cancel a background job"""
+    try:
+        success = job_queue_manager.cancel_job(job_id)
+        if success:
+            return jsonify({
+                'message': 'Job cancelled successfully',
+                'job_id': job_id
+            }), 200
+        else:
+            return jsonify({'error': 'Job not found or cannot be cancelled'}), 404
+    except Exception as e:
+        logger.error("Failed to cancel job", extra={
+            'job_id': job_id,
+            'error': str(e),
+            'trace_id': g.trace_id
+        })
+        return jsonify({'error': f'Failed to cancel job: {str(e)}'}), 500
+
+@app.route('/api/jobs/queue/stats', methods=['GET'])
+@require_auth
+def get_queue_stats():
+    """Get job queue statistics"""
+    try:
+        stats = job_queue_manager.get_queue_stats()
+        return jsonify(stats), 200
+    except Exception as e:
+        logger.error("Failed to get queue stats", extra={
+            'error': str(e),
+            'trace_id': g.trace_id
+        })
+        return jsonify({'error': f'Failed to get queue stats: {str(e)}'}), 500
 
 @app.route('/api/mcp/status', methods=['GET'])
 def get_mcp_status():
@@ -2022,7 +2503,7 @@ def get_investigation_risk_assessment(inv_id):
     investigation = orchestrator.get_investigation(inv_id)
     
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        raise InvestigationNotFoundError(inv_id)
     
     if not hasattr(investigation, 'risk_assessment') or not investigation.risk_assessment:
         return jsonify({'error': 'Risk assessment not available for this investigation'}), 404
@@ -2539,6 +3020,50 @@ def generate_audit_report():
         return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
     except Exception as e:
         logger.error(f"Audit report generation failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/clear-legacy-data', methods=['POST'])
+@require_auth
+@require_role('admin')
+def clear_legacy_data():
+    """Clear all legacy investigations and reports (admin only)"""
+    try:
+        global reports, reports_audit_history
+        
+        # Clear orchestrator investigations
+        active_investigations = orchestrator.get_active_investigations()
+        investigations_cleared = len(active_investigations)
+        
+        # Clear all investigations from orchestrator
+        orchestrator.investigations.clear()
+        
+        # Clear reports
+        reports_cleared = len(reports)
+        reports.clear()
+        
+        # Keep audit history but mark it as archived
+        audit_entries = len(reports_audit_history)
+        for report_id, entry in reports_audit_history.items():
+            entry['archived'] = True
+            entry['archived_at'] = datetime.utcnow().isoformat()
+        
+        # Save updated audit history
+        save_audit_history()
+        
+        logger.info(f"Legacy data cleared by {request.current_user.get('username')}: "
+                   f"{investigations_cleared} investigations, {reports_cleared} reports")
+        
+        return jsonify({
+            'message': 'Legacy data cleared successfully',
+            'cleared': {
+                'investigations': investigations_cleared,
+                'reports': reports_cleared,
+                'audit_entries_archived': audit_entries
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to clear legacy data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 

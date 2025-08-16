@@ -1,0 +1,393 @@
+# OpenTelemetry Collector Deployment for OSINT Platform
+# Collects, processes, and exports telemetry data
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+  labels:
+    app: otel-collector
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      
+      # Collect metrics from applications via Prometheus scraping
+      prometheus:
+        config:
+          scrape_configs:
+          - job_name: 'osint-backend'
+            scrape_interval: 30s
+            kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                - osint-platform
+            relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_app]
+              regex: osint-simple-backend
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+      
+      # Collect host metrics
+      hostmetrics:
+        collection_interval: 30s
+        scrapers:
+          cpu: {}
+          disk: {}
+          filesystem: {}
+          load: {}
+          memory: {}
+          network: {}
+          process:
+            mute_process_name_error: true
+      
+      # Kubernetes metrics
+      k8s_cluster:
+        auth_type: serviceAccount
+        node_conditions_to_report: [Ready, MemoryPressure, DiskPressure]
+        allocatable_types_to_report: [cpu, memory]
+
+    processors:
+      # Add metadata
+      resource:
+        attributes:
+        - key: service.namespace
+          value: osint-platform
+          action: insert
+        - key: deployment.environment
+          from_attribute: deployment_env
+          action: insert
+      
+      # Batch processing for efficiency
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+      
+      # Memory limiter to prevent OOM
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      
+      # Add trace and metric attributes
+      attributes:
+        actions:
+        - key: environment
+          value: kubernetes
+          action: insert
+        - key: cluster.name
+          value: osint-local
+          action: insert
+      
+      # Tail sampling for traces
+      tail_sampling:
+        decision_wait: 10s
+        num_traces: 100
+        expected_new_traces_per_sec: 10
+        policies:
+        - name: errors-policy
+          type: status_code
+          status_code:
+            status_codes: [ERROR]
+        - name: slow-traces-policy
+          type: latency
+          latency:
+            threshold_ms: 1000
+        - name: probabilistic-policy
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 10
+
+    exporters:
+      # Export to Jaeger
+      jaeger:
+        endpoint: jaeger:14250
+        tls:
+          insecure: true
+      
+      # Export to Prometheus
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: osint
+        const_labels:
+          environment: kubernetes
+      
+      # Debug logging (disable in production)
+      logging:
+        loglevel: info
+        sampling_initial: 10
+        sampling_thereafter: 100
+      
+      # OTLP exporter for additional backends
+      otlp/remote:
+        endpoint: "${REMOTE_OTLP_ENDPOINT}"
+        tls:
+          insecure: true
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+
+    extensions:
+      # Health check
+      health_check:
+        endpoint: 0.0.0.0:13133
+      
+      # Performance profiling
+      pprof:
+        endpoint: 0.0.0.0:1777
+      
+      # zPages for debugging
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes, tail_sampling, batch]
+          exporters: [jaeger, logging]
+        
+        metrics:
+          receivers: [otlp, prometheus, hostmetrics, k8s_cluster]
+          processors: [memory_limiter, resource, attributes, batch]
+          exporters: [prometheus, logging]
+        
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes, batch]
+          exporters: [logging]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: otel-collector
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.88.0
+        command:
+        - "/otelcol-contrib"
+        - "--config=/conf/otel-collector-config.yaml"
+        ports:
+        - containerPort: 4317  # OTLP gRPC
+          protocol: TCP
+          name: otlp-grpc
+        - containerPort: 4318  # OTLP HTTP
+          protocol: TCP
+          name: otlp-http
+        - containerPort: 8888  # Metrics
+          protocol: TCP
+          name: metrics
+        - containerPort: 8889  # Prometheus exporter
+          protocol: TCP
+          name: prom-exporter
+        - containerPort: 13133 # Health check
+          protocol: TCP
+          name: health
+        - containerPort: 55679 # zPages
+          protocol: TCP
+          name: zpages
+        env:
+        - name: REMOTE_OTLP_ENDPOINT
+          value: ""  # Set this for remote export
+        - name: K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: K8S_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: config
+          mountPath: /conf
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config
+
+---
+# Service for OTEL Collector
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  selector:
+    app: otel-collector
+  type: ClusterIP
+  ports:
+  - name: otlp-grpc
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: otlp-http
+    port: 4318
+    protocol: TCP
+    targetPort: 4318
+  - name: metrics
+    port: 8888
+    protocol: TCP
+    targetPort: 8888
+  - name: prom-exporter
+    port: 8889
+    protocol: TCP
+    targetPort: 8889
+
+---
+# ServiceAccount for OTEL Collector
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: observability
+
+---
+# ClusterRole for OTEL Collector
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - nodes/stats
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+# ClusterRoleBinding for OTEL Collector
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector
+subjects:
+- kind: ServiceAccount
+  name: otel-collector
+  namespace: observability
+
+---
+# HorizontalPodAutoscaler for OTEL Collector
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: otel-collector-hpa
+  namespace: observability
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: otel-collector
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# ServiceMonitor for Prometheus to scrape OTEL Collector
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

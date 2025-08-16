@@ -452,6 +452,18 @@ class VaultClient:
                 'error': str(e)
             }
     
+    def is_healthy(self) -> bool:
+        """Check if Vault client is healthy and authenticated"""
+        if not self.vault_client:
+            return False
+        
+        try:
+            # Check if we can read health status
+            health = self.vault_client.sys.read_health_status()
+            return self.authenticated and not health.get('sealed', True)
+        except Exception:
+            return False
+    
     def create_policy(self, policy_name: str, policy_rules: str) -> bool:
         """Create or update Vault policy"""
         

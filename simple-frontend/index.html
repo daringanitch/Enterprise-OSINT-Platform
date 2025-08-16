@@ -27,6 +27,131 @@
             padding: 2rem;
         }
         
+        /* Login Styles */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        
+        .login-container {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid #374151;
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .login-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .login-subtitle {
+            color: #9ca3af;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            text-align: left;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #e5e7eb;
+            font-size: 0.9rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            background: #111827;
+            color: #e5e7eb;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .login-button {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 1rem;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        .login-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .login-error {
+            color: #ef4444;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .login-demo-info {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #10b981;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
         .header {
             text-align: center;
             color: #ffffff;
@@ -379,7 +504,40 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-container">
+            <h2 class="login-title">🔐 Secure Access</h2>
+            <p class="login-subtitle">Enterprise OSINT Platform</p>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="username" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-input" required>
+                </div>
+                
+                <button type="submit" id="loginButton" class="login-button">
+                    Sign In
+                </button>
+                
+                <div id="loginError" class="login-error hidden"></div>
+            </form>
+            
+            <div class="login-demo-info">
+                <strong>Demo Accounts:</strong><br>
+                admin / admin123 (Administrator)<br>
+                analyst1 / admin123 (Analyst)<br>
+                analyst2 / admin123 (Senior Analyst)
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="mainApp">
         <div class="header">
             <h1>🔍 Enterprise OSINT Platform</h1>
             <p>Professional Open Source Intelligence Research & Analysis</p>
@@ -521,6 +679,9 @@
                 <button type="button" class="btn" onclick="loadInvestigations()" style="background: #6c757d;">
                     🔄 Refresh
                 </button>
+                <button type="button" class="btn" id="clearLegacyBtn" onclick="clearLegacyData()" style="background: #dc2626;">
+                    🗑️ Clear Legacy Reports
+                </button>
             </div>
             <div id="investigations">
                 <p>No investigations yet. Start your first investigation above!</p>
@@ -580,9 +741,182 @@
     </div>
 
     <script>
+        // Authentication state
+        let currentUser = null;
+        let isAuthenticated = false;
+        let accessToken = null;
+        
         // Track investigations and reports
         let investigations = [];
         let reportTimers = {};
+        
+        // Backend API URL
+        const API_BASE_URL = 'http://localhost:5001';
+        
+        // Authentication functions
+        async function checkAuthStatus() {
+            // Check if we have a stored token
+            accessToken = localStorage.getItem('osint_access_token');
+            
+            if (!accessToken) {
+                showLogin();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    isAuthenticated = true;
+                    showMainApp();
+                    updateUserInfo();
+                    loadInvestigations(); // Load data after authentication check
+                } else {
+                    // Token expired or invalid
+                    localStorage.removeItem('osint_access_token');
+                    accessToken = null;
+                    showLogin();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                showLogin();
+            }
+        }
+        
+        async function login(username, password) {
+            const loginButton = document.getElementById('loginButton');
+            const loginError = document.getElementById('loginError');
+            
+            loginButton.disabled = true;
+            loginButton.textContent = 'Signing In...';
+            loginError.classList.add('hidden');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    accessToken = data.access_token;
+                    isAuthenticated = true;
+                    
+                    // Store token for persistence
+                    localStorage.setItem('osint_access_token', accessToken);
+                    
+                    showMainApp();
+                    updateUserInfo();
+                    loadInvestigations(); // Load data after login
+                } else {
+                    loginError.textContent = data.error || 'Login failed';
+                    loginError.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                loginError.textContent = 'Network error. Please try again.';
+                loginError.classList.remove('hidden');
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = 'Sign In';
+            }
+        }
+        
+        async function logout() {
+            try {
+                if (accessToken) {
+                    await fetch(`${API_BASE_URL}/api/auth/logout`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            // Clear authentication state
+            currentUser = null;
+            isAuthenticated = false;
+            accessToken = null;
+            localStorage.removeItem('osint_access_token');
+            
+            showLogin();
+        }
+        
+        function showLogin() {
+            document.getElementById('loginOverlay').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+        
+        function showMainApp() {
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+        }
+        
+        function updateUserInfo() {
+            if (currentUser) {
+                // Update header with user info
+                const header = document.querySelector('.header p');
+                header.innerHTML = `Professional Open Source Intelligence Research & Analysis<br>
+                    <span style="font-size: 0.9rem; color: #10b981;">
+                        Welcome, ${currentUser.full_name} (${currentUser.role})
+                        <button onclick="logout()" style="margin-left: 1rem; padding: 0.25rem 0.5rem; background: #374151; border: 1px solid #4b5563; border-radius: 4px; color: #e5e7eb; cursor: pointer; font-size: 0.8rem;">Sign Out</button>
+                    </span>`;
+                
+                // Show clear legacy button for admins
+                const clearBtn = document.getElementById('clearLegacyBtn');
+                if (currentUser.role === 'admin') {
+                    clearBtn.style.display = 'inline-block';
+                } else {
+                    clearBtn.style.display = 'none';
+                }
+            }
+        }
+        
+        // Enhanced fetch function with authentication
+        async function authenticatedFetch(url, options = {}) {
+            if (!accessToken) {
+                throw new Error('Authentication required');
+            }
+            
+            // Ensure URL starts with API base URL
+            const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+            
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,
+                    ...options.headers
+                }
+            };
+            
+            const response = await fetch(fullUrl, { ...defaultOptions, ...options });
+            
+            if (response.status === 401) {
+                // Token expired, redirect to login
+                currentUser = null;
+                isAuthenticated = false;
+                accessToken = null;
+                localStorage.removeItem('osint_access_token');
+                showLogin();
+                throw new Error('Authentication required');
+            }
+            
+            return response;
+        }
         
         // World Clock Functions
         function updateWorldClocks() {
@@ -675,27 +1009,59 @@
         }
         
         // Generate PDF report (mock for now)
-        function generateReport(invId) {
+        async function generateReport(invId) {
             const investigation = investigations.find(inv => inv.id === invId);
             if (!investigation) return;
             
-            // Mark as report generated
-            investigation.report_generated = true;
-            investigation.report_generated_at = new Date().toISOString();
-            
-            // Save to localStorage for persistence
-            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
-            
-            // Update display
-            loadInvestigations();
-            
-            alert('Report generated successfully! You have 1 hour to download before it expires.');
+            try {
+                const response = await authenticatedFetch(`/api/investigations/${invId}/report`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Mark as report generated
+                    investigation.report_generated = true;
+                    investigation.report_generated_at = new Date().toISOString();
+                    investigation.report_id = result.report_id;
+                    
+                    // Save to localStorage for persistence
+                    localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+                    
+                    // Update display
+                    loadInvestigations();
+                    
+                    alert('Report generated successfully! You have 1 hour to download before it expires.');
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to generate report: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Report generation error:', error);
+                alert('Failed to generate report. Please try again.');
+            }
         }
         
         // Print report
-        function printReport(invId) {
+        async function printReport(invId) {
             const investigation = investigations.find(inv => inv.id === invId);
             if (!investigation) return;
+            
+            // Fetch the full report data
+            let reportData;
+            try {
+                const response = await authenticatedFetch(`/api/investigations/${invId}/report`);
+                if (!response.ok) {
+                    alert('Failed to fetch report data. Please generate the report first.');
+                    return;
+                }
+                reportData = await response.json();
+            } catch (error) {
+                console.error('Error fetching report:', error);
+                alert('Failed to fetch report. Please try again.');
+                return;
+            }
             
             // Check if report is still valid
             if (investigation.report_generated) {
@@ -716,25 +1082,123 @@
                 <head>
                     <title>OSINT Report - ${investigation.target}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 2cm; }
-                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem; }
-                        .section { margin-bottom: 2rem; }
-                        .meta { background: #f5f5f5; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
-                        .footer { position: fixed; bottom: 1cm; left: 2cm; right: 2cm; text-align: center; font-size: 0.8em; color: #666; }
+                        body { 
+                            font-family: 'Helvetica Neue', Arial, sans-serif; 
+                            margin: 1.5cm; 
+                            font-size: 11pt;
+                            line-height: 1.6;
+                            color: #333;
+                        }
+                        h1 { 
+                            font-size: 20pt; 
+                            margin-bottom: 0.5rem;
+                            color: #000;
+                        }
+                        h2 { 
+                            font-size: 16pt; 
+                            margin-bottom: 1rem;
+                            color: #444;
+                            font-weight: normal;
+                        }
+                        h3 { 
+                            font-size: 13pt; 
+                            margin-bottom: 0.8rem;
+                            color: #000;
+                            border-bottom: 1px solid #ddd;
+                            padding-bottom: 0.3rem;
+                        }
+                        h4 { 
+                            font-size: 11pt; 
+                            margin-top: 1rem;
+                            margin-bottom: 0.5rem;
+                            color: #444;
+                            font-weight: bold;
+                        }
+                        .header { 
+                            text-align: center; 
+                            border-bottom: 2px solid #1e40af; 
+                            padding-bottom: 1rem; 
+                            margin-bottom: 1.5rem; 
+                        }
+                        .section { 
+                            margin-bottom: 1.5rem; 
+                            page-break-inside: avoid;
+                        }
+                        .meta { 
+                            background: #f8f9fa; 
+                            padding: 0.8rem; 
+                            border-radius: 4px; 
+                            margin-bottom: 1rem;
+                            border: 1px solid #e9ecef;
+                        }
+                        .meta p {
+                            margin: 0.3rem 0;
+                            font-size: 10pt;
+                        }
+                        .footer { 
+                            position: fixed; 
+                            bottom: 1cm; 
+                            left: 1.5cm; 
+                            right: 1.5cm; 
+                            text-align: center; 
+                            font-size: 9pt; 
+                            color: #666; 
+                            border-top: 1px solid #ddd;
+                            padding-top: 0.5rem;
+                        }
+                        p {
+                            margin: 0.5rem 0;
+                            text-align: justify;
+                        }
+                        strong {
+                            font-weight: 600;
+                        }
+                        /* Findings list */
+                        .findings-list {
+                            margin-left: 1rem;
+                        }
+                        .findings-list p {
+                            margin: 0.3rem 0;
+                            font-size: 10pt;
+                        }
+                        /* Infrastructure data */
+                        .infra-data {
+                            background: #fafafa;
+                            padding: 0.5rem;
+                            margin: 0.5rem 0;
+                            border-left: 3px solid #1e40af;
+                            font-size: 10pt;
+                        }
+                        .infra-data p {
+                            margin: 0.2rem 0;
+                        }
+                        /* Page breaks */
+                        @page {
+                            margin: 2cm;
+                            size: A4;
+                        }
+                        @media print {
+                            body {
+                                margin: 0;
+                            }
+                            .section {
+                                page-break-inside: avoid;
+                            }
+                        }
                     </style>
                 </head>
                 <body>
                     <div class="header">
                         <h1>🔍 Enterprise OSINT Investigation Report</h1>
-                        <h2>Target: ${investigation.target}</h2>
+                        <h2>Target: ${investigation.target || investigation.target_profile?.primary_identifier || 'Unknown Target'}</h2>
                     </div>
                     
                     <div class="section">
                         <h3>Investigation Metadata</h3>
                         <div class="meta">
                             <p><strong>Investigation ID:</strong> ${investigation.id}</p>
-                            <p><strong>Type:</strong> ${investigation.type}</p>
-                            <p><strong>Priority:</strong> ${investigation.priority}</p>
+                            <p><strong>Type:</strong> ${investigation.investigation_type || investigation.type || 'Unknown'}</p>
+                            <p><strong>Priority:</strong> ${investigation.priority || 'Normal'}</p>
                             <p><strong>Investigator:</strong> ${investigation.investigator_name || investigation.investigator || 'Unknown'}</p>
                             <p><strong>Created:</strong> ${new Date(investigation.created_at).toLocaleString()}</p>
                             <p><strong>Status:</strong> ${investigation.status}</p>
@@ -743,15 +1207,65 @@
                     
                     <div class="section">
                         <h3>Executive Summary</h3>
-                        <p>This report contains the results of an OSINT investigation conducted on ${investigation.target}.</p>
+                        <p>This report contains the results of an OSINT investigation conducted on ${investigation.target || investigation.target_profile?.primary_identifier || 'Unknown Target'}.</p>
                         <p>Investigation type: ${(investigation.investigation_type || investigation.type || 'unknown').replace('_', ' ').toUpperCase()}</p>
-                        <p>Priority level: ${investigation.priority.toUpperCase()}</p>
+                        <p>Priority level: ${(investigation.priority || 'normal').toUpperCase()}</p>
                     </div>
                     
                     <div class="section">
-                        <h3>Findings</h3>
-                        <p>Target analysis for ${investigation.target} has been completed using multiple intelligence sources.</p>
-                        <p>This is a demonstration report. In production, this would contain detailed OSINT findings.</p>
+                        <h3>Key Findings</h3>
+                        <p>Target analysis for ${investigation.target || investigation.target_profile?.primary_identifier || 'Unknown Target'} has been completed using multiple intelligence sources.</p>
+                        <div class="findings-list">
+                        ${reportData?.content?.key_findings ? 
+                            reportData.content.key_findings.slice(0, 10).map(finding => `<p><strong>•</strong> ${finding}</p>`).join('') : 
+                            '<p>No specific findings available for this investigation.</p>'
+                        }
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>Infrastructure Intelligence</h3>
+                        ${reportData?.content?.intelligence_data?.infrastructure_intelligence ? (() => {
+                            const infra = reportData.content.intelligence_data.infrastructure_intelligence;
+                            let html = '';
+                            
+                            if (infra.domains && infra.domains.length > 0) {
+                                html += '<h4>Domain Information</h4>';
+                                infra.domains.forEach(domain => {
+                                    html += `<div class="infra-data">`;
+                                    html += `<p><strong>Domain:</strong> ${domain.domain}</p>`;
+                                    html += `<p><strong>Registrar:</strong> ${domain.registrar}</p>`;
+                                    html += `<p><strong>Created:</strong> ${domain.creation_date}</p>`;
+                                    html += `<p><strong>Expires:</strong> ${domain.expiration_date}</p>`;
+                                    if (domain.organization) html += `<p><strong>Organization:</strong> ${domain.organization}</p>`;
+                                    if (domain.country) html += `<p><strong>Country:</strong> ${domain.country}</p>`;
+                                    if (domain.name_servers && domain.name_servers.length > 0) {
+                                        html += `<p><strong>Name Servers:</strong> ${domain.name_servers.join(', ')}</p>`;
+                                    }
+                                    html += `</div>`;
+                                });
+                            }
+                            
+                            if (infra.ip_addresses && infra.ip_addresses.length > 0) {
+                                html += '<h4>IP Addresses</h4>';
+                                infra.ip_addresses.forEach(ip => {
+                                    html += `<p><strong>IP:</strong> ${ip.ip} (${ip.source})</p>`;
+                                });
+                            }
+                            
+                            if (infra.certificates && infra.certificates.length > 0) {
+                                html += '<h4>SSL Certificates</h4>';
+                                infra.certificates.forEach(cert => {
+                                    html += `<p><strong>Domain:</strong> ${cert.domain}<br>`;
+                                    html += `<strong>Valid:</strong> ${cert.is_valid ? 'Yes' : 'No'}<br>`;
+                                    if (cert.not_after !== 'Unknown') html += `<strong>Expires:</strong> ${cert.not_after}<br>`;
+                                    if (cert.days_until_expiry > 0) html += `<strong>Days until expiry:</strong> ${cert.days_until_expiry}<br>`;
+                                    html += `</p>`;
+                                });
+                            }
+                            
+                            return html || '<p>No infrastructure data available.</p>';
+                        })() : '<p>No infrastructure data available.</p>'}
                     </div>
                     
                     <div class="section">
@@ -794,11 +1308,8 @@
             }
             
             try {
-                const response = await fetch('/api/investigations', {
+                const response = await authenticatedFetch('/api/investigations', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(formData)
                 });
                 
@@ -817,6 +1328,35 @@
             }
         });
         
+        // Clear legacy data function (admin only)
+        async function clearLegacyData() {
+            if (currentUser.role !== 'admin') {
+                alert('Only administrators can clear legacy data.');
+                return;
+            }
+            
+            const confirmed = confirm('⚠️ This will permanently clear all investigations and reports from the main page. Audit history will be preserved. Are you sure?');
+            if (!confirmed) return;
+            
+            try {
+                // Clear localStorage
+                localStorage.removeItem('osint_investigations');
+                localStorage.removeItem('osint_reports');
+                
+                // Reset investigations array
+                investigations = [];
+                
+                // Refresh the display
+                loadInvestigations();
+                
+                alert('✅ Legacy data cleared successfully. The main investigations page is now clean.');
+                
+            } catch (error) {
+                console.error('Error clearing legacy data:', error);
+                alert('❌ Error clearing legacy data: ' + error.message);
+            }
+        }
+        
         // Load investigations
         async function loadInvestigations() {
             try {
@@ -827,7 +1367,7 @@
                 }
                 
                 // Also load from API
-                const response = await fetch('/api/investigations');
+                const response = await authenticatedFetch('/api/investigations');
                 const apiInvestigations = await response.json();
                 
                 // Merge API data with stored data
@@ -846,18 +1386,43 @@
                 });
                 
                 const container = document.getElementById('investigations');
-                if (investigations.length === 0) {
-                    container.innerHTML = '<p>No investigations yet. Start your first investigation above!</p>';
+                
+                // Filter out investigations with expired reports
+                const activeInvestigations = investigations.filter(inv => {
+                    if (inv.report_generated && inv.report_generated_at) {
+                        const reportTime = new Date(inv.report_generated_at);
+                        const now = new Date();
+                        const minutesElapsed = (now - reportTime) / (1000 * 60);
+                        
+                        // If report is expired (>60 minutes), remove it from display
+                        if (minutesElapsed >= 60) {
+                            // Clean up the investigation data
+                            delete inv.report_generated;
+                            delete inv.report_generated_at;
+                            delete inv.report_id;
+                            
+                            // Save cleaned data back to localStorage
+                            localStorage.setItem('osint_investigations', JSON.stringify(investigations));
+                            
+                            // Don't show investigations that had expired reports
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                
+                if (activeInvestigations.length === 0) {
+                    container.innerHTML = '<p>No active investigations. Start a new investigation above!</p>';
                     return;
                 }
                 
                 // Sort by creation date (newest first)
-                investigations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                activeInvestigations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 
-                container.innerHTML = investigations.map(inv => {
+                container.innerHTML = activeInvestigations.map(inv => {
                     const canGenerateReport = inv.status === 'completed' || inv.status === 'pending';
                     const reportExpired = inv.report_generated && 
-                        ((new Date() - new Date(inv.report_generated_at)) / (1000 * 60) >= 10);
+                        ((new Date() - new Date(inv.report_generated_at)) / (1000 * 60) >= 60);
                     
                     return `
                         <div class="investigation-item">
@@ -978,7 +1543,7 @@
                 if (investigatorFilter) params.append('investigator', investigatorFilter);
                 if (typeFilter) params.append('type', typeFilter);
                 
-                const response = await fetch(url + params.toString());
+                const response = await authenticatedFetch(url + params.toString());
                 const data = await response.json();
                 
                 displayAuditSummary(data.summary, data.statistics);
@@ -1094,6 +1659,19 @@
             if (e.target === this) {
                 closeAuditHistory();
             }
+        });
+        
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            login(username, password);
+        });
+        
+        // Initialize app - check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
         });
     </script>
 </body>

@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-social-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-social-enhanced
+    component: mcp-server
+    intelligence-type: social-media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-social-enhanced
+  template:
+    metadata:
+      labels:
+        app: mcp-social-enhanced
+        component: mcp-server
+        intelligence-type: social-media
+    spec:
+      containers:
+      - name: social-enhanced
+        image: mcp-social-enhanced:latest
+        imagePullPolicy: Never  # For local development
+        ports:
+        - containerPort: 8010
+          name: http
+        env:
+        - name: MCP_SERVER_PORT
+          value: "8010"
+        - name: TWITTER_BEARER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: twitter-bearer-token
+              optional: true
+        - name: REDDIT_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: reddit-client-id
+              optional: true
+        - name: REDDIT_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: reddit-client-secret
+              optional: true
+        - name: LINKEDIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: linkedin-api-key
+              optional: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8010
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8010
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-social-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-social-enhanced
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8010
+    targetPort: 8010
+    protocol: TCP
+    name: http
+  selector:
+    app: mcp-social-enhanced

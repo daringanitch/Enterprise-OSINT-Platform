@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-threat-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-threat-enhanced
+    component: mcp-server
+    intelligence-type: threat-intel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-threat-enhanced
+  template:
+    metadata:
+      labels:
+        app: mcp-threat-enhanced
+        component: mcp-server
+        intelligence-type: threat-intel
+    spec:
+      containers:
+      - name: threat-enhanced
+        image: osint-platform/threat-aggregator:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8020
+          name: http
+        env:
+        - name: MCP_SERVER_PORT
+          value: "8020"
+        - name: VIRUSTOTAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: virustotal-api-key
+              optional: true
+        - name: SHODAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: shodan-api-key
+              optional: true
+        - name: HAVEIBEENPWNED_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: haveibeenpwned-api-key
+              optional: true
+        - name: ALIENVAULT_OTX_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: alienvault-otx-api-key
+              optional: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8020
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8020
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-threat-enhanced
+  namespace: osint-platform
+  labels:
+    app: mcp-threat-enhanced
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8020
+    targetPort: 8020
+    protocol: TCP
+    name: http
+  selector:
+    app: mcp-threat-enhanced
