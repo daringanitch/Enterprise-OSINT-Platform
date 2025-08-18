@@ -1,0 +1,196 @@
+---
+# Simple Vault Development Deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  type: ClusterIP
+  ports:
+    - name: vault-port
+      port: 8200
+      targetPort: 8200
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+# Vault External Access Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-external
+  namespace: osint-platform
+  labels:
+    app: vault
+spec:
+  type: NodePort
+  ports:
+    - name: vault-ui
+      port: 8200
+      targetPort: 8200
+      nodePort: 30820
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+# Simple Vault Deployment (Dev Mode)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+    component: secret-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+        component: secret-management
+    spec:
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - "server"
+            - "-dev"
+            - "-dev-root-token-id=dev-only-token"
+            - "-dev-listen-address=0.0.0.0:8200"
+          env:
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: "dev-only-token"
+            - name: VAULT_ADDR
+              value: "http://0.0.0.0:8200"
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+          ports:
+            - name: vault-port
+              containerPort: 8200
+              protocol: TCP
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200  
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            capabilities:
+              add: ["IPC_LOCK"]
+
+---
+# Vault Initialization ConfigMap (for demo setup)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-script
+  namespace: osint-platform
+data:
+  init-vault.sh: |
+    #!/bin/bash
+    export VAULT_ADDR="http://vault:8200"
+    export VAULT_TOKEN="dev-only-token"
+    
+    echo "Waiting for Vault to be ready..."
+    until vault status > /dev/null 2>&1; do
+      echo "Vault not ready yet..."
+      sleep 5
+    done
+    
+    echo "Vault is ready, setting up demo secrets..."
+    
+    # Enable KV secrets engine v2
+    vault secrets enable -version=2 -path=secret kv || echo "KV already enabled"
+    
+    # Store demo API keys
+    vault kv put secret/api-keys \
+      openai="demo-openai-key" \
+      twitter="demo-twitter-token" \
+      shodan="demo-shodan-key" \
+      virustotal="demo-vt-key" \
+      linkedin="demo-linkedin-key" \
+      reddit="demo-reddit-key" \
+      clearbit="demo-clearbit-key" \
+      whoisxml="demo-whoisxml-key" \
+      abuseipdb="demo-abuseipdb-key" \
+      alienvault_otx="demo-otx-key" \
+      greynoise="demo-greynoise-key"
+    
+    echo "Demo API keys stored in Vault"
+    
+    # Create OSINT policy
+    vault policy write osint-demo - <<EOF
+    # Full access to secret/osint path
+    path "secret/data/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+    
+    path "secret/metadata/*" {
+      capabilities = ["list", "read", "delete"]  
+    }
+    EOF
+    
+    echo "OSINT demo policy created"
+    echo "Vault setup complete!"
+
+---
+# Vault Init Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-demo
+  namespace: osint-platform
+  labels:
+    app: vault-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: vault-init
+          image: hashicorp/vault:1.15.4
+          command: ["/bin/sh"]
+          args: ["/scripts/init-vault.sh"]
+          volumeMounts:
+            - name: init-script
+              mountPath: /scripts
+      volumes:
+        - name: init-script
+          configMap:
+            name: vault-init-script
+            defaultMode: 0755
+  backoffLimit: 3
