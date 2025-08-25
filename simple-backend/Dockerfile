@@ -19,6 +19,11 @@ COPY professional_report_generator.py .
 COPY audit_report_generator.py .
 COPY postgres_audit_client.py .
 COPY api_connection_monitor.py .
+COPY job_queue.py .
+COPY problem_json.py .
+COPY structured_logging.py .
+COPY trace_context.py .
+COPY observability.py .
 
 # Expose port
 EXPOSE 5000

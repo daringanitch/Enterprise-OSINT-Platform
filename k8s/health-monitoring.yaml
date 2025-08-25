@@ -1,0 +1,308 @@
+---
+# Custom Health Check Service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-script
+  namespace: osint-platform
+data:
+  check-health.sh: |
+    #!/bin/bash
+    
+    # OSINT Platform Health Check Script
+    # This script checks all platform components and reports status
+    
+    BACKEND_URL="http://osint-backend:5000"
+    TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    echo "# OSINT Platform Health Check - $TIMESTAMP"
+    echo ""
+    
+    # Check backend health
+    echo "## Backend Health"
+    HEALTH_RESPONSE=$(curl -s ${BACKEND_URL}/health)
+    if [ $? -eq 0 ]; then
+        echo "✅ Backend: HEALTHY"
+        echo "Response: $HEALTH_RESPONSE"
+    else
+        echo "❌ Backend: FAILED"
+    fi
+    echo ""
+    
+    # Check system status
+    echo "## System Status"
+    STATUS_RESPONSE=$(curl -s ${BACKEND_URL}/api/system/status)
+    if [ $? -eq 0 ]; then
+        echo "✅ System Status: ACCESSIBLE"
+        
+        # Parse key metrics
+        POSTGRESQL_STATUS=$(echo $STATUS_RESPONSE | grep -o '"connected":[^,]*' | cut -d':' -f2)
+        OVERALL_STATUS=$(echo $STATUS_RESPONSE | grep -o '"status":"[^"]*"' | head -1 | cut -d':' -f2 | tr -d '"')
+        
+        echo "Database Connected: $POSTGRESQL_STATUS"
+        echo "Overall Status: $OVERALL_STATUS"
+    else
+        echo "❌ System Status: FAILED"
+    fi
+    echo ""
+    
+    # Check MCP servers
+    echo "## MCP Servers"
+    MCP_RESPONSE=$(curl -s ${BACKEND_URL}/api/mcp/servers)
+    if [ $? -eq 0 ]; then
+        echo "✅ MCP Servers: ACCESSIBLE"
+        MCP_COUNT=$(echo $MCP_RESPONSE | grep -o '"status":"online"' | wc -l)
+        echo "Online MCP Servers: $MCP_COUNT"
+    else
+        echo "❌ MCP Servers: FAILED"
+    fi
+    echo ""
+    
+    # Test investigation creation (lightweight)
+    echo "## Investigation API Test"
+    TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZTYxMzI5NTMtZTE4Yy00YWIwLTlmYzYtZTg0NmFkMWMzZTFiIiwidXNlcm5hbWUiOiJhZG1pbkBvc2ludC1wbGF0Zm9ybS5sb2NhbCIsImZ1bGxfbmFtZSI6IlBsYXRmb3JtIEFkbWluaXN0cmF0b3IiLCJyb2xlIjoiYWRtaW4iLCJjbGVhcmFuY2VfbGV2ZWwiOiJjb25maWRlbnRpYWwiLCJleHAiOjE3NTU1NjQ2NDgsImlhdCI6MTc1NTUzNTg0OH0.Es1lJbAKUTKWrKUmrTl4L4t0E2eouSgCmN92sq-4wOE"
+    
+    TEST_RESPONSE=$(curl -s -X POST ${BACKEND_URL}/api/investigations \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -d '{"target": "health-check.example.com", "investigation_type": "basic", "priority": "low"}')
+    
+    if [ $? -eq 0 ] && echo $TEST_RESPONSE | grep -q "investigation_id\|osint_"; then
+        echo "✅ Investigation API: WORKING"
+        INVESTIGATION_ID=$(echo $TEST_RESPONSE | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+        echo "Test Investigation ID: $INVESTIGATION_ID"
+    else
+        echo "❌ Investigation API: FAILED"
+        echo "Response: $TEST_RESPONSE"
+    fi
+    
+    echo ""
+    echo "=== Health Check Complete ==="
+
+---
+# Health Check CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: osint-health-check
+  namespace: osint-platform
+  labels:
+    app: health-monitoring
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: health-checker
+            image: curlimages/curl:8.1.2
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Source the health check script
+              source /scripts/check-health.sh
+            volumeMounts:
+            - name: health-script
+              mountPath: /scripts
+          volumes:
+          - name: health-script
+            configMap:
+              name: health-check-script
+              defaultMode: 0755
+          restartPolicy: OnFailure
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+---
+# Monitoring Metrics Exporter (Simple HTTP endpoint)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osint-metrics-exporter
+  namespace: osint-platform
+  labels:
+    app: metrics-exporter
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: metrics-exporter
+        component: monitoring
+    spec:
+      containers:
+      - name: metrics-exporter
+        image: python:3.11-slim
+        command:
+        - /bin/bash
+        - -c
+        - |
+          mkdir -p /app
+          cat > /app/metrics_server.py << 'EOF'
+          import http.server
+          import socketserver
+          import json
+          import urllib.request
+          import time
+          from datetime import datetime
+          
+          class MetricsHandler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path == '/metrics':
+                      try:
+                          # Get system status from backend
+                          backend_url = 'http://osint-backend:5000/api/system/status'
+                          with urllib.request.urlopen(backend_url, timeout=10) as response:
+                              data = json.loads(response.read().decode())
+                          
+                          # Convert to Prometheus format
+                          metrics = []
+                          
+                          # Overall status
+                          status_value = 1 if data.get('status') == 'operational' else 0
+                          metrics.append(f'osint_platform_status {{service="overall"}} {status_value}')
+                          
+                          # PostgreSQL connection
+                          pg_connected = 1 if data.get('components', {}).get('postgresql', {}).get('connected') else 0
+                          metrics.append(f'osint_postgresql_connected {{}} {pg_connected}')
+                          
+                          # API availability
+                          api_metrics = data.get('metrics', {})
+                          total_apis = 11
+                          available_apis = 0
+                          for category in data.get('external_apis', {}).values():
+                              available_apis += category.get('online', 0)
+                          
+                          api_availability = available_apis / total_apis if total_apis > 0 else 0
+                          metrics.append(f'osint_api_availability {{}} {api_availability}')
+                          
+                          # Active investigations
+                          active_investigations = api_metrics.get('active_investigations', 0)
+                          metrics.append(f'osint_active_investigations {{}} {active_investigations}')
+                          
+                          # Total reports
+                          total_reports = api_metrics.get('total_reports', 0)
+                          metrics.append(f'osint_total_reports {{}} {total_reports}')
+                          
+                          # Fallback mode
+                          fallback_mode = 1 if api_metrics.get('fallback_mode') else 0
+                          metrics.append(f'osint_fallback_mode {{}} {fallback_mode}')
+                          
+                          # MCP server status
+                          mcp_url = 'http://osint-backend:5000/api/mcp/servers'
+                          try:
+                              with urllib.request.urlopen(mcp_url, timeout=5) as response:
+                                  mcp_data = json.loads(response.read().decode())
+                              
+                              online_servers = sum(1 for server in mcp_data if server.get('status') == 'online')
+                              total_servers = len(mcp_data)
+                              
+                              metrics.append(f'osint_mcp_servers_online {{}} {online_servers}')
+                              metrics.append(f'osint_mcp_servers_total {{}} {total_servers}')
+                          except:
+                              metrics.append(f'osint_mcp_servers_online {{}} 0')
+                              metrics.append(f'osint_mcp_servers_total {{}} 0')
+                          
+                          # Timestamp
+                          metrics.append(f'osint_metrics_timestamp {{}} {int(time.time())}')
+                          
+                          response_data = '\n'.join(metrics) + '\n'
+                          
+                          self.send_response(200)
+                          self.send_header('Content-type', 'text/plain')
+                          self.end_headers()
+                          self.wfile.write(response_data.encode())
+                          
+                      except Exception as e:
+                          self.send_response(500)
+                          self.send_header('Content-type', 'text/plain')
+                          self.end_headers()
+                          self.wfile.write(f'Error: {str(e)}\n'.encode())
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+          
+          if __name__ == "__main__":
+              PORT = 8080
+              Handler = MetricsHandler
+              
+              with socketserver.TCPServer(("", PORT), Handler) as httpd:
+                  print(f"Metrics server running on port {PORT}")
+                  httpd.serve_forever()
+          EOF
+          
+          cd /app && python metrics_server.py
+        ports:
+        - containerPort: 8080
+          name: metrics
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+
+---
+# Metrics Exporter Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: osint-metrics-exporter
+  namespace: osint-platform
+  labels:
+    app: metrics-exporter
+    monitoring: "true"
+spec:
+  selector:
+    app: metrics-exporter
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+
+---
+# Updated Prometheus Configuration to include our custom metrics
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config-updated
+  namespace: osint-platform
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+
+    scrape_configs:
+      # OSINT Platform custom metrics
+      - job_name: 'osint-platform'
+        static_configs:
+        - targets: ['osint-metrics-exporter:8080']
+        metrics_path: '/metrics'
+        scrape_interval: 30s
+
+      # Backend health checks
+      - job_name: 'osint-backend-health'
+        static_configs:
+        - targets: ['osint-backend:5000']
+        metrics_path: '/health'
+        scrape_interval: 60s
+
+      # MCP servers direct monitoring
+      - job_name: 'mcp-servers-direct'
+        static_configs:
+        - targets: 
+          - 'mcp-infrastructure-enhanced:8021'
+          - 'mcp-social-enhanced:8010'  
+          - 'mcp-threat-enhanced:8020'
+          - 'mcp-technical-enhanced:8050'
+          - 'mcp-financial-enhanced:8040'
+        scrape_interval: 60s

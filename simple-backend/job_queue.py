@@ -7,13 +7,13 @@ import json
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-from rq import Queue, Worker, Job
-from rq.job import JobStatus
+from rq import Queue, Worker
+from rq.job import Job, JobStatus
 from redis import Redis
-from trace_context import TraceContextManager, StructuredLogger
+# from trace_context import TraceContextManager, StructuredLogger
 
 # Initialize logger
-logger = StructuredLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Redis connection configuration
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')

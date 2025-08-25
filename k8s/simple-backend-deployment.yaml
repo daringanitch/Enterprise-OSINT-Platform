@@ -26,28 +26,24 @@ spec:
           name: http
         env:
         - name: FLASK_ENV
-          value: "development"
+          value: "production"
+        - name: LOG_LEVEL
+          value: "INFO"
         - name: POSTGRES_HOST
-          value: "postgresql"
+          value: "osint-platform-postgresql"
         - name: POSTGRES_PORT
           value: "5432"
         - name: POSTGRES_USER
           value: "postgres"
-        - name: POSTGRES_URL
-          valueFrom:
-            secretKeyRef:
-              name: osint-database-config
-              key: postgres-url
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: osint-database-config
+              name: osint-platform-postgresql
               key: postgres-password
         - name: POSTGRES_DB
-          valueFrom:
-            secretKeyRef:
-              name: osint-database-config
-              key: postgres-database
+          value: "osint_audit"
+        - name: POSTGRES_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@osint-platform-postgresql:5432/$(POSTGRES_DB)"
         - name: REDIS_HOST
           value: "redis"
         - name: REDIS_PORT
@@ -67,21 +63,22 @@ spec:
         - name: VAULT_ADDR
           value: "http://vault:8200"
         - name: VAULT_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: osint-app-secrets
-              key: vault-token
+          value: "dev-only-token"
         - name: JWT_SECRET_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-app-secrets
+              name: osint-secrets
               key: jwt-secret-key
-        - name: MCP_SOCIAL_MEDIA_URL
-          value: "http://mcp-social-media:8010"
         - name: MCP_INFRASTRUCTURE_URL
-          value: "http://mcp-infrastructure:8020"
-        - name: MCP_THREAT_INTEL_URL
-          value: "http://mcp-threat-intel:8030"
+          value: "http://mcp-infrastructure-enhanced:8021"
+        - name: MCP_THREAT_URL
+          value: "http://mcp-threat-enhanced:8020"
+        - name: MCP_AI_URL
+          value: "http://mcp-technical-enhanced:8050"
+        - name: MCP_SOCIAL_URL
+          value: "http://mcp-social-enhanced:8010"
+        - name: MCP_FINANCIAL_URL
+          value: "http://mcp-financial-enhanced:8040"
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
@@ -102,20 +99,10 @@ spec:
             secretKeyRef:
               name: osint-api-keys  # Managed by External Secrets
               key: virustotal-api-key
-        - name: GITHUB_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: osint-api-keys  # Managed by External Secrets
-              key: github-token
         - name: REDIS_URL
           value: "redis://osint-platform-redis-master:6379/0"
         - name: CELERY_BROKER_URL
           value: "redis://osint-platform-redis-master:6379/0"
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: osint-secrets
-              key: jwt-secret-key
         volumeMounts:
         - name: audit-history-storage
           mountPath: /tmp

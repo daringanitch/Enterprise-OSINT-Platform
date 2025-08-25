@@ -6,6 +6,7 @@ for the Enterprise OSINT platform using PostgreSQL.
 """
 
 import os
+import json
 import asyncio
 import asyncpg
 import psycopg2
@@ -15,7 +16,6 @@ from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
 from contextlib import contextmanager
 import logging
-import json
 from enum import Enum
 
 # Configure logging
@@ -187,13 +187,24 @@ class PostgreSQLAuditClient:
                     query = """
                     INSERT INTO audit.events (
                         event_type, user_id, user_name, source_ip, user_agent,
-                        session_id, action, resource_type, resource_id, resource_name,
-                        success, error_message, request_data, response_data,
-                        processing_time_ms, timestamp
+                        session_id, endpoint, method, status_code,
+                        processing_time_ms, timestamp, details
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     """
+                    
+                    # Create details JSON with all the additional info
+                    details = {
+                        'action': event.action,
+                        'resource_type': event.resource_type,
+                        'resource_id': event.resource_id, 
+                        'resource_name': event.resource_name,
+                        'success': event.success,
+                        'error_message': event.error_message,
+                        'request_data': event.request_data,
+                        'response_data': event.response_data
+                    }
                     
                     cursor.execute(query, (
                         event.event_type.value,
@@ -202,16 +213,12 @@ class PostgreSQLAuditClient:
                         event.source_ip,
                         event.user_agent,
                         event.session_id,
-                        event.action,
-                        event.resource_type,
-                        event.resource_id,
-                        event.resource_name,
-                        event.success,
-                        event.error_message,
-                        Json(event.request_data) if event.request_data else None,
-                        Json(event.response_data) if event.response_data else None,
+                        event.endpoint if hasattr(event, 'endpoint') else None,
+                        event.method if hasattr(event, 'method') else None,
+                        event.status_code if hasattr(event, 'status_code') else None,
                         event.processing_time_ms,
-                        event.timestamp
+                        event.timestamp,
+                        json.dumps(details)
                     ))
                     
                     conn.commit()

@@ -1,0 +1,82 @@
+---
+# Minimal Vault Deployment for Development
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.4
+          args:
+            - "server"
+            - "-dev"
+            - "-dev-listen-address=0.0.0.0:8200"
+          env:
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: "dev-only-token"
+            - name: VAULT_ADDR
+              value: "http://localhost:8200"
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+          ports:
+            - name: vault-port
+              containerPort: 8200
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health
+              port: 8200
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: vault-tmp
+              mountPath: /tmp
+            - name: vault-home
+              mountPath: /home/vault
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+      volumes:
+        - name: vault-tmp
+          emptyDir: {}
+        - name: vault-home
+          emptyDir: {}
+
+---
+# Vault Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: osint-platform
+  labels:
+    app: vault
+spec:
+  type: ClusterIP
+  ports:
+    - name: vault-port
+      port: 8200
+      targetPort: 8200
+  selector:
+    app: vault

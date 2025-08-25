@@ -7,6 +7,7 @@ Multi-stage AI-driven intelligence gathering workflow
 import asyncio
 import logging
 import time
+import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Callable
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -111,7 +112,7 @@ class InvestigationOrchestrator:
         )
         
         # Store investigation
-        self.investigations[investigation.id] = investigation
+        self.active_investigations[investigation.id] = investigation
         
         logger.info(f"Created investigation {investigation.id} for target {target}")
         return investigation.id
@@ -324,7 +325,7 @@ class InvestigationOrchestrator:
             })
             
             # Get investigation
-            investigation = self.investigations.get(investigation_id)
+            investigation = self.active_investigations.get(investigation_id)
             if not investigation:
                 raise ValueError(f"Investigation {investigation_id} not found")
             
@@ -376,8 +377,8 @@ class InvestigationOrchestrator:
             })
             
             # Mark investigation as failed
-            if investigation_id in self.investigations:
-                investigation = self.investigations[investigation_id]
+            if investigation_id in self.active_investigations:
+                investigation = self.active_investigations[investigation_id]
                 investigation.status = InvestigationStatus.FAILED
                 investigation.completed_at = datetime.utcnow()
                 investigation.progress.warnings.append(error_msg)

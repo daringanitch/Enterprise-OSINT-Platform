@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: osint-platform/simple-frontend:v1.0.3-fix-report
+        image: osint-platform/simple-frontend:v2.0.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
