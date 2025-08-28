@@ -85,11 +85,25 @@ kubectl create namespace osint-platform
 # Deploy core infrastructure
 kubectl apply -f k8s/postgresql-deployment.yaml
 
+# Deploy Vault for secrets management (choose one option)
+# Option 1: Minimal development setup
+kubectl apply -f k8s/vault-minimal.yaml
+
+# Option 2: Development with initialization
+kubectl apply -f k8s/vault-dev.yaml
+
+# Option 3: Production-ready Vault
+kubectl apply -f k8s/vault-deployment.yaml
+
 # Wait for PostgreSQL to be ready
 kubectl wait --for=condition=ready pod -l app=osint-platform-postgresql -n osint-platform --timeout=300s
 
 # Deploy backend services
 kubectl apply -f k8s/simple-backend-deployment.yaml
+
+# Deploy monitoring stack (optional but recommended)
+kubectl apply -f k8s/monitoring-stack.yaml
+kubectl apply -f k8s/health-monitoring.yaml
 
 # Deploy frontend
 kubectl apply -f k8s/simple-frontend-deployment.yaml
@@ -835,16 +849,73 @@ EOF
 
 ## Monitoring and Maintenance
 
-### Prometheus Monitoring Setup
+### Built-in Monitoring Stack
 
-#### **1. Deploy Prometheus Stack**
+The platform includes a pre-configured monitoring stack with Prometheus and Grafana, designed specifically for OSINT operations.
+
+#### **1. Deploy the Monitoring Stack**
+
+```bash
+# Deploy the complete monitoring stack
+kubectl apply -f k8s/monitoring-stack.yaml
+
+# Deploy health monitoring with automated checks
+kubectl apply -f k8s/health-monitoring.yaml
+
+# Verify deployment
+kubectl get pods -n osint-platform -l app=prometheus
+kubectl get pods -n osint-platform -l app=grafana
+```
+
+#### **2. Access Monitoring Dashboards**
+
+```bash
+# Port-forward Grafana (default credentials: admin/admin)
+kubectl port-forward -n osint-platform svc/grafana 3000:3000
+
+# Port-forward Prometheus
+kubectl port-forward -n osint-platform svc/prometheus 9090:9090
+```
+
+Access Grafana at http://localhost:3000 with pre-configured dashboards:
+- **OSINT Platform Overview**: Investigation metrics and system health
+- **MCP Server Status**: Individual server performance
+- **Resource Utilization**: CPU, memory, network metrics
+
+#### **3. Health Monitoring**
+
+The platform includes automated health monitoring that runs every 5 minutes:
+
+```bash
+# Check health monitoring status
+kubectl get cronjob -n osint-platform health-check-cronjob
+
+# View recent health check results
+kubectl logs -n osint-platform -l app=health-check --tail=50
+
+# Check metrics exporter
+kubectl logs -n osint-platform -l app=metrics-exporter
+```
+
+#### **4. Custom Metrics**
+
+The platform exposes custom metrics for OSINT operations:
+- `osint_investigation_total`: Total investigations
+- `osint_investigation_success`: Successful investigations
+- `osint_api_requests_total`: API request counts
+- `osint_mcp_server_health`: MCP server availability
+- `osint_external_api_usage`: External API consumption
+
+#### **5. Alternative Helm Deployment**
+
+For production environments, you can use the Prometheus Operator:
 
 ```bash
 # Add Prometheus Helm repository
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-# Install Prometheus, Grafana, and AlertManager
+# Install with custom values
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace \
@@ -853,7 +924,7 @@ helm install prometheus prometheus-community/kube-prometheus-stack \
   --set grafana.persistence.size=10Gi
 ```
 
-#### **2. Custom ServiceMonitor**
+#### **6. Custom ServiceMonitor**
 
 ```bash
 # ServiceMonitor for OSINT platform

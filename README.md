@@ -48,6 +48,9 @@ The Enterprise OSINT Platform provides comprehensive intelligence gathering capa
 - **Kubernetes 1.28+** - Container orchestration
 - **PostgreSQL 15** - Primary database with audit schema
 - **Redis 7** - Session management and caching
+- **Prometheus** - Metrics collection and monitoring
+- **Grafana** - Visualization and dashboards
+- **HashiCorp Vault** - Secrets management (multiple deployment options)
 - **Docker** - Container runtime
 
 ## 📁 Current Project Structure
@@ -239,10 +242,32 @@ The platform is designed for production Kubernetes deployment. Key features:
 - **High Availability**: Multi-replica deployments
 - **Auto-scaling**: Horizontal Pod Autoscaling
 - **Security**: Network policies, RBAC, secrets management
-- **Monitoring**: Health checks and metrics
+- **Monitoring**: Prometheus metrics and Grafana dashboards
 - **Persistence**: PostgreSQL with persistent volumes
 
 See `DEPLOYMENT_GUIDE.md` for detailed production setup.
+
+## 📊 **Monitoring & Observability**
+
+### **Prometheus Metrics Stack**
+The platform includes comprehensive monitoring with:
+- **Service Discovery**: Automatic discovery of Kubernetes pods
+- **Custom Metrics**: OSINT-specific metrics for investigations, API usage, and MCP server health
+- **Pre-configured Alerts**: Investigation failures, API errors, resource utilization
+- **Retention**: 15-day metric retention with efficient storage
+
+### **Grafana Dashboards**
+Pre-built dashboards for:
+- **Platform Overview**: Investigation metrics, API performance, system health
+- **MCP Server Status**: Individual server health, response times, error rates
+- **Resource Utilization**: CPU, memory, network, storage metrics
+- **Investigation Analytics**: Success rates, processing times, API usage patterns
+
+### **Health Monitoring**
+- **Automated Health Checks**: CronJob running every 5 minutes
+- **Endpoint Monitoring**: Backend API, system status, MCP servers, investigations
+- **Custom Metrics Exporter**: Converts health status to Prometheus metrics
+- **Alert Integration**: Failed health checks trigger alerts
 
 ## 🔧 **Configuration**
 
@@ -272,15 +297,26 @@ ABUSEIPDB_API_KEY=your-abuseipdb-key
 ## 📈 **System Status**
 
 Current deployment includes:
-- ✅ Backend API (2 replicas)
-- ✅ React Frontend (2 replicas) 
-- ✅ PostgreSQL Database (1 replica)
-- ✅ Redis Cache (3 replicas)
-- ✅ Infrastructure MCP (2 replicas)
-- ✅ Threat MCP (1 replica)
-- ✅ AI Analyzer MCP (1 replica)
-- ✅ Social Media MCP (1 replica)
-- ✅ Financial MCP (1 replica)
+
+### **Core Services**
+- ✅ Backend API (2 replicas) - Flask REST API with JWT auth
+- ✅ React Frontend (2 replicas) - Material-UI SPA
+- ✅ PostgreSQL Database (1 replica) - Audit and investigation storage
+- ✅ Redis Cache (3 replicas) - Session management
+
+### **MCP Intelligence Servers**
+- ✅ Infrastructure MCP (2 replicas) - Port 8021
+- ✅ Threat MCP (1 replica) - Port 8020
+- ✅ AI Analyzer MCP (1 replica) - Port 8050
+- ✅ Social Media MCP (1 replica) - Port 8010
+- ✅ Financial MCP (1 replica) - Port 8040
+
+### **Monitoring Stack**
+- ✅ Prometheus Server - Metrics collection
+- ✅ Grafana - Dashboards and visualization
+- ✅ Health Monitor - Automated health checks (5-minute intervals)
+- ✅ Metrics Exporter - Custom OSINT metrics
+- ✅ Vault - Secret management (dev mode)
 
 ## 📚 **Documentation**
 

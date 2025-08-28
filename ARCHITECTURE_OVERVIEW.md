@@ -40,14 +40,21 @@ The Enterprise OSINT Platform is a Kubernetes-native, microservices-based open-s
 ```
 ┌─────────────────────┐
 │   Web Interface     │
-│  (React + TypeScript)│
+│  (React 18 + JS)    │
 └──────────┬──────────┘
            │ HTTPS/REST
            ▼
-┌─────────────────────┐     ┌─────────────────────┐
-│   Backend API       │────▶│   PostgreSQL        │
-│  (Flask + Gunicorn) │     │  (Audit Database)   │
-└──────────┬──────────┘     └─────────────────────┘
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
+│   Backend API       │────▶│   PostgreSQL 15     │     │   Redis Cluster     │
+│  (Flask + JWT Auth) │     │  (Audit Database)   │     │  (Session Cache)    │
+└──────────┬──────────┘     └─────────────────────┘     └─────────────────────┘
+           │
+           ├────────────────────────┬─────────────────────┬─────────────────────┐
+           ▼                        ▼                     ▼                     ▼
+┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
+│   Monitoring Stack  │  │   Health Monitor    │  │   HashiCorp Vault   │  │   Job Queue         │
+│ (Prometheus/Grafana)│  │  (5-min checks)     │  │  (Secret Management)│  │  (Background Tasks) │
+└─────────────────────┘  └─────────────────────┘  └─────────────────────┘  └─────────────────────┘
            │
            │ HTTP/REST
            ▼
@@ -78,17 +85,23 @@ The platform consists of the following microservices:
    - Investigation orchestration
    - Compliance validation
 
-3. **Enhanced MCP Servers**
-   - `mcp-infrastructure-enhanced:8021` - DNS, WHOIS, SSL analysis
-   - `mcp-social-enhanced:8010` - Social media intelligence
-   - `mcp-threat-enhanced:8020` - Threat intelligence
-   - `mcp-financial-enhanced:8040` - Financial intelligence
-   - `mcp-technical-enhanced:8050` - GitHub/GitLab analysis
+3. **Enhanced MCP Servers** (FastAPI-based)
+   - `mcp-infrastructure-enhanced:8021` - DNS, WHOIS, SSL, Certificate Transparency
+   - `mcp-social-enhanced:8010` - Twitter/X, Reddit, LinkedIn intelligence
+   - `mcp-threat-enhanced:8020` - Multi-source threat aggregation (VirusTotal, Shodan, AbuseIPDB)
+   - `mcp-financial-enhanced:8040` - SEC filings, financial analysis
+   - `mcp-technical-enhanced:8050` - AI-powered analysis with GPT-4
 
 4. **Data Services**
    - PostgreSQL 15 - Audit trail and investigation storage
-   - Redis - Session management and caching
+   - Redis Cluster - Session management and caching
    - HashiCorp Vault - Secrets management
+
+5. **Monitoring & Observability Stack**
+   - Prometheus - Metrics collection with 15-day retention
+   - Grafana - Pre-configured dashboards for OSINT operations
+   - Health Monitor - Automated health checks (5-minute intervals)
+   - Custom Metrics Exporter - OSINT-specific metrics
 
 ---
 
@@ -140,7 +153,33 @@ async def gather_all_intelligence(self, target: str, investigation_type: str) ->
             )
 ```
 
-### 3. Enhanced MCP Servers
+### 3. Job Queue System (`job_queue.py`)
+
+Background task management for asynchronous operations:
+
+```python
+class JobQueueManager:
+    """Manages background jobs for long-running operations"""
+    
+    def __init__(self):
+        self.jobs = {}
+        self.executor = ThreadPoolExecutor(max_workers=4)
+    
+    async def submit_job(self, job_type: str, job_data: dict) -> str:
+        """Submit a job for background processing"""
+        job_id = str(uuid.uuid4())
+        future = self.executor.submit(self._process_job, job_type, job_data)
+        self.jobs[job_id] = {
+            'future': future,
+            'status': 'pending',
+            'created_at': datetime.utcnow()
+        }
+        return job_id
+```
+
+**Note**: Currently using a mock implementation for Docker compatibility. Production deployment should use Celery or similar.
+
+### 4. Enhanced MCP Servers
 
 Each MCP server implements the Model Context Protocol with specialized tools:
 
