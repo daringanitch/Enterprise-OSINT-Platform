@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: osint-platform-config
+  namespace: osint-platform
+data:
+  # MCP Server Configuration
+  MCP_INFRASTRUCTURE_URL: "http://mcp-infrastructure-enhanced:8021"
+  MCP_SOCIAL_URL: "http://mcp-social-enhanced:8010"
+  MCP_THREAT_URL: "http://mcp-threat-enhanced:8020"
+  MCP_FINANCIAL_URL: "http://mcp-financial-enhanced:8040"
+  MCP_TECHNICAL_URL: "http://mcp-technical-enhanced:8050"
+  
+  # Service Configuration
+  BACKEND_BASE_URL: "http://osint-backend:5000"
+  FRONTEND_BASE_URL: "http://osint-frontend:80"
+  
+  # Timeout Configuration
+  HTTP_TIMEOUT_SECONDS: "30"
+  INVESTIGATION_TIMEOUT_SECONDS: "1800"
+  MCP_TIMEOUT_SECONDS: "120"
+  DEFAULT_TIMEOUT_SECONDS: "600"
+  
+  # Compliance Configuration
+  DATA_RETENTION_DAYS: "30"
+  
+  # Monitoring Configuration
+  PROMETHEUS_RETENTION_DAYS: "15"
+  HEALTH_CHECK_INTERVAL_MINUTES: "5"
+  
+  # Application Configuration
+  DEBUG_MODE: "false"
+  INCLUDE_EXAMPLE_DATA: "false"
+  LOG_LEVEL: "INFO"
+  FLASK_ENV: "production"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: osint-platform-secrets
+  namespace: osint-platform
+type: Opaque
+stringData:
+  JWT_SECRET_KEY: "your-secure-jwt-secret-key-change-this"
+  VAULT_TOKEN: "your-vault-token-here"
+  POSTGRES_PASSWORD: "secure-postgres-password"
+  REDIS_PASSWORD: "secure-redis-password"
+  GRAFANA_ADMIN_PASSWORD: "secure-grafana-password"
+  
+  # Optional API Keys
+  OPENAI_API_KEY: "your-openai-api-key"
+  VIRUSTOTAL_API_KEY: "your-virustotal-api-key"
+  SHODAN_API_KEY: "your-shodan-api-key"
+  ABUSEIPDB_API_KEY: "your-abuseipdb-api-key"
+  GITHUB_TOKEN: "your-github-token"
