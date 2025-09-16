@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2025 Darin Ganitch
+ *
+ * This file is part of the Enterprise OSINT Platform.
+ * Licensed under the Enterprise OSINT Platform License.
+ * Individual use is free. Commercial use requires 3% profit sharing.
+ * See LICENSE file for details.
+ */
+
 // Comprehensive cleanup script for investigation data
 // Run this in the browser console to fix all 85 investigations
 

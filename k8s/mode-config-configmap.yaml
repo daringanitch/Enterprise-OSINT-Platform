@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mode-config
+  namespace: osint-platform
+data:
+  # Default mode configuration
+  mode_config.json: |
+    {
+      "current_mode": "demo",
+      "auto_fallback_enabled": true,
+      "required_api_keys": [],
+      "optional_api_keys": [
+        "OPENAI_API_KEY",
+        "VIRUSTOTAL_API_KEY",
+        "SHODAN_API_KEY",
+        "ABUSEIPDB_API_KEY",
+        "TWITTER_API_KEY",
+        "REDDIT_API_KEY"
+      ],
+      "demo_features_enabled": [
+        "mock_investigations",
+        "sample_data", 
+        "synthetic_intelligence",
+        "demo_reports"
+      ],
+      "last_mode_switch": null,
+      "user_preference": "demo"
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-key-descriptions
+  namespace: osint-platform
+data:
+  api_descriptions.json: |
+    {
+      "OPENAI_API_KEY": "OpenAI GPT API for advanced analysis and report generation",
+      "VIRUSTOTAL_API_KEY": "VirusTotal API for malware and reputation scanning",
+      "SHODAN_API_KEY": "Shodan API for network and infrastructure intelligence",
+      "ABUSEIPDB_API_KEY": "AbuseIPDB API for IP reputation and abuse reporting",
+      "TWITTER_API_KEY": "Twitter/X API for social media intelligence gathering",
+      "REDDIT_API_KEY": "Reddit API for social media analysis and monitoring"
+    }

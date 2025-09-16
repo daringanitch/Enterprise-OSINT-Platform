@@ -25,6 +25,10 @@ COPY structured_logging.py .
 COPY trace_context.py .
 COPY observability.py .
 
+# Copy demo/production mode system files
+COPY mode_manager.py .
+COPY demo_data.py .
+
 # Expose port
 EXPOSE 5000
 

@@ -51,31 +51,56 @@ FastAPI-based specialized intelligence services:
 - **Container**: Docker Desktop with Kubernetes enabled
 - **Tools**: kubectl, helm (optional)
 
-### Kubernetes Development (Recommended)
+### Kubernetes Development with Demo/Production Mode (Recommended)
 ```bash
-# Create namespace and deploy all services
+# Quick deployment with automated script
+./deploy-demo-production-mode.sh
+
+# Manual deployment steps
 kubectl create namespace osint-platform
 
-# Deploy PostgreSQL database
+# Deploy mode configuration and API key templates
+kubectl apply -f k8s/mode-config-configmap.yaml
+kubectl apply -f k8s/api-keys-secret-template.yaml
+
+# Deploy core services
 kubectl apply -f k8s/postgresql-deployment.yaml
+kubectl apply -f k8s/simple-backend-deployment.yaml    # Includes mode management
+kubectl apply -f k8s/simple-frontend-deployment.yaml  # Includes mode toggle UI
 
-# Deploy backend API
-kubectl apply -f k8s/simple-backend-deployment.yaml
-
-# Deploy frontend
-kubectl apply -f k8s/simple-frontend-deployment.yaml
-
-# Deploy enhanced MCP servers
+# Deploy enhanced MCP servers (optional)
 kubectl apply -f k8s/enhanced-mcp-deployments.yaml
 kubectl apply -f k8s/mcp-threat-enhanced-deployment.yaml
 kubectl apply -f k8s/mcp-technical-enhanced-deployment.yaml
 
-# Access via port forwarding
+# Access via port forwarding (handled by script)
 kubectl port-forward -n osint-platform svc/osint-simple-frontend 8080:80
 kubectl port-forward -n osint-platform svc/osint-backend 5000:5000
 
-# Frontend: http://localhost:8080
-# Backend API: http://localhost:5000
+# Frontend with Mode Toggle: http://localhost:8080
+# Backend API with Mode Management: http://localhost:5000
+```
+
+### Adding Production API Keys
+```bash
+# Create production API keys secret
+kubectl create secret generic osint-api-keys \
+  --from-literal=OPENAI_API_KEY='your-openai-key' \
+  --from-literal=VIRUSTOTAL_API_KEY='your-virustotal-key' \
+  --from-literal=SHODAN_API_KEY='your-shodan-key' \
+  --from-literal=ABUSEIPDB_API_KEY='your-abuseipdb-key' \
+  --from-literal=TWITTER_API_KEY='your-twitter-key' \
+  --from-literal=REDDIT_API_KEY='your-reddit-key' \
+  -n osint-platform
+
+# Restart backend to pick up keys
+kubectl rollout restart deployment/osint-backend -n osint-platform
+
+# Switch to production mode via UI toggle or API
+curl -X POST http://localhost:5000/api/system/mode \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"mode": "production"}'
 ```
 
 ### Local Development (Alternative)
@@ -259,11 +284,63 @@ ABUSEIPDB_API_KEY="your-abuseipdb-key"     # IP reputation
 - **TLS termination** at ingress with certificate management
 - **Container security** with non-root users and read-only filesystems
 
+## Demo/Production Mode System
+
+### Mode Management
+The platform includes a sophisticated demo/production mode system that allows seamless switching between demonstration data and live API integrations.
+
+**Key Features:**
+- **UI Toggle Switch** - Easy mode switching directly from the web interface
+- **Automatic Fallback** - Auto-switches to demo mode if required API keys are missing
+- **API Key Validation** - Real-time validation and status display of external API keys
+- **Kubernetes-Native** - Full configuration management via ConfigMaps and Secrets
+
+### Mode Comparison
+
+| Feature | Demo Mode | Production Mode |
+|---------|-----------|-----------------|
+| **Data Source** | Synthetic/Mock Data | Live API Integrations |
+| **API Keys** | Not Required | Optional/Required |
+| **Investigations** | 5 Sample Cases | Real-time Analysis |
+| **Threat Intel** | Simulated Results | VirusTotal, Shodan, etc. |
+| **Social Analysis** | Mock Profiles | Twitter, Reddit APIs |
+| **AI Analysis** | Templated Reports | OpenAI GPT Integration |
+| **Cost** | Free | API Usage Costs |
+| **Safety** | No External Calls | Real External Requests |
+
+### API Endpoints for Mode Management
+- `GET /api/system/mode` - Current mode status and API key availability
+- `POST /api/system/mode` - Switch between demo/production modes
+- `GET /api/system/api-keys` - API key status and descriptions
+- `GET /api/system/demo-data` - Demo data configuration
+
+### Demo Data Features
+- **5 Realistic Sample Investigations** with varied targets and findings
+- **Multi-category Intelligence** covering infrastructure, threat, and social domains
+- **Synthetic Risk Scores** with realistic confidence levels
+- **Mock API Responses** simulating real-world OSINT data patterns
+- **Comprehensive Reports** with executive summaries and technical details
+
+### Production Mode Requirements
+**Optional API Keys** (platform works without any keys in demo mode):
+- `OPENAI_API_KEY` - Advanced AI analysis and report generation
+- `VIRUSTOTAL_API_KEY` - Malware and reputation scanning
+- `SHODAN_API_KEY` - Network and infrastructure intelligence
+- `ABUSEIPDB_API_KEY` - IP reputation and abuse reporting
+- `TWITTER_API_KEY` - Social media intelligence gathering
+- `REDDIT_API_KEY` - Social media analysis and monitoring
+
+### Kubernetes Configuration Files
+- `k8s/mode-config-configmap.yaml` - Default mode configuration
+- `k8s/api-keys-secret-template.yaml` - API key secret template
+- `simple-backend/mode_manager.py` - Python mode management system
+- `simple-backend/demo_data.py` - Demo data provider
+
 ## Current System Status
 
 ### Active Services (as of current deployment)
-- ✅ Backend API (2 replicas) - Flask REST API
-- ✅ React Frontend (2 replicas) - Material-UI SPA
+- ✅ Backend API with Mode System (2 replicas) - Flask REST API with demo/production switching
+- ✅ Frontend with Mode Toggle (2 replicas) - Enhanced SPA with mode toggle UI
 - ✅ PostgreSQL Database (1 replica) - Audit and investigation storage
 - ✅ Redis Cache (3 replicas) - Session and caching
 - ✅ Infrastructure MCP (2 replicas) - FastAPI advanced infrastructure intelligence
@@ -272,7 +349,8 @@ ABUSEIPDB_API_KEY="your-abuseipdb-key"     # IP reputation
 - ✅ Social Media MCP (1 replica) - Social intelligence gathering
 - ✅ Financial MCP (1 replica) - Financial intelligence analysis
 
-### Platform Capabilities
+### Enhanced Platform Capabilities
+- **Demo/Production Mode Switching** - Seamless toggling between synthetic and live data
 - **Multi-stage investigations** with real-time progress tracking
 - **Professional PDF reporting** with executive summaries
 - **Enterprise compliance** validation (GDPR/CCPA/PIPEDA)
@@ -281,6 +359,8 @@ ABUSEIPDB_API_KEY="your-abuseipdb-key"     # IP reputation
 - **Infrastructure analysis** with certificate transparency
 - **Social media intelligence** across platforms
 - **Financial intelligence** with SEC integration
+- **Automatic API Key Validation** with fallback to demo mode
+- **Kubernetes-Native Configuration** with ConfigMaps and Secrets management
 
 
 

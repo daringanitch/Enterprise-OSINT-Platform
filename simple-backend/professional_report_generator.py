@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Darin Ganitch
+#
+# This file is part of the Enterprise OSINT Platform.
+# Licensed under the Enterprise OSINT Platform License.
+# Individual use is free. Commercial use requires 3% profit sharing.
+# See LICENSE file for details.
+
 """
 Professional Report Generation System
 Creates executive summaries, technical findings, and comprehensive OSINT investigation reports

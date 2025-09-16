@@ -335,7 +335,26 @@ Current deployment includes:
 
 ## 📄 **License**
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Enterprise OSINT Platform License - a custom dual-licensing model:
+
+### Individual Use (Free)
+- ✅ **Free for personal use** - No cost for individuals using the platform for personal, educational, or research purposes
+- ✅ **No commercial activity** - As long as you're not generating revenue from the software
+- ✅ **Full functionality** - Access to all features and capabilities
+
+### Commercial Use (3% Revenue Share)
+- 💼 **Revenue sharing model** - Commercial entities must share 3% of net profits generated from using the software
+- 💼 **Quarterly payments** - Profit sharing is paid quarterly with transparent reporting
+- 💼 **Fair and sustainable** - Supports ongoing development while keeping commercial use accessible
+- 💼 **Applies to derivatives** - Any commercial product built on this platform shares the same terms
+
+### Why This Model?
+- 🎯 **Accessible to everyone** - Students, researchers, and individuals can use it freely
+- 🎯 **Sustainable development** - Commercial success directly funds continued improvement
+- 🎯 **Fair to businesses** - Only pay when you're making money, based on actual profits
+- 🎯 **Open source values** - Code remains open and modifiable by all
+
+See the [LICENSE](LICENSE) file for complete legal terms and conditions.
 
 ---
 

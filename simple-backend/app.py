@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Darin Ganitch
+#
+# This file is part of the Enterprise OSINT Platform.
+# Licensed under the Enterprise OSINT Platform License.
+# Individual use is free. Commercial use requires 3% profit sharing.
+# See LICENSE file for details.
+
 """
 Enterprise OSINT Platform Backend
 Full Intelligence Gathering and Analysis System
@@ -29,6 +36,10 @@ from models import (
     OSINTInvestigation, InvestigationType, InvestigationStatus, Priority,
     TargetProfile, InvestigationScope
 )
+
+# Import mode management and demo data
+from mode_manager import mode_manager
+from demo_data import demo_provider
 from investigation_orchestrator import InvestigationOrchestrator
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from investigation_reporting import InvestigationReportGenerator, ReportFormat, TimeRange
@@ -797,7 +808,13 @@ def get_investigations():
     # Return all OSINT investigations with detailed status
     result = []
     
-    # Get active OSINT investigations
+    # Check if we're in demo mode
+    if mode_manager.is_demo_mode():
+        logger.info("Serving demo investigations data")
+        demo_investigations = demo_provider.generate_demo_investigations(count=5)
+        return jsonify(demo_investigations)
+    
+    # Get active OSINT investigations (production mode)
     active_investigations = orchestrator.get_active_investigations()
     for investigation in active_investigations:
         try:
@@ -3090,6 +3107,133 @@ def clear_legacy_data():
         logger.error(f"Failed to clear legacy data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+# ============================================================================
+# MODE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.route('/api/system/mode', methods=['GET'])
+@require_auth
+def get_system_mode():
+    """Get current system mode and status"""
+    try:
+        mode_status = mode_manager.get_mode_status()
+        return jsonify(mode_status), 200
+    except Exception as e:
+        logger.error(f"Failed to get mode status: {e}")
+        return jsonify({'error': 'Failed to retrieve mode status'}), 500
+
+@app.route('/api/system/mode', methods=['POST'])
+@require_auth
+def set_system_mode():
+    """Set system mode (demo/production)"""
+    try:
+        data = request.get_json()
+        if not data or 'mode' not in data:
+            return jsonify({'error': 'Mode parameter required'}), 400
+        
+        mode = data['mode'].lower()
+        if mode not in ['demo', 'production']:
+            return jsonify({'error': 'Mode must be "demo" or "production"'}), 400
+        
+        success, message = mode_manager.set_mode(mode, user_initiated=True)
+        
+        if success:
+            logger.info(f"Mode changed to {mode} by {request.current_user.get('username', 'unknown')}")
+            return jsonify({
+                'success': True,
+                'message': message,
+                'new_mode': mode_manager.get_current_mode(),
+                'status': mode_manager.get_mode_status()
+            }), 200
+        else:
+            return jsonify({'success': False, 'error': message}), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to set mode: {e}")
+        return jsonify({'error': 'Failed to change mode'}), 500
+
+@app.route('/api/system/demo-data', methods=['GET'])
+@require_auth  
+def get_demo_data_config():
+    """Get demo data configuration"""
+    try:
+        config = mode_manager.get_demo_data_config()
+        return jsonify(config), 200
+    except Exception as e:
+        logger.error(f"Failed to get demo config: {e}")
+        return jsonify({'error': 'Failed to retrieve demo configuration'}), 500
+
+@app.route('/api/system/api-keys', methods=['GET'])
+@require_auth
+def get_api_key_status():
+    """Get API key availability status"""
+    try:
+        mode_status = mode_manager.get_mode_status()
+        api_info = mode_status['api_keys']
+        
+        # Don't expose actual key values, just status
+        return jsonify({
+            'mode': mode_manager.get_current_mode(),
+            'available_count': api_info['available_count'],
+            'total_count': api_info['total_count'],
+            'keys': [
+                {
+                    'name': key['name'],
+                    'available': key['available'],
+                    'required': key['required'],
+                    'description': key['description']
+                }
+                for key in api_info['details']
+            ],
+            'production_ready': mode_status['features']['production_capable']
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to get API key status: {e}")
+        return jsonify({'error': 'Failed to retrieve API key status'}), 500
+
+# Override system status to include mode information
+@app.route('/api/system/status', methods=['GET'])
+@require_auth 
+def get_enhanced_system_status():
+    """Get enhanced system status including mode"""
+    try:
+        # Get base system status
+        if mode_manager.is_demo_mode():
+            system_status = demo_provider.get_demo_system_status()
+        else:
+            # Get real system status (existing logic)
+            system_status = {
+                'service': 'osint-backend',
+                'status': 'healthy',
+                'timestamp': datetime.utcnow().isoformat(),
+                'mode': 'production'
+            }
+        
+        # Add mode information
+        mode_status = mode_manager.get_mode_status()
+        system_status.update({
+            'mode_info': {
+                'current_mode': mode_status['current_mode'],
+                'auto_fallback_enabled': mode_status['auto_fallback_enabled'],
+                'api_keys_available': mode_status['api_keys']['available_count'],
+                'production_ready': mode_status['features']['production_capable'],
+                'demo_features': mode_status['features']['demo_features_enabled'] if mode_manager.is_demo_mode() else []
+            }
+        })
+        
+        return jsonify(system_status), 200
+        
+    except Exception as e:
+        logger.error(f"System status error: {e}")
+        return jsonify({
+            'service': 'osint-backend',
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+
+# ============================================================================
 
 # Start background cleanup thread
 cleanup_thread = threading.Thread(target=cleanup_expired_reports, daemon=True)

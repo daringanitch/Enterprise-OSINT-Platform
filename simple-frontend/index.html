@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+  Copyright (c) 2025 Darin Ganitch
+  
+  This file is part of the Enterprise OSINT Platform.
+  Licensed under the Enterprise OSINT Platform License.
+  Individual use is free. Commercial use requires 3% profit sharing.
+  See LICENSE file for details.
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -468,6 +476,44 @@
             font-weight: 500;
         }
         
+        /* Mode Toggle Switch */
+        .toggle-switch {
+            width: 50px;
+            height: 24px;
+            background: #374151;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #4b5563;
+        }
+        
+        .toggle-switch.production {
+            background: #10b981;
+            border-color: #059669;
+        }
+        
+        .toggle-slider {
+            width: 18px;
+            height: 18px;
+            background: #e5e7eb;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .toggle-switch.production .toggle-slider {
+            left: 28px;
+            background: #ffffff;
+        }
+        
+        .mode-toggle-container:hover .toggle-switch {
+            transform: scale(1.05);
+        }
+        
         @media (max-width: 1200px) {
             .world-clocks-card {
                 grid-column: span 1;
@@ -539,8 +585,37 @@
 
     <div class="container" id="mainApp">
         <div class="header">
-            <h1>🔍 Enterprise OSINT Platform</h1>
-            <p>Professional Open Source Intelligence Research & Analysis</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <h1>🔍 Enterprise OSINT Platform</h1>
+                    <p>Professional Open Source Intelligence Research & Analysis</p>
+                </div>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <!-- Mode Toggle -->
+                    <div class="mode-toggle-container" style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span id="current-mode-label" style="font-size: 0.8rem; color: #9ca3af;">Demo Mode</span>
+                            <div class="toggle-switch" onclick="toggleMode()" id="mode-toggle">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; color: #9ca3af;">Production</span>
+                        </div>
+                        <div id="api-key-status" style="font-size: 0.7rem; text-align: center; color: #6b7280;">
+                            <span id="api-count">0/6 API keys</span>
+                        </div>
+                    </div>
+                    <!-- User Info -->
+                    <div style="text-align: right;">
+                        <div id="user-info" style="font-size: 0.9rem; color: #e5e7eb;">
+                            <div id="user-name">Loading...</div>
+                            <div id="user-role" style="font-size: 0.8rem; color: #9ca3af;"></div>
+                        </div>
+                        <button onclick="logout()" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #374151; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 4px; cursor: pointer;">
+                            🚪 Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="dashboard">
@@ -864,17 +939,16 @@
         function showMainApp() {
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
+            
+            // Load mode status after showing the main app
+            loadModeStatus();
         }
         
         function updateUserInfo() {
             if (currentUser) {
-                // Update header with user info
-                const header = document.querySelector('.header p');
-                header.innerHTML = `Professional Open Source Intelligence Research & Analysis<br>
-                    <span style="font-size: 0.9rem; color: #10b981;">
-                        Welcome, ${currentUser.full_name} (${currentUser.role})
-                        <button onclick="logout()" style="margin-left: 1rem; padding: 0.25rem 0.5rem; background: #374151; border: 1px solid #4b5563; border-radius: 4px; color: #e5e7eb; cursor: pointer; font-size: 0.8rem;">Sign Out</button>
-                    </span>`;
+                // Update user info display
+                document.getElementById('user-name').textContent = currentUser.full_name;
+                document.getElementById('user-role').textContent = `${currentUser.role.toUpperCase()} • ${currentUser.clearance_level.toUpperCase()}`;
                 
                 // Show clear legacy button for admins
                 const clearBtn = document.getElementById('clearLegacyBtn');
@@ -1660,6 +1734,157 @@
                 closeAuditHistory();
             }
         });
+        
+        // ============================================================================
+        // MODE MANAGEMENT FUNCTIONS
+        // ============================================================================
+        
+        let currentSystemMode = 'demo';
+        let apiKeyStatus = { available: 0, total: 6 };
+        
+        async function loadModeStatus() {
+            try {
+                const response = await authenticatedFetch('/api/system/mode');
+                const modeData = await response.json();
+                
+                currentSystemMode = modeData.current_mode;
+                updateModeDisplay(modeData);
+                
+                // Load API key status
+                const keyResponse = await authenticatedFetch('/api/system/api-keys');
+                const keyData = await keyResponse.json();
+                updateApiKeyDisplay(keyData);
+                
+                // Show fallback message if auto-switched
+                if (modeData.fallback_occurred) {
+                    showNotification(modeData.fallback_message, 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load mode status:', error);
+                // Default to demo mode on error
+                updateModeDisplay({ current_mode: 'demo' });
+            }
+        }
+        
+        function updateModeDisplay(modeData) {
+            const toggle = document.getElementById('mode-toggle');
+            const label = document.getElementById('current-mode-label');
+            
+            if (modeData.current_mode === 'production') {
+                toggle.classList.add('production');
+                label.textContent = 'Production Mode';
+                label.style.color = '#10b981';
+            } else {
+                toggle.classList.remove('production');
+                label.textContent = 'Demo Mode';
+                label.style.color = '#60a5fa';
+            }
+        }
+        
+        function updateApiKeyDisplay(keyData) {
+            const apiCount = document.getElementById('api-count');
+            const available = keyData.available_count;
+            const total = keyData.total_count;
+            
+            apiCount.textContent = `${available}/${total} API keys`;
+            
+            if (available === 0) {
+                apiCount.style.color = '#ef4444';
+            } else if (available < total) {
+                apiCount.style.color = '#f59e0b';
+            } else {
+                apiCount.style.color = '#10b981';
+            }
+            
+            // Update tooltip with key details
+            apiCount.title = keyData.keys.map(k => 
+                `${k.name.replace('_API_KEY', '')}: ${k.available ? '✅' : '❌'}`
+            ).join('\\n');
+        }
+        
+        async function toggleMode() {
+            const newMode = currentSystemMode === 'demo' ? 'production' : 'demo';
+            
+            try {
+                const response = await authenticatedFetch('/api/system/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: newMode })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentSystemMode = result.new_mode;
+                    updateModeDisplay({ current_mode: result.new_mode });
+                    showNotification(`Switched to ${result.new_mode} mode`, 'success');
+                    
+                    // Reload investigations to show appropriate data
+                    loadInvestigations();
+                } else {
+                    showNotification(`Failed to switch modes: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Mode toggle failed:', error);
+                showNotification('Mode toggle failed: ' + error.message, 'error');
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem;
+                border-radius: 8px;
+                color: #fff;
+                font-weight: 500;
+                z-index: 10001;
+                max-width: 400px;
+                opacity: 0;
+                transform: translateY(-20px);
+                transition: all 0.3s ease;
+            `;
+            
+            // Set background based on type
+            switch (type) {
+                case 'success':
+                    notification.style.background = '#059669';
+                    break;
+                case 'warning':
+                    notification.style.background = '#d97706';
+                    break;
+                case 'error':
+                    notification.style.background = '#dc2626';
+                    break;
+                default:
+                    notification.style.background = '#3b82f6';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            });
+            
+            // Remove after 4 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 4000);
+        }
+        
+        // ============================================================================
         
         // Login form handler
         document.getElementById('loginForm').addEventListener('submit', function(e) {

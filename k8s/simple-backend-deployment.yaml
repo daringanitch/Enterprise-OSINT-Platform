@@ -79,26 +79,43 @@ spec:
           value: "http://mcp-social-enhanced:8010"
         - name: MCP_FINANCIAL_URL
           value: "http://mcp-financial-enhanced:8040"
+        # API Keys (optional - used only in production mode)
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys  # Managed by External Secrets
-              key: openai-api-key
-        - name: TWITTER_BEARER_TOKEN
+              name: osint-api-keys
+              key: OPENAI_API_KEY
+              optional: true  # Don't fail if key missing - enables demo mode
+        - name: TWITTER_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys  # Managed by External Secrets
-              key: twitter-bearer-token
+              name: osint-api-keys
+              key: TWITTER_API_KEY
+              optional: true
         - name: SHODAN_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys  # Managed by External Secrets
-              key: shodan-api-key
+              name: osint-api-keys
+              key: SHODAN_API_KEY
+              optional: true
         - name: VIRUSTOTAL_API_KEY
           valueFrom:
             secretKeyRef:
-              name: osint-api-keys  # Managed by External Secrets
-              key: virustotal-api-key
+              name: osint-api-keys
+              key: VIRUSTOTAL_API_KEY
+              optional: true
+        - name: ABUSEIPDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: ABUSEIPDB_API_KEY
+              optional: true
+        - name: REDDIT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: osint-api-keys
+              key: REDDIT_API_KEY
+              optional: true
         - name: REDIS_URL
           value: "redis://osint-platform-redis-master:6379/0"
         - name: CELERY_BROKER_URL
@@ -106,6 +123,8 @@ spec:
         volumeMounts:
         - name: audit-history-storage
           mountPath: /tmp
+        - name: mode-config
+          mountPath: /app/data
         resources:
           requests:
             memory: "256Mi"
@@ -116,6 +135,10 @@ spec:
       volumes:
       - name: audit-history-storage
         emptyDir: {}
+      - name: mode-config
+        configMap:
+          name: mode-config
+          defaultMode: 0644
 ---
 apiVersion: v1
 kind: Service

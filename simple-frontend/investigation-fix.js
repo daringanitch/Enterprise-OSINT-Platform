@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2025 Darin Ganitch
+ *
+ * This file is part of the Enterprise OSINT Platform.
+ * Licensed under the Enterprise OSINT Platform License.
+ * Individual use is free. Commercial use requires 3% profit sharing.
+ * See LICENSE file for details.
+ */
+
 // Fix for investigation history persistence issue
 // This script patches the loadInvestigations function to properly handle authenticated users
 
