@@ -1,0 +1,129 @@
+# ============================================================================
+# Enterprise OSINT Platform - Demo Mode
+# ============================================================================
+# Quick start with no configuration required!
+#
+# Usage:
+#   docker compose -f docker-compose.demo.yml up -d
+#   # OR simply:
+#   ./start.sh demo
+#
+# Features:
+#   - Pre-loaded sample investigations
+#   - Simulated threat intelligence data
+#   - No external API keys required
+#   - Full UI and reporting functionality
+#
+# Access:
+#   Frontend: http://localhost:8080
+#   API: http://localhost:5000
+#   Login: admin / admin123
+# ============================================================================
+
+services:
+  # PostgreSQL Database
+  postgresql:
+    image: postgres:15.5-alpine
+    container_name: osint-postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demo_password_123
+      POSTGRES_DB: osint_audit
+    volumes:
+      - demo_postgres_data:/var/lib/postgresql/data
+    networks:
+      - osint-demo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: osint-redis
+    networks:
+      - osint-demo-network
+    volumes:
+      - demo_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # OSINT Backend - Demo Mode
+  osint-backend:
+    build:
+      context: ./simple-backend
+      dockerfile: Dockerfile
+    container_name: osint-backend
+    environment:
+      # Database
+      POSTGRES_HOST: postgresql
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demo_password_123
+      POSTGRES_DB: osint_audit
+      # Mode Configuration
+      PLATFORM_MODE: demo
+      DEMO_MODE: "true"
+      # Security
+      JWT_SECRET_KEY: demo-secret-key-not-for-production
+      FLASK_ENV: production
+      # Disable Vault for demo
+      VAULT_ENABLED: "false"
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # Logging
+      LOG_LEVEL: INFO
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - osint-demo-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # OSINT Frontend
+  osint-frontend:
+    image: nginx:alpine
+    container_name: osint-frontend
+    volumes:
+      - ./simple-frontend:/usr/share/nginx/html:ro
+      - ./simple-frontend/nginx-demo.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      osint-backend:
+        condition: service_healthy
+    networks:
+      - osint-demo-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health.html"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  osint-demo-network:
+    driver: bridge
+
+volumes:
+  demo_postgres_data:
+    driver: local
+  demo_redis_data:
+    driver: local
