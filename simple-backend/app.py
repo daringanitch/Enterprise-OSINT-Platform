@@ -1112,7 +1112,14 @@ def create_investigation():
 
 @app.route('/api/investigations/<inv_id>', methods=['GET'])
 def get_investigation(inv_id):
-    # Try to get OSINT investigation first
+    # Handle demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(inv_id)
+        if demo_inv:
+            return jsonify(demo_inv)
+        return jsonify({'error': 'Demo investigation not found', 'investigation_id': inv_id}), 404
+
+    # Try to get OSINT investigation first (production mode)
     investigation = orchestrator.get_investigation(inv_id)
     
     if investigation:
@@ -1206,7 +1213,78 @@ def get_investigation(inv_id):
 @app.route('/api/investigations/<inv_id>/report', methods=['POST'])
 @require_auth
 def generate_report(inv_id):
-    # Try OSINT investigation first
+    # Handle demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(inv_id)
+        if demo_inv:
+            if demo_inv.get('status') != 'completed':
+                return jsonify({
+                    'error': 'Investigation not completed',
+                    'status': demo_inv.get('status', 'unknown'),
+                    'progress': demo_inv.get('progress_percentage', 0)
+                }), 400
+
+            report_id = f"report_{inv_id}"
+            target = demo_inv.get('target_profile', {}).get('primary_identifier', 'unknown')
+
+            # Generate demo report
+            demo_report_data = demo_provider.generate_demo_report_data(inv_id, target)
+
+            report = {
+                'id': report_id,
+                'investigation_id': inv_id,
+                'target': target,
+                'type': demo_inv.get('investigation_type', 'comprehensive'),
+                'investigator': demo_inv.get('investigator_name', 'Demo User'),
+                'generated_at': datetime.utcnow().isoformat(),
+                'expires_at': (datetime.utcnow() + timedelta(minutes=60)).isoformat(),
+                'content': {
+                    'executive_summary': demo_report_data['executive_summary'],
+                    'key_findings': demo_report_data['key_findings'],
+                    'recommendations': demo_report_data['recommendations'],
+                    'risk_assessment': demo_report_data['risk_assessment'],
+                    'intelligence_data': demo_inv.get('findings', {}),
+                    'compliance_reports': [{
+                        'framework': 'GDPR',
+                        'compliant': True,
+                        'risk_level': 'low',
+                        'findings': ['Demo compliance check passed'],
+                        'recommendations': ['Continue standard monitoring'],
+                        'data_categories': ['Public information only'],
+                        'generated_at': datetime.utcnow().isoformat()
+                    }],
+                    'investigation_metadata': {
+                        'investigation_id': inv_id,
+                        'generated_by': demo_inv.get('investigator_name', 'Demo User'),
+                        'classification': 'CONFIDENTIAL',
+                        'retention_minutes': 60,
+                        'created_at': demo_inv.get('created_at'),
+                        'completed_at': demo_inv.get('completed_at'),
+                        'processing_time_seconds': 45,
+                        'data_points_collected': demo_inv.get('progress', {}).get('data_points_collected', 15),
+                        'api_calls_made': demo_inv.get('api_calls_made', 8),
+                        'cost_estimate_usd': demo_inv.get('cost_estimate_usd', 2.50),
+                        'demo_mode': True
+                    }
+                }
+            }
+
+            reports[report_id] = report
+            logger.info(f"Generated demo report for investigation {inv_id}")
+
+            return jsonify({
+                'message': 'Demo report generated successfully',
+                'report_id': report_id,
+                'expires_at': report['expires_at'],
+                'available_for_minutes': 60,
+                'report_size_kb': len(str(report)) // 1024,
+                'data_points': demo_inv.get('progress', {}).get('data_points_collected', 15),
+                'demo_mode': True
+            }), 201
+        else:
+            return jsonify({'error': 'Demo investigation not found', 'investigation_id': inv_id}), 404
+
+    # Try OSINT investigation first (production mode)
     investigation = orchestrator.get_investigation(inv_id)
     
     if investigation:

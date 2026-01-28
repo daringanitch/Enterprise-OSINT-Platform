@@ -35,63 +35,95 @@ class DemoInvestigation:
 
 class DemoDataProvider:
     """Provides demo data for all platform features"""
-    
+
     def __init__(self):
         self.demo_targets = [
-            "example.com", "demo-company.org", "test-site.net", 
+            "example.com", "demo-company.org", "test-site.net",
             "sample-corp.com", "mock-enterprise.io"
         ]
         self.investigators = [
             "Demo Analyst", "Sample Investigator", "Test User",
             "Training Account", "Demo Admin"
         ]
-    
+        # Cache for demo investigations - generated once and reused
+        self._cached_investigations: List[Dict[str, Any]] = []
+        self._cache_generated = False
+
+    def get_demo_investigations(self, count: int = 5) -> List[Dict[str, Any]]:
+        """Get cached demo investigations (generates once, returns same data)"""
+        if not self._cache_generated or len(self._cached_investigations) != count:
+            self._cached_investigations = self._generate_demo_investigations(count)
+            self._cache_generated = True
+        return self._cached_investigations
+
+    def get_demo_investigation(self, inv_id: str) -> Dict[str, Any]:
+        """Get a specific demo investigation by ID"""
+        # Ensure cache is populated
+        if not self._cache_generated:
+            self.get_demo_investigations()
+
+        for inv in self._cached_investigations:
+            if inv['id'] == inv_id:
+                return inv
+        return None
+
     def generate_demo_investigations(self, count: int = 5) -> List[Dict[str, Any]]:
-        """Generate demo investigations"""
+        """Generate demo investigations - uses cache for consistency"""
+        return self.get_demo_investigations(count)
+
+    def _generate_demo_investigations(self, count: int = 5) -> List[Dict[str, Any]]:
+        """Internal: Generate fresh demo investigations with deterministic IDs"""
         investigations = []
-        
+
+        # Deterministic data for consistent demo experience
+        statuses = ['completed', 'completed', 'completed', 'completed', 'failed']
+        priorities = ['high', 'normal', 'normal', 'low', 'high']
+        risk_levels = ['low', 'medium', 'low', 'high', 'medium']
+        risk_scores = [0.25, 0.45, 0.15, 0.72, 0.38]
+        days_ago = [3, 7, 14, 21, 28]
+
         for i in range(count):
-            target = random.choice(self.demo_targets)
-            investigator = random.choice(self.investigators)
-            
-            # Create timestamps
-            created = datetime.utcnow() - timedelta(days=random.randint(1, 30))
-            completed = created + timedelta(hours=random.randint(1, 48))
-            
+            target = self.demo_targets[i % len(self.demo_targets)]
+            investigator = self.investigators[i % len(self.investigators)]
+
+            # Create deterministic timestamps
+            created = datetime.utcnow() - timedelta(days=days_ago[i % len(days_ago)])
+            completed = created + timedelta(hours=2 + i * 3)
+
             # Generate demo findings
             findings = self._generate_demo_findings(target)
-            
+
             investigation = {
-                'id': f'demo_{uuid.uuid4().hex[:12]}',
+                'id': f'demo_inv_{i + 1:03d}',  # Deterministic IDs: demo_inv_001, demo_inv_002, etc.
                 'target_profile': {
                     'primary_identifier': target,
                     'target_type': 'domain',
                     'target_id': f'demo_target_{i}'
                 },
-                'status': random.choice(['completed', 'completed', 'completed', 'failed']),  # Mostly completed
+                'status': statuses[i % len(statuses)],
                 'investigation_type': 'comprehensive',
                 'investigator_name': investigator,
                 'investigator_id': investigator.lower().replace(' ', '_'),
-                'priority': random.choice(['normal', 'high', 'low']),
+                'priority': priorities[i % len(priorities)],
                 'created_at': created.isoformat(),
-                'completed_at': completed.isoformat() if random.choice([True, True, False]) else None,
-                'current_stage': 'completed',
-                'current_activity': 'Demo investigation completed',
-                'progress_percentage': 100,
-                'stage_progress': 100,
-                'can_generate_report': True,
-                'report_available': False,  # Demo reports aren't actually generated
+                'completed_at': completed.isoformat() if statuses[i % len(statuses)] == 'completed' else None,
+                'current_stage': 'completed' if statuses[i % len(statuses)] == 'completed' else 'failed',
+                'current_activity': 'Demo investigation completed' if statuses[i % len(statuses)] == 'completed' else 'Demo investigation failed',
+                'progress_percentage': 100 if statuses[i % len(statuses)] == 'completed' else 75,
+                'stage_progress': 100 if statuses[i % len(statuses)] == 'completed' else 75,
+                'can_generate_report': statuses[i % len(statuses)] == 'completed',
+                'report_available': False,
                 'findings': findings,
                 'risk_assessment': {
-                    'score': round(random.uniform(0.1, 0.8), 2),
-                    'level': random.choice(['low', 'low', 'medium', 'high'])
+                    'score': risk_scores[i % len(risk_scores)],
+                    'level': risk_levels[i % len(risk_levels)]
                 },
-                'cost_estimate_usd': round(random.uniform(0.50, 5.00), 2),
-                'api_calls_made': random.randint(3, 15),
+                'cost_estimate_usd': round(1.50 + i * 0.75, 2),
+                'api_calls_made': 5 + i * 2,
                 'classification_level': 'confidential',
                 'progress': {
-                    'overall_progress': 100.0,
-                    'data_points_collected': random.randint(5, 25),
+                    'overall_progress': 100.0 if statuses[i % len(statuses)] == 'completed' else 75.0,
+                    'data_points_collected': 10 + i * 3,
                     'current_activity': 'Demo investigation completed',
                     'errors_encountered': 0
                 }
