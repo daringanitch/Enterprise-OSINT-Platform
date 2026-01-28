@@ -89,6 +89,14 @@ except ImportError:
         MEDIUM = 300
         LONG = 900
 
+# Expanded data sources
+try:
+    from expanded_data_sources import expanded_data_manager, DataSourceType
+    EXPANDED_SOURCES_AVAILABLE = True
+except ImportError:
+    EXPANDED_SOURCES_AVAILABLE = False
+    expanded_data_manager = None
+
 # from job_queue import job_queue_manager, update_job_progress
 # Mock job queue manager for Docker compatibility
 class MockJobQueueManager:
@@ -3693,6 +3701,160 @@ def invalidate_cache():
             })
     except Exception as e:
         logger.error(f"Cache invalidation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Expanded Data Sources Endpoints
+# ============================================================================
+
+@app.route('/api/intelligence/sources', methods=['GET'])
+@require_auth
+def get_intelligence_sources():
+    """Get list of available expanded intelligence sources"""
+    if not EXPANDED_SOURCES_AVAILABLE:
+        return jsonify({
+            'available': False,
+            'message': 'Expanded data sources not available',
+            'sources': []
+        })
+
+    sources = expanded_data_manager.get_available_sources()
+    return jsonify({
+        'available': True,
+        'sources': sources,
+        'total_sources': len(sources)
+    })
+
+
+@app.route('/api/intelligence/gather', methods=['POST'])
+@require_auth
+@trace_operation("api.intelligence.gather")
+def gather_expanded_intelligence():
+    """
+    Gather intelligence from expanded data sources.
+
+    Request body:
+    {
+        "target": "example.com",
+        "sources": ["passive_dns", "breach_intel"]  // optional, defaults to all
+    }
+    """
+    if not EXPANDED_SOURCES_AVAILABLE:
+        return jsonify({
+            'error': 'Expanded data sources not available'
+        }), 503
+
+    data = request.json or {}
+    target = data.get('target', '').strip()
+    sources = data.get('sources')  # None = all sources
+
+    if not target:
+        return jsonify({'error': 'Target is required'}), 400
+
+    # Validate target format
+    if VALIDATION_ENABLED:
+        try:
+            from validators import validate_target_format
+            target = validate_target_format(target)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    try:
+        # Run async gathering
+        async def gather():
+            return await expanded_data_manager.gather_all(target, sources)
+
+        # Execute async function
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        results = loop.run_until_complete(gather())
+
+        # Convert results to JSON-serializable format
+        response_data = {}
+        for source_name, result in results.items():
+            response_data[source_name] = result.to_dict()
+
+        # Get aggregated summary
+        summary = expanded_data_manager.get_aggregated_summary(results)
+
+        return jsonify({
+            'target': target,
+            'results': response_data,
+            'summary': summary,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Expanded intelligence gathering error: {e}")
+        return jsonify({
+            'error': 'Intelligence gathering failed',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/intelligence/source/<source_name>', methods=['POST'])
+@require_auth
+def gather_from_source(source_name):
+    """
+    Gather intelligence from a specific source.
+
+    URL params:
+        source_name: passive_dns, code_intel, breach_intel, url_intel, business_intel, news_intel
+
+    Request body:
+    {
+        "target": "example.com"
+    }
+    """
+    if not EXPANDED_SOURCES_AVAILABLE:
+        return jsonify({'error': 'Expanded data sources not available'}), 503
+
+    valid_sources = ['passive_dns', 'code_intel', 'breach_intel', 'url_intel', 'business_intel', 'news_intel']
+    if source_name not in valid_sources:
+        return jsonify({
+            'error': f'Invalid source: {source_name}',
+            'valid_sources': valid_sources
+        }), 400
+
+    data = request.json or {}
+    target = data.get('target', '').strip()
+
+    if not target:
+        return jsonify({'error': 'Target is required'}), 400
+
+    try:
+        # Run async gathering
+        async def gather():
+            return await expanded_data_manager.gather_all(target, [source_name])
+
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        results = loop.run_until_complete(gather())
+
+        result = results.get(source_name)
+        if result:
+            return jsonify({
+                'target': target,
+                'source': source_name,
+                'result': result.to_dict(),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        else:
+            return jsonify({'error': f'No result from {source_name}'}), 500
+
+    except Exception as e:
+        logger.error(f"Source {source_name} gathering error: {e}")
         return jsonify({'error': str(e)}), 500
 
 

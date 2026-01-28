@@ -49,6 +49,15 @@ from mcp_clients import MCPClientManager
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from risk_assessment_engine import RiskAssessmentEngine, RiskAssessmentResult
 
+# Import expanded data sources
+try:
+    from expanded_data_sources import expanded_data_manager, DataSourceResult
+    EXPANDED_SOURCES_AVAILABLE = True
+except ImportError:
+    EXPANDED_SOURCES_AVAILABLE = False
+    expanded_data_manager = None
+    logger.warning("Expanded data sources not available")
+
 logger = logging.getLogger(__name__)
 
 
@@ -545,6 +554,12 @@ class InvestigationOrchestrator:
                 tasks.append(self._collect_threat_intelligence(investigation))
                 collection_tasks.append("threat_intelligence")
 
+            # Expanded Data Sources Collection (Passive DNS, Breach Intel, etc.)
+            if EXPANDED_SOURCES_AVAILABLE:
+                investigation.update_progress(0.7, "Collecting expanded intelligence sources")
+                tasks.append(self._collect_expanded_intelligence(investigation))
+                collection_tasks.append("expanded_sources")
+
             # Run all collection tasks in parallel for better performance
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -884,7 +899,170 @@ class InvestigationOrchestrator:
             investigation.progress.warnings.append(f"Threat intelligence failed: {str(e)}")
             # Fall back to simulated data
             self._collect_threat_intelligence_fallback(investigation)
-    
+
+    @trace_operation("investigation.collect.expanded_sources")
+    async def _collect_expanded_intelligence(self, investigation: OSINTInvestigation):
+        """
+        Collect intelligence from expanded data sources.
+
+        Sources include:
+        - Passive DNS (historical records, subdomains)
+        - Code Intelligence (GitHub/GitLab exposure)
+        - Breach Intelligence (credential leaks)
+        - URL Intelligence (malicious URLs)
+        - Business Intelligence (corporate records)
+        - News Intelligence (media mentions)
+        """
+        if not EXPANDED_SOURCES_AVAILABLE:
+            logger.warning("Expanded data sources not available")
+            return
+
+        target = investigation.target_profile.primary_identifier
+
+        try:
+            # Gather from all expanded sources in parallel
+            results = await expanded_data_manager.gather_all(target)
+
+            # Process and store results
+            expanded_data = {}
+            total_findings = 0
+
+            for source_name, result in results.items():
+                if result.success:
+                    expanded_data[source_name] = result.to_dict()
+                    investigation.api_calls_made += 1
+
+                    # Generate findings based on source type
+                    data = result.data
+
+                    # Passive DNS findings
+                    if source_name == 'passive_dns':
+                        if data.get('subdomains'):
+                            num_subdomains = len(data['subdomains'])
+                            investigation.add_finding(
+                                f"Passive DNS: Discovered {num_subdomains} subdomains",
+                                "expanded_intel"
+                            )
+                            # Add to infrastructure intelligence
+                            if investigation.infrastructure_intelligence:
+                                investigation.infrastructure_intelligence.subdomains.extend(
+                                    data['subdomains'][:50]  # Limit to 50
+                                )
+                            total_findings += 1
+
+                        if data.get('historical_dns'):
+                            num_records = len(data['historical_dns'])
+                            investigation.add_finding(
+                                f"Passive DNS: {num_records} historical DNS records found",
+                                "expanded_intel"
+                            )
+                            total_findings += 1
+
+                    # Breach intelligence findings
+                    elif source_name == 'breach_intel':
+                        num_breaches = data.get('total_breaches', 0)
+                        if num_breaches > 0:
+                            total_exposed = data.get('total_records_exposed', 0)
+                            investigation.add_finding(
+                                f"BREACH ALERT: Domain appears in {num_breaches} known breaches ({total_exposed:,} records exposed)",
+                                "breach_intel"
+                            )
+                            # Update risk assessment
+                            if not investigation.risk_assessment:
+                                investigation.risk_assessment = {}
+                            investigation.risk_assessment['breach_exposure'] = {
+                                'breaches': num_breaches,
+                                'records_exposed': total_exposed,
+                                'data_classes': data.get('data_classes_exposed', [])
+                            }
+                            total_findings += 1
+                        else:
+                            investigation.add_finding(
+                                "Breach check: No known breaches found for this domain",
+                                "breach_intel"
+                            )
+
+                    # Code intelligence findings
+                    elif source_name == 'code_intel':
+                        exposures = data.get('potential_exposures', [])
+                        if exposures:
+                            investigation.add_finding(
+                                f"CODE EXPOSURE: {len(exposures)} potential code/credential exposures found on GitHub",
+                                "code_intel"
+                            )
+                            total_findings += 1
+
+                        repos = data.get('repositories', [])
+                        if repos:
+                            investigation.add_finding(
+                                f"Code Intel: {len(repos)} related repositories found",
+                                "code_intel"
+                            )
+
+                    # URL intelligence findings
+                    elif source_name == 'url_intel':
+                        active_threats = data.get('active_threats', 0)
+                        if active_threats > 0:
+                            investigation.add_finding(
+                                f"MALICIOUS URLS: {active_threats} active malicious URLs detected",
+                                "url_intel"
+                            )
+                            total_findings += 1
+                        total_urls = data.get('total_urls', 0)
+                        if total_urls > 0:
+                            investigation.add_finding(
+                                f"URL Intel: {total_urls} URLs flagged in threat databases",
+                                "url_intel"
+                            )
+
+                    # Business intelligence findings
+                    elif source_name == 'business_intel':
+                        company_info = data.get('company_info', {})
+                        if company_info:
+                            investigation.add_finding(
+                                f"Business Intel: {company_info.get('name', 'Unknown')} - {company_info.get('status', 'Unknown')} ({company_info.get('jurisdiction', 'Unknown')})",
+                                "business_intel"
+                            )
+
+                    # News intelligence findings
+                    elif source_name == 'news_intel':
+                        num_articles = data.get('total_results', 0)
+                        if num_articles > 0:
+                            sentiment = data.get('sentiment_summary', {})
+                            investigation.add_finding(
+                                f"News Intel: {num_articles} recent articles (Sentiment: {sentiment.get('positive', 0)}% positive, {sentiment.get('negative', 0)}% negative)",
+                                "news_intel"
+                            )
+                            if data.get('crisis_indicators'):
+                                investigation.add_finding(
+                                    "NEWS ALERT: Potential crisis indicators detected in media coverage",
+                                    "news_intel"
+                                )
+                                total_findings += 1
+
+                else:
+                    logger.warning(f"Expanded source {source_name} failed: {result.error}")
+
+            # Store expanded data in risk assessment for report generation
+            if not investigation.risk_assessment:
+                investigation.risk_assessment = {}
+            investigation.risk_assessment['expanded_intelligence'] = expanded_data
+
+            # Get aggregated summary
+            summary = expanded_data_manager.get_aggregated_summary(results)
+            investigation.risk_assessment['expanded_summary'] = summary
+
+            investigation.add_finding(
+                f"Expanded sources: Queried {summary['sources_successful']}/{summary['sources_queried']} sources successfully",
+                "expanded_intel"
+            )
+
+            logger.info(f"Expanded intelligence collection complete: {total_findings} key findings from {summary['sources_successful']} sources")
+
+        except Exception as e:
+            logger.error(f"Expanded intelligence collection failed: {str(e)}")
+            investigation.progress.warnings.append(f"Expanded sources failed: {str(e)}")
+
     @trace_operation("investigation.stage.analyzing")
     def _stage_analyzing(self, investigation: OSINTInvestigation):
         """
