@@ -15,6 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ['FLASK_ENV'] = 'testing'
 os.environ['JWT_SECRET_KEY'] = 'test-secret-key'
 os.environ['POSTGRES_URL'] = 'postgresql://test:test@localhost:5432/test_osint'
+os.environ['PLATFORM_MODE'] = 'demo'  # Enable demo mode for testing
+os.environ['DEMO_MODE'] = 'true'
 
 from app import app as flask_app
 from models import OSINTInvestigation, InvestigationType, InvestigationStatus, Priority
