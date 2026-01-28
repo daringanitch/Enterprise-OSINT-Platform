@@ -52,6 +52,23 @@ from postgres_audit_client import (
     log_api_call, AuditEvent, EventType, InvestigationAuditRecord
 )
 from api_connection_monitor import APIConnectionMonitor, APIStatus, APIType
+
+# Input validation
+try:
+    from validators import (
+        validate_investigation_request, validate_login_request,
+        validate_compliance_request, validate_risk_request,
+        ValidationError as InputValidationError, get_safe_error_message
+    )
+    VALIDATION_ENABLED = True
+except ImportError:
+    VALIDATION_ENABLED = False
+    class InputValidationError(Exception):
+        pass
+    def validate_investigation_request(data): return data
+    def validate_login_request(data): return data
+    def get_safe_error_message(t, d=None): return d or 'An error occurred'
+
 # from job_queue import job_queue_manager, update_job_progress
 # Mock job queue manager for Docker compatibility
 class MockJobQueueManager:
@@ -102,7 +119,68 @@ CORS(app,
 # Initialize Problem+JSON error handling middleware (commented for Docker compatibility)
 # problem_json = ProblemJSONMiddleware(app)
 
-# Initialize OpenTelemetry instrumentation (commented for Docker compatibility)  
+# Global error handlers - sanitize error responses to prevent information disclosure
+@app.errorhandler(400)
+def bad_request_handler(error):
+    """Handle bad request errors"""
+    logger.warning(f"Bad request: {str(error)}")
+    return jsonify({
+        'error': 'Bad Request',
+        'message': get_safe_error_message('validation_error', 'Invalid request data')
+    }), 400
+
+@app.errorhandler(401)
+def unauthorized_handler(error):
+    """Handle unauthorized errors"""
+    return jsonify({
+        'error': 'Unauthorized',
+        'message': get_safe_error_message('authentication_error')
+    }), 401
+
+@app.errorhandler(403)
+def forbidden_handler(error):
+    """Handle forbidden errors"""
+    return jsonify({
+        'error': 'Forbidden',
+        'message': get_safe_error_message('authorization_error')
+    }), 403
+
+@app.errorhandler(404)
+def not_found_handler(error):
+    """Handle not found errors"""
+    return jsonify({
+        'error': 'Not Found',
+        'message': get_safe_error_message('not_found', 'Resource not found')
+    }), 404
+
+@app.errorhandler(429)
+def rate_limit_handler(error):
+    """Handle rate limit errors"""
+    logger.warning(f"Rate limit exceeded")
+    return jsonify({
+        'error': 'Too Many Requests',
+        'message': get_safe_error_message('rate_limit')
+    }), 429
+
+@app.errorhandler(500)
+def internal_error_handler(error):
+    """Handle internal server errors - never expose details"""
+    logger.error(f"Internal server error: {str(error)}", exc_info=True)
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': get_safe_error_message('internal_error')
+    }), 500
+
+@app.errorhandler(503)
+def service_unavailable_handler(error):
+    """Handle service unavailable errors"""
+    logger.error(f"Service unavailable: {str(error)}")
+    return jsonify({
+        'error': 'Service Unavailable',
+        'message': get_safe_error_message('service_unavailable')
+    }), 503
+
+# Initialize OpenTelemetry instrumentation (commented for Docker compatibility)
 # observability_manager.initialize(app)
 
 # Session configuration
@@ -671,12 +749,20 @@ def system_status():
             'metrics': system_metrics
         })
         
-    except Exception as e:
-        logger.error(f"System status check failed: {str(e)}")
+    except (psycopg2.Error, ConnectionError) as e:
+        logger.error(f"System status check - database/connection error: {str(e)}")
         return jsonify({
             'service': 'Enterprise OSINT Platform',
             'status': 'degraded',
-            'error': str(e),
+            'error': get_safe_error_message('database_error'),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+    except Exception as e:
+        logger.error(f"System status check failed: {str(e)}", exc_info=True)
+        return jsonify({
+            'service': 'Enterprise OSINT Platform',
+            'status': 'degraded',
+            'error': get_safe_error_message('internal_error'),
             'timestamp': datetime.utcnow().isoformat()
         }), 500
 
@@ -802,13 +888,25 @@ def trigger_api_health_check():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """User authentication endpoint"""
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    
-    if not username or not password:
-        return jsonify({'error': 'Username and password required'}), 400
-    
+    data = request.json or {}
+
+    # Validate and sanitize login input
+    if VALIDATION_ENABLED:
+        try:
+            validated = validate_login_request(data)
+            username = validated.username
+            password = validated.password
+        except InputValidationError as e:
+            # Don't expose validation details for security
+            logger.warning("Login validation failed")
+            return jsonify({'error': 'Invalid credentials format'}), 400
+    else:
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+
+        if not username or not password:
+            return jsonify({'error': 'Username and password required'}), 400
+
     # Authenticate against PostgreSQL
     user_info = authenticate_user(username, password)
     if user_info:
@@ -930,28 +1028,43 @@ def get_investigations():
 @require_auth
 @trace_operation("api.create_investigation")
 def create_investigation():
-    data = request.json
-    
+    data = request.json or {}
+
     try:
-        # Extract investigation parameters
-        target = data.get('target', '').strip()
-        investigation_type = data.get('type', 'comprehensive')
-        priority = data.get('priority', 'normal')
-        investigator_name = data.get('investigator', 'System')
-        
-        # Add trace attributes (commented for Docker compatibility)
-        # add_trace_attributes(
-        #     target=target,
-        #     investigation_type=investigation_type,
-        #     priority=priority,
-        #     investigator=investigator_name
-        # )
+        # Validate and sanitize input using Pydantic models
+        if VALIDATION_ENABLED:
+            try:
+                validated = validate_investigation_request(data)
+                target = validated.target
+                investigation_type = validated.type
+                priority = validated.priority
+                investigator_name = validated.investigator
+            except InputValidationError as e:
+                logger.warning(f"Investigation validation failed: {e.message}")
+                return jsonify({
+                    'error': 'Validation failed',
+                    'message': e.message,
+                    'field': getattr(e, 'field', None)
+                }), 400
+        else:
+            # Fallback to basic validation
+            target = data.get('target', '').strip()
+            investigation_type = data.get('type', 'comprehensive')
+            priority = data.get('priority', 'normal')
+            investigator_name = data.get('investigator', 'System')
+
+            # Basic validation
+            if not target:
+                return jsonify({'error': 'Target is required'}), 400
+
+            # Whitelist validation for type and priority
+            if investigation_type not in ['comprehensive', 'infrastructure', 'social_media', 'threat_assessment', 'corporate']:
+                return jsonify({'error': 'Invalid investigation type'}), 400
+            if priority not in ['low', 'normal', 'high', 'urgent', 'critical']:
+                return jsonify({'error': 'Invalid priority level'}), 400
+
         # Generate investigator_id from name
         investigator_id = investigator_name.lower().replace(' ', '_').replace('-', '_') if investigator_name != 'System' else 'system'
-        
-        # Validate required fields
-        if not target:
-            return jsonify({'error': 'Target is required'}), 400
         
         # Map string values to enums
         inv_type = INVESTIGATION_TYPE_MAP.get(investigation_type, InvestigationType.COMPREHENSIVE)
