@@ -69,6 +69,26 @@ except ImportError:
     def validate_login_request(data): return data
     def get_safe_error_message(t, d=None): return d or 'An error occurred'
 
+# Caching service
+try:
+    from cache_service import cache_service, cached, CacheTTL, cached_response
+    CACHING_ENABLED = True
+except ImportError:
+    CACHING_ENABLED = False
+    cache_service = None
+    def cached(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    def cached_response(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    class CacheTTL:
+        SHORT = 60
+        MEDIUM = 300
+        LONG = 900
+
 # from job_queue import job_queue_manager, update_job_progress
 # Mock job queue manager for Docker compatibility
 class MockJobQueueManager:
@@ -1807,8 +1827,9 @@ def get_stats():
 # Compliance Framework API Endpoints
 
 @app.route('/api/compliance/frameworks', methods=['GET'])
+@cached('compliance_frameworks', ttl=CacheTTL.EXTENDED if CACHING_ENABLED else 3600)
 def get_compliance_frameworks():
-    """Get available compliance frameworks and their details"""
+    """Get available compliance frameworks and their details (cached for 1 hour)"""
     frameworks = {
         'gdpr': {
             'name': 'General Data Protection Regulation',
@@ -3600,6 +3621,80 @@ def get_enhanced_system_status():
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat()
         }), 500
+
+# ============================================================================
+# Cache Management Endpoints
+# ============================================================================
+
+@app.route('/api/cache/status', methods=['GET'])
+@require_auth
+def get_cache_status():
+    """Get cache service status and statistics"""
+    if not CACHING_ENABLED or cache_service is None:
+        return jsonify({
+            'enabled': False,
+            'message': 'Caching is not enabled',
+            'backend': 'none'
+        })
+
+    try:
+        health = cache_service.health_check()
+        return jsonify({
+            'enabled': True,
+            'backend': health.get('backend', 'unknown'),
+            'status': health.get('status', 'unknown'),
+            'latency_ms': health.get('latency_ms', 0),
+            'statistics': health.get('stats', {}),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Cache status error: {e}")
+        return jsonify({
+            'enabled': True,
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/cache/invalidate', methods=['POST'])
+@require_auth
+@require_role('admin')
+def invalidate_cache():
+    """Invalidate cache entries (admin only)"""
+    if not CACHING_ENABLED or cache_service is None:
+        return jsonify({'error': 'Caching is not enabled'}), 400
+
+    data = request.json or {}
+    pattern = data.get('pattern')
+    investigation_id = data.get('investigation_id')
+
+    try:
+        if investigation_id:
+            count = cache_service.invalidate_investigation(investigation_id)
+            return jsonify({
+                'success': True,
+                'message': f'Invalidated cache for investigation {investigation_id}',
+                'entries_removed': count
+            })
+        elif pattern:
+            count = cache_service.delete_pattern(pattern)
+            return jsonify({
+                'success': True,
+                'message': f'Invalidated cache entries matching pattern',
+                'entries_removed': count
+            })
+        else:
+            # Invalidate all
+            cache_service.invalidate_all()
+            cache_service.reset_stats()
+            return jsonify({
+                'success': True,
+                'message': 'All cache entries invalidated'
+            })
+    except Exception as e:
+        logger.error(f"Cache invalidation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 # ============================================================================
 
