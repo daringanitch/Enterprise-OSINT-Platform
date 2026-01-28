@@ -173,7 +173,7 @@ start_k8s() {
     # Start port forwarding in background
     info "Setting up port forwarding..."
     kubectl port-forward -n "$K8S_NAMESPACE" svc/osint-simple-frontend 8080:80 &>/dev/null &
-    kubectl port-forward -n "$K8S_NAMESPACE" svc/osint-backend 5000:5000 &>/dev/null &
+    kubectl port-forward -n "$K8S_NAMESPACE" svc/osint-backend 5001:5001 &>/dev/null &
 
     sleep 3
     print_access_info "k8s"
@@ -187,7 +187,7 @@ wait_for_services() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+        if curl -s http://localhost:5001/health > /dev/null 2>&1; then
             success "Backend is ready"
             break
         fi
@@ -214,8 +214,8 @@ print_access_info() {
     echo ""
     echo -e "${BOLD}Access the platform:${NC}"
     echo -e "  Frontend:  ${CYAN}http://localhost:8080${NC}"
-    echo -e "  API:       ${CYAN}http://localhost:5000${NC}"
-    echo -e "  API Docs:  ${CYAN}http://localhost:5000/health${NC}"
+    echo -e "  API:       ${CYAN}http://localhost:5001${NC}"
+    echo -e "  API Docs:  ${CYAN}http://localhost:5001/health${NC}"
     echo ""
     echo -e "${BOLD}Default credentials:${NC}"
     echo -e "  Username:  ${YELLOW}admin${NC}"
@@ -276,7 +276,7 @@ check_status() {
 
     # Check connectivity
     echo -e "${CYAN}Service Health:${NC}"
-    if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+    if curl -s http://localhost:5001/health > /dev/null 2>&1; then
         echo -e "  Backend:  ${GREEN}HEALTHY${NC}"
     else
         echo -e "  Backend:  ${RED}UNAVAILABLE${NC}"

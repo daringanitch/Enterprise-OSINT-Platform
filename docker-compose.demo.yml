@@ -16,7 +16,7 @@
 #
 # Access:
 #   Frontend: http://localhost:8080
-#   API: http://localhost:5000
+#   API: http://localhost:5001
 #   Login: admin / admin123
 # ============================================================================
 
@@ -81,7 +81,7 @@ services:
       # Logging
       LOG_LEVEL: INFO
     ports:
-      - "5000:5000"
+      - "5001:5001"
     depends_on:
       postgresql:
         condition: service_healthy
@@ -90,7 +90,7 @@ services:
     networks:
       - osint-demo-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -92,18 +92,18 @@ Enterprise-OSINT-Platform/
 
 ```bash
 # Login
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:5001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
 # Start Investigation
-curl -X POST http://localhost:5000/api/investigations \
+curl -X POST http://localhost:5001/api/investigations \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"target": "example.com", "investigation_type": "comprehensive"}'
 
 # Get Results
-curl http://localhost:5000/api/investigations/{id} \
+curl http://localhost:5001/api/investigations/{id} \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

@@ -29,7 +29,7 @@ docker compose -f docker-compose.demo.yml up -d
 | Feature | Demo Mode |
 |---------|-----------|
 | Web Interface | http://localhost:8080 |
-| API | http://localhost:5000 |
+| API | http://localhost:5001 |
 | Sample Investigations | 5 pre-loaded |
 | Report Generation | Full PDF reports |
 | External APIs | Simulated (no keys needed) |
@@ -73,9 +73,9 @@ docker compose -f docker-compose.demo.yml logs
 
 **Port already in use?**
 ```bash
-# Check what's using port 8080 or 5000
+# Check what's using port 8080 or 5001
 lsof -i :8080
-lsof -i :5000
+lsof -i :5001
 ```
 
 **Need to reset everything?**
@@ -90,6 +90,6 @@ docker volume rm enterprise-osint-platform_demo_postgres_data
 1. Create a new investigation from the dashboard
 2. Explore the pre-loaded sample investigations
 3. Generate a PDF report
-4. Check the API at http://localhost:5000/health
+4. Check the API at http://localhost:5001/health
 
 For full documentation, see [README.md](README.md).

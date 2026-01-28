@@ -107,7 +107,7 @@ pkill -f "kubectl port-forward" 2>/dev/null || true
 
 # Start port forwarding in background
 kubectl port-forward -n osint-platform svc/osint-simple-frontend 8080:80 &
-kubectl port-forward -n osint-platform svc/osint-backend 5000:5000 &
+kubectl port-forward -n osint-platform svc/osint-backend 5001:5001 &
 
 # Give port forwarding time to establish
 sleep 3
@@ -117,7 +117,7 @@ print_status "✅ Deployment complete!"
 echo ""
 echo "🎯 Access URLs:"
 echo "   Frontend (with Mode Toggle): http://localhost:8080"
-echo "   Backend API:                 http://localhost:5000"
+echo "   Backend API:                 http://localhost:5001"
 echo ""
 echo "🔧 Default Configuration:"
 echo "   • Mode: Demo (no API keys required)"

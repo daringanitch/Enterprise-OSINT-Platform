@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:5001"
 AUTH_ENDPOINTS = {
     "login": f"{BASE_URL}/api/auth/login",
     "logout": f"{BASE_URL}/api/auth/logout",

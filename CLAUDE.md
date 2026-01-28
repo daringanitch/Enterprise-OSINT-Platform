@@ -63,7 +63,7 @@ docker compose -f docker-compose.demo.yml up -d  # Manual
 cd simple-backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python app.py                # http://localhost:5000
+python app.py                # http://localhost:5001
 pytest tests/ -v             # Run tests
 ```
 

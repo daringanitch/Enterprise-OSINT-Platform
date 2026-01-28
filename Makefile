@@ -87,16 +87,16 @@ status:
 	@kubectl get svc -n osint-platform | grep -E "(backend|frontend)" || echo "No services found"
 	@echo ""
 	@echo "Port Forwards:"
-	@ps aux | grep -E "kubectl port-forward.*(5000|8080)" | grep -v grep || echo "No active port forwards"
+	@ps aux | grep -E "kubectl port-forward.*(5001|8080)" | grep -v grep || echo "No active port forwards"
 	@echo ""
 	@echo "Testing connectivity..."
-	@curl -s http://localhost:5000/health 2>/dev/null | grep -q "healthy" && echo "✅ Backend: OK" || echo "❌ Backend: Not accessible"
+	@curl -s http://localhost:5001/health 2>/dev/null | grep -q "healthy" && echo "✅ Backend: OK" || echo "❌ Backend: Not accessible"
 	@curl -s http://localhost:8080/health.html 2>/dev/null | grep -q "OK" && echo "✅ Frontend: OK" || echo "❌ Frontend: Not accessible"
 
 # Clean up port forwards
 clean:
 	@echo "🧹 Cleaning up port forwards..."
-	@pkill -f "kubectl port-forward.*5000" 2>/dev/null || true
+	@pkill -f "kubectl port-forward.*5001" 2>/dev/null || true
 	@pkill -f "kubectl port-forward.*8080" 2>/dev/null || true
 	@echo "✅ Port forwards cleaned up"
 

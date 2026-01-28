@@ -265,49 +265,98 @@ def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def authenticate_user(username, password):
-    """Authenticate user against PostgreSQL database"""
+    """Authenticate user against PostgreSQL database or demo fallback"""
+
+    # Demo mode fallback users
+    DEMO_USERS = {
+        'admin': {
+            'password': 'admin123',
+            'user_id': 'admin',
+            'username': 'admin',
+            'full_name': 'System Administrator',
+            'role': 'admin',
+            'clearance_level': 'confidential'
+        },
+        'analyst1': {
+            'password': 'admin123',
+            'user_id': 'analyst1',
+            'username': 'analyst1',
+            'full_name': 'John Analyst',
+            'role': 'analyst',
+            'clearance_level': 'internal'
+        },
+        'analyst2': {
+            'password': 'admin123',
+            'user_id': 'analyst2',
+            'username': 'analyst2',
+            'full_name': 'Jane Investigator',
+            'role': 'senior_analyst',
+            'clearance_level': 'confidential'
+        }
+    }
+
     conn = get_db_connection()
     if not conn:
+        # Fallback to demo users if database unavailable
+        logger.warning("Database unavailable, using demo authentication")
+        if username in DEMO_USERS and DEMO_USERS[username]['password'] == password:
+            user_data = DEMO_USERS[username].copy()
+            del user_data['password']
+            return user_data
         return None
-    
+
     try:
         cursor = conn.cursor()
         # Support both username and email for login
         cursor.execute("""
-            SELECT id, email, hashed_password, full_name, is_admin, is_active
-            FROM public.users 
-            WHERE (email = %s OR id = %s) AND is_active = true
+            SELECT id, user_id, username, email, password_hash, full_name, role, clearance_level, is_active
+            FROM public.users
+            WHERE (username = %s OR email = %s) AND is_active = true
         """, (username, username))
-        
+
         user = cursor.fetchone()
-        if user and verify_password(password, user[2]):
+        if user and verify_password(password, user[4]):
             # Update last login
             cursor.execute("""
-                UPDATE public.users 
-                SET last_login_at = NOW()
+                UPDATE public.users
+                SET last_login = NOW()
                 WHERE id = %s
             """, (user[0],))
             conn.commit()
-            
+
             return {
-                'user_id': user[0],
-                'username': user[1],  # Using email as username
-                'full_name': user[3],
-                'role': 'admin' if user[4] else 'user',
-                'clearance_level': 'confidential'
+                'user_id': user[1],  # user_id column
+                'username': user[2],  # username column
+                'full_name': user[5],
+                'role': user[6],
+                'clearance_level': user[7] or 'internal'
             }
         else:
             # Increment failed login attempts
             cursor.execute("""
-                UPDATE public.users 
-                SET failed_login_attempts = failed_login_attempts + 1 
-                WHERE username = %s
-            """, (username,))
+                UPDATE public.users
+                SET failed_login_attempts = failed_login_attempts + 1
+                WHERE username = %s OR email = %s
+            """, (username, username))
             conn.commit()
+
+            # Fallback to demo users if DB auth fails and in demo mode
+            if mode_manager.is_demo_mode():
+                if username in DEMO_USERS and DEMO_USERS[username]['password'] == password:
+                    logger.info(f"Demo mode: authenticating user {username}")
+                    user_data = DEMO_USERS[username].copy()
+                    del user_data['password']
+                    return user_data
             return None
-            
+
     except Exception as e:
         logger.error(f"Authentication error: {e}")
+        # Fallback to demo users on error
+        if username in DEMO_USERS and DEMO_USERS[username]['password'] == password:
+            logger.warning(f"Database error, using demo fallback for user {username}")
+            user_data = DEMO_USERS[username].copy()
+            del user_data['password']
+            return user_data
         return None
     finally:
         conn.close()
@@ -3240,5 +3289,5 @@ cleanup_thread = threading.Thread(target=cleanup_expired_reports, daemon=True)
 cleanup_thread.start()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -16,7 +16,7 @@ check_port_forward() {
 # Function to kill existing port forwards
 kill_port_forwards() {
     echo "🛑 Cleaning up existing port forwards..."
-    pkill -f "kubectl port-forward.*5000" 2>/dev/null || true
+    pkill -f "kubectl port-forward.*5001" 2>/dev/null || true
     pkill -f "kubectl port-forward.*8080" 2>/dev/null || true
     sleep 2
 }
@@ -48,8 +48,8 @@ test_connectivity() {
     echo "🧪 Testing connectivity..."
     
     # Test backend
-    if curl -s http://localhost:5000/health | grep -q "healthy"; then
-        echo "✅ Backend is accessible at http://localhost:5000"
+    if curl -s http://localhost:5001/health | grep -q "healthy"; then
+        echo "✅ Backend is accessible at http://localhost:5001"
     else
         echo "❌ Backend is NOT accessible"
     fi
@@ -72,7 +72,7 @@ echo ""
 kill_port_forwards
 
 # Start backend port forward
-start_port_forward "osint-backend" 5000 5000
+start_port_forward "osint-backend" 5001 5001
 
 # Start frontend port forward
 start_port_forward "osint-simple-frontend" 8080 80
@@ -85,7 +85,7 @@ echo "🎉 Port forwarding is active\!"
 echo ""
 echo "📌 Access points:"
 echo "   Frontend: http://localhost:8080"
-echo "   Backend:  http://localhost:5000"
+echo "   Backend:  http://localhost:5001"
 echo ""
 echo "📝 Login credentials:"
 echo "   Username: admin"

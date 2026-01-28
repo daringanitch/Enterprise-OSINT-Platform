@@ -62,7 +62,7 @@ services:
       # TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
       # SHODAN_API_KEY: ${SHODAN_API_KEY}
     ports:
-      - "5000:5000"
+      - "5001:5001"
     depends_on:
       postgresql:
         condition: service_healthy
@@ -72,7 +72,7 @@ services:
       - osint-network
     volumes:
       - ./simple-backend:/app:ro
-    command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 app:app
+    command: gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 120 app:app
 
   # OSINT Frontend
   frontend:

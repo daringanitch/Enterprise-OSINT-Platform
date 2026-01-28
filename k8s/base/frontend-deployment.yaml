@@ -26,9 +26,9 @@ spec:
           name: http
         env:
         - name: REACT_APP_API_URL
-          value: "http://osint-backend:5000"
+          value: "http://osint-backend:5001"
         - name: REACT_APP_WS_URL
-          value: "ws://osint-backend:5000"
+          value: "ws://osint-backend:5001"
         resources:
           requests:
             memory: "128Mi"
