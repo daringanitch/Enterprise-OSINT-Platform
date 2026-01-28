@@ -425,23 +425,20 @@ class InvestigationOrchestrator:
         - Set investigation scope and constraints
         """
         investigation.update_progress(0.1, "Validating investigation parameters")
-        time.sleep(0.5)  # Simulate processing
-        
+
         # Validate target
         target = investigation.target_profile.primary_identifier
         if not target or len(target.strip()) == 0:
             raise InvestigationError("Invalid target identifier", investigation.id)
-        
+
         investigation.update_progress(0.3, "Assessing compliance requirements")
-        time.sleep(0.5)
-        
+
         # Basic compliance assessment (simplified for demo)
         if investigation.scope.exclude_pii:
             investigation.add_finding("PII exclusion enabled for compliance", "compliance")
-        
+
         investigation.update_progress(0.6, "Setting investigation scope")
-        time.sleep(0.5)
-        
+
         # Scope validation based on investigation type
         if investigation.investigation_type == InvestigationType.INFRASTRUCTURE:
             investigation.scope.include_social_media = False
@@ -449,10 +446,9 @@ class InvestigationOrchestrator:
         elif investigation.investigation_type == InvestigationType.SOCIAL_MEDIA:
             investigation.scope.include_infrastructure = False
             investigation.add_finding("Focused social media investigation scope set", "planning")
-        
+
         investigation.update_progress(0.8, "Estimating investigation timeline")
-        time.sleep(0.5)
-        
+
         # Set estimated completion based on scope
         hours_estimate = 2  # Base estimate
         if investigation.scope.include_social_media:
@@ -461,9 +457,9 @@ class InvestigationOrchestrator:
             hours_estimate += 2
         if investigation.scope.include_threat_intelligence:
             hours_estimate += 1
-            
+
         investigation.progress.estimated_completion = datetime.utcnow() + timedelta(hours=hours_estimate)
-        
+
         investigation.update_progress(1.0, "Investigation planning completed")
         investigation.add_finding(f"Investigation plan created for {target}", "planning")
     
@@ -476,10 +472,9 @@ class InvestigationOrchestrator:
         - Refine intelligence collection scope
         """
         investigation.update_progress(0.1, "Analyzing target characteristics")
-        time.sleep(0.8)
-        
+
         target = investigation.target_profile.primary_identifier
-        
+
         # Basic target type detection (simplified)
         if "." in target and not "@" in target:
             investigation.target_profile.target_type = "domain"
@@ -490,10 +485,9 @@ class InvestigationOrchestrator:
         else:
             investigation.target_profile.target_type = "company"
             investigation.add_finding(f"Target identified as company/entity: {target}", "profiling")
-        
+
         investigation.update_progress(0.4, "Expanding target profile")
-        time.sleep(0.8)
-        
+
         # Simulate secondary identifier discovery
         if investigation.target_profile.target_type == "domain":
             investigation.target_profile.secondary_identifiers = [
@@ -502,14 +496,13 @@ class InvestigationOrchestrator:
                 f"*.{target}"
             ]
             investigation.add_finding(f"Discovered {len(investigation.target_profile.secondary_identifiers)} related identifiers", "profiling")
-        
+
         investigation.update_progress(0.7, "Refining intelligence scope")
-        time.sleep(0.6)
-        
+
         # Adjust scope based on target type
         if investigation.target_profile.target_type == "domain":
             investigation.scope.max_domains_to_scan = min(investigation.scope.max_domains_to_scan, 50)
-        
+
         investigation.update_progress(1.0, "Target profiling completed")
     
     @trace_operation("investigation.stage.collecting")
@@ -522,41 +515,50 @@ class InvestigationOrchestrator:
         - Threat intelligence correlation
         """
         investigation.update_progress(0.1, "Initializing intelligence collection")
-        time.sleep(0.5)
-        
+
         # Initialize intelligence containers
         investigation.social_intelligence = SocialIntelligence()
         investigation.infrastructure_intelligence = InfrastructureIntelligence()
         investigation.threat_intelligence = ThreatIntelligence()
-        
+
         collection_tasks = []
-        
-        # Collect intelligence asynchronously
+
+        # Collect intelligence asynchronously using existing or new event loop
         async def run_collection():
-            collection_tasks_async = []
-            
+            tasks = []
+
             # Social Media Collection
             if investigation.scope.include_social_media:
                 investigation.update_progress(0.2, "Collecting social media intelligence")
-                await self._collect_social_intelligence(investigation)
+                tasks.append(self._collect_social_intelligence(investigation))
                 collection_tasks.append("social_media")
-            
-            # Infrastructure Collection  
+
+            # Infrastructure Collection
             if investigation.scope.include_infrastructure:
-                investigation.update_progress(0.5, "Collecting infrastructure intelligence")
-                await self._collect_infrastructure_intelligence(investigation)
+                investigation.update_progress(0.4, "Collecting infrastructure intelligence")
+                tasks.append(self._collect_infrastructure_intelligence(investigation))
                 collection_tasks.append("infrastructure")
-            
+
             # Threat Intelligence Collection
             if investigation.scope.include_threat_intelligence:
-                investigation.update_progress(0.8, "Collecting threat intelligence")
-                await self._collect_threat_intelligence(investigation)
+                investigation.update_progress(0.6, "Collecting threat intelligence")
+                tasks.append(self._collect_threat_intelligence(investigation))
                 collection_tasks.append("threat_intelligence")
-        
-        # Run the async collection
-        import asyncio
-        asyncio.run(run_collection())
-        
+
+            # Run all collection tasks in parallel for better performance
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Use existing event loop if available, otherwise create one
+        try:
+            loop = asyncio.get_running_loop()
+            # Already in an async context - create a task
+            future = asyncio.ensure_future(run_collection())
+            loop.run_until_complete(future)
+        except RuntimeError:
+            # No running loop - create a new one (but reuse for efficiency)
+            asyncio.run(run_collection())
+
         investigation.progress.data_points_collected = len(collection_tasks) * 50  # Simulated
         investigation.update_progress(1.0, f"Intelligence collection completed - {len(collection_tasks)} sources")
     
@@ -892,8 +894,7 @@ class InvestigationOrchestrator:
         - Generate key findings and insights
         """
         investigation.update_progress(0.2, "Correlating intelligence data")
-        time.sleep(1.0)
-        
+
         # Analyze collected intelligence
         total_data_points = 0
         if investigation.social_intelligence:
@@ -903,28 +904,27 @@ class InvestigationOrchestrator:
             total_data_points += len(investigation.infrastructure_intelligence.subdomains)
         if investigation.threat_intelligence:
             total_data_points += len(investigation.threat_intelligence.network_indicators)
-        
+
         investigation.progress.data_points_collected = total_data_points
-        
+
         investigation.update_progress(0.5, "Performing risk assessment")
-        time.sleep(0.8)
-        
+
         # Risk assessment calculation
         social_risk = 0.0
         infra_risk = 0.0
         threat_risk = 0.0
-        
+
         if investigation.social_intelligence:
             social_risk = max(0, 50 - investigation.social_intelligence.reputation_score) / 50 * 100
-        
+
         if investigation.infrastructure_intelligence:
             infra_risk = len(investigation.infrastructure_intelligence.exposed_services) * 10
-            
+
         if investigation.threat_intelligence:
             threat_risk = investigation.threat_intelligence.risk_score
-        
+
         overall_risk = (social_risk + infra_risk + threat_risk) / 3
-        
+
         investigation.risk_assessment = {
             "overall_risk_score": round(overall_risk, 1),
             "social_media_risk": round(social_risk, 1),
@@ -932,19 +932,18 @@ class InvestigationOrchestrator:
             "threat_intelligence_risk": round(threat_risk, 1),
             "risk_level": "low" if overall_risk < 30 else "medium" if overall_risk < 70 else "high"
         }
-        
+
         investigation.update_progress(0.8, "Generating key findings")
-        time.sleep(0.6)
-        
+
         # Generate key findings
         if investigation.social_intelligence:
             investigation.add_finding(f"Social media reputation score: {investigation.social_intelligence.reputation_score}/100", "analysis")
-        
+
         if investigation.infrastructure_intelligence:
             investigation.add_finding(f"Infrastructure footprint: {len(investigation.infrastructure_intelligence.subdomains)} subdomains, {len(investigation.infrastructure_intelligence.exposed_services)} services", "analysis")
-        
+
         investigation.add_finding(f"Overall risk level: {investigation.risk_assessment['risk_level'].upper()}", "analysis")
-        
+
         investigation.update_progress(1.0, "Intelligence analysis completed")
     
     @trace_operation("investigation.stage.verifying")
@@ -1184,7 +1183,6 @@ class InvestigationOrchestrator:
         - Identify attack vectors and scenarios
         """
         investigation.update_progress(0.1, "Initializing risk assessment engine")
-        time.sleep(0.3)
         
         try:
             # Extract intelligence data for correlation
@@ -1210,7 +1208,6 @@ class InvestigationOrchestrator:
                 }
             
             investigation.update_progress(0.3, "Correlating infrastructure intelligence")
-            time.sleep(0.4)
             
             # Infrastructure intelligence data
             infra_intel_data = None
@@ -1222,7 +1219,6 @@ class InvestigationOrchestrator:
                 }
             
             investigation.update_progress(0.5, "Processing threat intelligence correlation")
-            time.sleep(0.4)
             
             # Threat intelligence data
             threat_intel_data = None
@@ -1234,7 +1230,6 @@ class InvestigationOrchestrator:
                 }
             
             investigation.update_progress(0.7, "Generating risk assessment")
-            time.sleep(0.5)
             
             # Perform comprehensive risk assessment
             risk_assessment = self.risk_engine.assess_risk(
@@ -1278,7 +1273,6 @@ class InvestigationOrchestrator:
             }
             
             investigation.update_progress(0.9, "Finalizing risk assessment")
-            time.sleep(0.2)
             
             # Add risk findings to investigation
             risk_level = risk_assessment.threat_level.value.upper()
@@ -1343,7 +1337,6 @@ class InvestigationOrchestrator:
         - Create actionable recommendations
         """
         investigation.update_progress(0.2, "Generating executive summary")
-        time.sleep(0.8)
         
         # Generate executive summary
         target = investigation.target_profile.primary_identifier
@@ -1364,7 +1357,6 @@ Investigation completed by {investigation.investigator_name} on {datetime.utcnow
         """.strip()
         
         investigation.update_progress(0.6, "Compiling technical findings")
-        time.sleep(0.6)
         
         # Generate recommendations based on findings
         if investigation.risk_assessment.get('overall_risk_score', 0) > 50:
@@ -1386,7 +1378,6 @@ Investigation completed by {investigation.investigator_name} on {datetime.utcnow
             investigation.recommendations.append("Regular infrastructure security assessments recommended")
         
         investigation.update_progress(0.9, "Finalizing report")
-        time.sleep(0.4)
         
         investigation.data_size_mb = investigation.progress.data_points_collected * 0.1  # Estimate
         investigation.cost_estimate_usd = investigation.api_calls_made * 0.01  # Estimate

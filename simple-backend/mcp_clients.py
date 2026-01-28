@@ -1058,11 +1058,44 @@ class EnhancedMCPClient:
 
 
 class MCPClientManager:
-    """Manager for all MCP intelligence gathering clients"""
-    
+    """Manager for all MCP intelligence gathering clients with connection pooling"""
+
+    # Class-level session pool for connection reuse
+    _session: Optional[aiohttp.ClientSession] = None
+    _session_lock = asyncio.Lock() if hasattr(asyncio, 'Lock') else None
+
     def __init__(self):
         self.clients: Dict[str, MCPClientBase] = {}
         self._setup_credentials()
+
+    @classmethod
+    async def get_session(cls) -> aiohttp.ClientSession:
+        """Get or create a shared aiohttp session with connection pooling"""
+        if cls._session is None or cls._session.closed:
+            # Configure connection pooling for better performance
+            connector = aiohttp.TCPConnector(
+                limit=100,  # Max total connections
+                limit_per_host=10,  # Max connections per host
+                ttl_dns_cache=300,  # DNS cache TTL in seconds
+                enable_cleanup_closed=True
+            )
+            timeout = aiohttp.ClientTimeout(
+                total=60,  # Total timeout
+                connect=10,  # Connection timeout
+                sock_read=30  # Read timeout
+            )
+            cls._session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout
+            )
+        return cls._session
+
+    @classmethod
+    async def close_session(cls):
+        """Close the shared session (call on app shutdown)"""
+        if cls._session and not cls._session.closed:
+            await cls._session.close()
+            cls._session = None
     
     def _setup_credentials(self):
         """Setup API credentials from environment variables"""
@@ -1144,60 +1177,58 @@ class MCPClientManager:
         self.clients['ai_analyzer'] = EnhancedMCPClient('ai_analyzer', enhanced_servers['ai_analyzer'])
     
     async def gather_all_intelligence(self, target: str, investigation_type: str = 'comprehensive') -> Dict[str, List[IntelligenceResult]]:
-        """Gather intelligence from enhanced MCP servers via HTTP"""
+        """Gather intelligence from enhanced MCP servers via HTTP with connection pooling"""
         results = {}
-        
+
         try:
-            # Use direct HTTP calls to enhanced MCP servers
-            import aiohttp
-            
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
-                
-                # Infrastructure Intelligence
-                if investigation_type in ['comprehensive', 'infrastructure']:
-                    try:
-                        results['infrastructure'] = await self._call_enhanced_mcp(
-                            session, 'http://mcp-infrastructure-enhanced:8021/execute',
-                            [
-                                {'tool': 'whois_lookup', 'parameters': {'domain': target}},
-                                {'tool': 'dns_records', 'parameters': {'domain': target, 'record_type': 'A'}},
-                                {'tool': 'ssl_certificate_info', 'parameters': {'domain': target}}
-                            ],
-                            'infrastructure'
-                        )
-                    except Exception as e:
-                        logger.error(f"Infrastructure intelligence failed: {str(e)}")
-                        results['infrastructure'] = []
-                
-                # Social Media Intelligence
-                if investigation_type in ['comprehensive', 'social_media']:
-                    try:
-                        results['social_media'] = await self._call_enhanced_mcp(
-                            session, 'http://mcp-social-enhanced:8010/execute',
-                            [
-                                {'tool': 'reddit_profile', 'parameters': {'username': target}},
-                                {'tool': 'social_media_search', 'parameters': {'query': target}}
-                            ],
-                            'social_media'
-                        )
-                    except Exception as e:
-                        logger.error(f"Social media intelligence failed: {str(e)}")
-                        results['social_media'] = []
-                
-                # Threat Intelligence
-                if investigation_type in ['comprehensive', 'threat_assessment']:
-                    try:
-                        results['threat_intelligence'] = await self._call_enhanced_mcp(
-                            session, 'http://mcp-threat-enhanced:8020/execute',
-                            [
-                                {'tool': 'virustotal_domain', 'parameters': {'domain': target}}
-                            ],
-                            'threat_intelligence'
-                        )
-                    except Exception as e:
-                        logger.error(f"Threat intelligence failed: {str(e)}")
-                        results['threat_intelligence'] = []
-        
+            # Use shared session with connection pooling for better performance
+            session = await self.get_session()
+
+            # Infrastructure Intelligence
+            if investigation_type in ['comprehensive', 'infrastructure']:
+                try:
+                    results['infrastructure'] = await self._call_enhanced_mcp(
+                        session, 'http://mcp-infrastructure-enhanced:8021/execute',
+                        [
+                            {'tool': 'whois_lookup', 'parameters': {'domain': target}},
+                            {'tool': 'dns_records', 'parameters': {'domain': target, 'record_type': 'A'}},
+                            {'tool': 'ssl_certificate_info', 'parameters': {'domain': target}}
+                        ],
+                        'infrastructure'
+                    )
+                except Exception as e:
+                    logger.error(f"Infrastructure intelligence failed: {str(e)}")
+                    results['infrastructure'] = []
+
+            # Social Media Intelligence
+            if investigation_type in ['comprehensive', 'social_media']:
+                try:
+                    results['social_media'] = await self._call_enhanced_mcp(
+                        session, 'http://mcp-social-enhanced:8010/execute',
+                        [
+                            {'tool': 'reddit_profile', 'parameters': {'username': target}},
+                            {'tool': 'social_media_search', 'parameters': {'query': target}}
+                        ],
+                        'social_media'
+                    )
+                except Exception as e:
+                    logger.error(f"Social media intelligence failed: {str(e)}")
+                    results['social_media'] = []
+
+            # Threat Intelligence
+            if investigation_type in ['comprehensive', 'threat_assessment']:
+                try:
+                    results['threat_intelligence'] = await self._call_enhanced_mcp(
+                        session, 'http://mcp-threat-enhanced:8020/execute',
+                        [
+                            {'tool': 'virustotal_domain', 'parameters': {'domain': target}}
+                        ],
+                        'threat_intelligence'
+                    )
+                except Exception as e:
+                    logger.error(f"Threat intelligence failed: {str(e)}")
+                    results['threat_intelligence'] = []
+
         except Exception as e:
             logger.error(f"Intelligence gathering manager failed: {str(e)}")
         
