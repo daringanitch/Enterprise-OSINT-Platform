@@ -97,6 +97,14 @@ except ImportError:
     EXPANDED_SOURCES_AVAILABLE = False
     expanded_data_manager = None
 
+# Intelligence correlation engine
+try:
+    from intelligence_correlation import IntelligenceCorrelator, EntityType, RelationshipType
+    CORRELATION_AVAILABLE = True
+except ImportError:
+    CORRELATION_AVAILABLE = False
+    IntelligenceCorrelator = None
+
 # from job_queue import job_queue_manager, update_job_progress
 # Mock job queue manager for Docker compatibility
 class MockJobQueueManager:
@@ -3856,6 +3864,423 @@ def gather_from_source(source_name):
     except Exception as e:
         logger.error(f"Source {source_name} gathering error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Intelligence Correlation Endpoints
+# ============================================================================
+
+@app.route('/api/correlation/analyze', methods=['POST'])
+@require_auth
+def correlate_intelligence():
+    """
+    Perform entity extraction and correlation on provided data.
+
+    Request body:
+    {
+        "data": {
+            "infrastructure": {...},
+            "social": {...},
+            "threat": {...},
+            "expanded_sources": {...}
+        }
+    }
+
+    Returns correlated entities, relationships, timeline, and findings.
+    """
+    if not CORRELATION_AVAILABLE:
+        return jsonify({'error': 'Intelligence correlation not available'}), 503
+
+    data = request.json or {}
+    correlation_data = data.get('data', {})
+
+    if not correlation_data:
+        return jsonify({'error': 'No data provided for correlation'}), 400
+
+    try:
+        correlator = IntelligenceCorrelator()
+        result = correlator.correlate(correlation_data)
+
+        return jsonify({
+            'success': True,
+            'correlation': result.to_dict(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Correlation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/correlation/entity-types', methods=['GET'])
+@require_auth
+def get_entity_types():
+    """Get list of supported entity types for correlation."""
+    if not CORRELATION_AVAILABLE:
+        return jsonify({'error': 'Intelligence correlation not available'}), 503
+
+    return jsonify({
+        'entity_types': [
+            {'value': et.value, 'name': et.name}
+            for et in EntityType
+        ],
+        'relationship_types': [
+            {'value': rt.value, 'name': rt.name}
+            for rt in RelationshipType
+        ]
+    })
+
+
+@app.route('/api/investigations/<investigation_id>/correlation', methods=['GET'])
+@require_auth
+def get_investigation_correlation(investigation_id):
+    """
+    Get correlation results for a specific investigation.
+
+    Returns entities, relationships, timeline, and findings.
+    """
+    # Check demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(investigation_id)
+        if demo_inv:
+            # Generate sample correlation for demo
+            return jsonify({
+                'investigation_id': investigation_id,
+                'correlation': _generate_demo_correlation(demo_inv),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Check active investigations
+    investigation = orchestrator.get_investigation_status(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Get correlation results
+    correlation_results = getattr(investigation, 'correlation_results', None)
+
+    if correlation_results:
+        return jsonify({
+            'investigation_id': investigation_id,
+            'correlation': correlation_results,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    else:
+        return jsonify({
+            'investigation_id': investigation_id,
+            'correlation': None,
+            'message': 'Correlation not yet available for this investigation',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+@app.route('/api/investigations/<investigation_id>/entities', methods=['GET'])
+@require_auth
+def get_investigation_entities(investigation_id):
+    """
+    Get extracted entities for a specific investigation.
+
+    Query params:
+        type: Filter by entity type (domain, ip_address, email, etc.)
+        min_confidence: Minimum confidence score (0.0-1.0)
+    """
+    entity_type = request.args.get('type')
+    min_confidence = float(request.args.get('min_confidence', 0))
+
+    # Check demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(investigation_id)
+        if demo_inv:
+            entities = _generate_demo_entities(demo_inv, entity_type, min_confidence)
+            return jsonify({
+                'investigation_id': investigation_id,
+                'entities': entities,
+                'count': len(entities),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    investigation = orchestrator.get_investigation_status(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    correlation_results = getattr(investigation, 'correlation_results', None)
+
+    if correlation_results:
+        entities = correlation_results.get('entities', {})
+
+        # Filter by type if specified
+        if entity_type:
+            entities = {k: v for k, v in entities.items() if v.get('type') == entity_type}
+
+        # Filter by confidence
+        if min_confidence > 0:
+            entities = {k: v for k, v in entities.items() if v.get('confidence', 0) >= min_confidence}
+
+        return jsonify({
+            'investigation_id': investigation_id,
+            'entities': entities,
+            'count': len(entities),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    else:
+        return jsonify({
+            'investigation_id': investigation_id,
+            'entities': {},
+            'count': 0,
+            'message': 'No entities available',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+@app.route('/api/investigations/<investigation_id>/timeline', methods=['GET'])
+@require_auth
+def get_investigation_timeline(investigation_id):
+    """
+    Get reconstructed timeline for a specific investigation.
+
+    Query params:
+        severity: Filter by severity (info, warning, critical)
+        limit: Maximum number of events to return
+    """
+    severity = request.args.get('severity')
+    limit = int(request.args.get('limit', 100))
+
+    # Check demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(investigation_id)
+        if demo_inv:
+            timeline = _generate_demo_timeline(demo_inv, severity, limit)
+            return jsonify({
+                'investigation_id': investigation_id,
+                'timeline': timeline,
+                'count': len(timeline),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    investigation = orchestrator.get_investigation_status(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    correlation_results = getattr(investigation, 'correlation_results', None)
+
+    if correlation_results:
+        timeline = correlation_results.get('timeline', [])
+
+        # Filter by severity if specified
+        if severity:
+            timeline = [e for e in timeline if e.get('severity') == severity]
+
+        # Limit results
+        timeline = timeline[:limit]
+
+        return jsonify({
+            'investigation_id': investigation_id,
+            'timeline': timeline,
+            'count': len(timeline),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    else:
+        return jsonify({
+            'investigation_id': investigation_id,
+            'timeline': [],
+            'count': 0,
+            'message': 'No timeline available',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+@app.route('/api/investigations/<investigation_id>/relationships', methods=['GET'])
+@require_auth
+def get_investigation_relationships(investigation_id):
+    """
+    Get entity relationships for a specific investigation.
+
+    Query params:
+        type: Filter by relationship type
+        entity_id: Filter relationships involving specific entity
+    """
+    rel_type = request.args.get('type')
+    entity_id = request.args.get('entity_id')
+
+    # Check demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(investigation_id)
+        if demo_inv:
+            relationships = _generate_demo_relationships(demo_inv, rel_type, entity_id)
+            return jsonify({
+                'investigation_id': investigation_id,
+                'relationships': relationships,
+                'count': len(relationships),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    investigation = orchestrator.get_investigation_status(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    correlation_results = getattr(investigation, 'correlation_results', None)
+
+    if correlation_results:
+        relationships = correlation_results.get('relationships', [])
+
+        # Filter by type if specified
+        if rel_type:
+            relationships = [r for r in relationships if r.get('type') == rel_type]
+
+        # Filter by entity if specified
+        if entity_id:
+            relationships = [r for r in relationships
+                           if r.get('source') == entity_id or r.get('target') == entity_id]
+
+        return jsonify({
+            'investigation_id': investigation_id,
+            'relationships': relationships,
+            'count': len(relationships),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    else:
+        return jsonify({
+            'investigation_id': investigation_id,
+            'relationships': [],
+            'count': 0,
+            'message': 'No relationships available',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+def _generate_demo_correlation(demo_inv):
+    """Generate sample correlation data for demo mode."""
+    target = demo_inv.get('target', 'example.com')
+    return {
+        'entities': {
+            'ent_001': {
+                'id': 'ent_001',
+                'type': 'domain',
+                'value': target,
+                'normalized_value': target.lower(),
+                'sources': ['infrastructure_intel', 'passive_dns'],
+                'source_count': 2,
+                'confidence': 0.95,
+                'tags': ['target_domain']
+            },
+            'ent_002': {
+                'id': 'ent_002',
+                'type': 'ip_address',
+                'value': '192.0.2.1',
+                'normalized_value': '192.0.2.1',
+                'sources': ['infrastructure_intel', 'passive_dns', 'threat_intel'],
+                'source_count': 3,
+                'confidence': 0.92,
+                'tags': ['primary_ip']
+            },
+            'ent_003': {
+                'id': 'ent_003',
+                'type': 'organization',
+                'value': 'Example Corp',
+                'normalized_value': 'example corp',
+                'sources': ['business_intel'],
+                'source_count': 1,
+                'confidence': 0.78,
+                'tags': ['registrant']
+            }
+        },
+        'entity_count': 3,
+        'relationships': [
+            {
+                'source': 'ent_001',
+                'target': 'ent_002',
+                'type': 'resolves_to',
+                'confidence': 0.9,
+                'sources': ['passive_dns']
+            },
+            {
+                'source': 'ent_003',
+                'target': 'ent_001',
+                'type': 'owns',
+                'confidence': 0.85,
+                'sources': ['infrastructure_intel']
+            }
+        ],
+        'relationship_count': 2,
+        'timeline': [
+            {
+                'timestamp': '2024-01-15T10:30:00',
+                'event_type': 'domain_discovered',
+                'description': f'Domain discovered: {target}',
+                'severity': 'info'
+            },
+            {
+                'timestamp': '2024-06-20T14:22:00',
+                'event_type': 'dns_resolution',
+                'description': 'Domain resolved to IP: 192.0.2.1',
+                'severity': 'info'
+            }
+        ],
+        'event_count': 2,
+        'key_findings': [
+            {
+                'type': 'multi_source_confirmation',
+                'severity': 'info',
+                'title': 'Entities Confirmed by Multiple Sources',
+                'description': '2 entities were confirmed by 2+ independent sources'
+            }
+        ],
+        'confidence_summary': {
+            'domain': 0.95,
+            'ip_address': 0.92,
+            'organization': 0.78,
+            'overall': 0.88
+        },
+        'statistics': {
+            'total_entities': 3,
+            'entities_by_type': {'domain': 1, 'ip_address': 1, 'organization': 1},
+            'total_relationships': 2,
+            'relationships_by_type': {'resolves_to': 1, 'owns': 1},
+            'total_timeline_events': 2,
+            'unique_sources': 4
+        }
+    }
+
+
+def _generate_demo_entities(demo_inv, entity_type=None, min_confidence=0):
+    """Generate sample entities for demo mode."""
+    correlation = _generate_demo_correlation(demo_inv)
+    entities = correlation['entities']
+
+    if entity_type:
+        entities = {k: v for k, v in entities.items() if v.get('type') == entity_type}
+    if min_confidence > 0:
+        entities = {k: v for k, v in entities.items() if v.get('confidence', 0) >= min_confidence}
+
+    return entities
+
+
+def _generate_demo_timeline(demo_inv, severity=None, limit=100):
+    """Generate sample timeline for demo mode."""
+    correlation = _generate_demo_correlation(demo_inv)
+    timeline = correlation['timeline']
+
+    if severity:
+        timeline = [e for e in timeline if e.get('severity') == severity]
+
+    return timeline[:limit]
+
+
+def _generate_demo_relationships(demo_inv, rel_type=None, entity_id=None):
+    """Generate sample relationships for demo mode."""
+    correlation = _generate_demo_correlation(demo_inv)
+    relationships = correlation['relationships']
+
+    if rel_type:
+        relationships = [r for r in relationships if r.get('type') == rel_type]
+    if entity_id:
+        relationships = [r for r in relationships
+                        if r.get('source') == entity_id or r.get('target') == entity_id]
+
+    return relationships
 
 
 # ============================================================================

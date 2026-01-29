@@ -56,7 +56,14 @@ try:
 except ImportError:
     EXPANDED_SOURCES_AVAILABLE = False
     expanded_data_manager = None
-    logger.warning("Expanded data sources not available")
+
+# Import intelligence correlation engine
+try:
+    from intelligence_correlation import IntelligenceCorrelator, CorrelationResult
+    CORRELATION_AVAILABLE = True
+except ImportError:
+    CORRELATION_AVAILABLE = False
+    IntelligenceCorrelator = None
 
 logger = logging.getLogger(__name__)
 
@@ -1067,30 +1074,67 @@ class InvestigationOrchestrator:
     def _stage_analyzing(self, investigation: OSINTInvestigation):
         """
         Stage 4: Intelligence Analysis & Correlation
-        - Correlate data across intelligence sources
+        - Extract and correlate entities across intelligence sources
+        - Build relationship graphs between entities
+        - Calculate confidence scores from multi-source confirmation
+        - Reconstruct investigation timeline
         - Perform risk assessment
         - Generate key findings and insights
         """
-        investigation.update_progress(0.2, "Correlating intelligence data")
+        investigation.update_progress(0.1, "Preparing intelligence data for correlation")
 
-        # Analyze collected intelligence
-        total_data_points = 0
-        if investigation.social_intelligence:
-            total_data_points += len(investigation.social_intelligence.platforms)
-        if investigation.infrastructure_intelligence:
-            total_data_points += len(investigation.infrastructure_intelligence.domains)
-            total_data_points += len(investigation.infrastructure_intelligence.subdomains)
-        if investigation.threat_intelligence:
-            total_data_points += len(investigation.threat_intelligence.network_indicators)
+        # Prepare data for correlation engine
+        correlation_data = self._prepare_correlation_data(investigation)
 
-        investigation.progress.data_points_collected = total_data_points
+        # Perform advanced correlation if available
+        if CORRELATION_AVAILABLE:
+            investigation.update_progress(0.2, "Extracting entities from intelligence sources")
 
-        investigation.update_progress(0.5, "Performing risk assessment")
+            correlator = IntelligenceCorrelator()
+
+            investigation.update_progress(0.4, "Correlating entities across sources")
+            correlation_result = correlator.correlate(correlation_data)
+
+            # Store correlation results in investigation
+            investigation.correlation_results = correlation_result.to_dict()
+
+            investigation.update_progress(0.5, "Building relationship graph")
+
+            # Update data points with entity count
+            total_data_points = correlation_result.statistics.get('total_entities', 0)
+            investigation.progress.data_points_collected = total_data_points
+
+            # Add correlation findings
+            for finding in correlation_result.key_findings:
+                severity_map = {'critical': 'critical', 'high': 'warning', 'warning': 'info', 'info': 'info'}
+                investigation.add_finding(
+                    f"{finding['title']}: {finding['description']}",
+                    "correlation",
+                    severity=severity_map.get(finding.get('severity', 'info'), 'info')
+                )
+
+            # Log correlation stats
+            logger.info(f"Correlation complete: {correlation_result.statistics}")
+        else:
+            # Fallback to basic data point counting
+            total_data_points = 0
+            if investigation.social_intelligence:
+                total_data_points += len(investigation.social_intelligence.platforms)
+            if investigation.infrastructure_intelligence:
+                total_data_points += len(investigation.infrastructure_intelligence.domains)
+                total_data_points += len(investigation.infrastructure_intelligence.subdomains)
+            if investigation.threat_intelligence:
+                total_data_points += len(investigation.threat_intelligence.network_indicators)
+            investigation.progress.data_points_collected = total_data_points
+            investigation.correlation_results = None
+
+        investigation.update_progress(0.6, "Performing risk assessment")
 
         # Risk assessment calculation
         social_risk = 0.0
         infra_risk = 0.0
         threat_risk = 0.0
+        correlation_risk = 0.0
 
         if investigation.social_intelligence:
             social_risk = max(0, 50 - investigation.social_intelligence.reputation_score) / 50 * 100
@@ -1101,13 +1145,21 @@ class InvestigationOrchestrator:
         if investigation.threat_intelligence:
             threat_risk = investigation.threat_intelligence.risk_score
 
-        overall_risk = (social_risk + infra_risk + threat_risk) / 3
+        # Factor in correlation findings for risk
+        if hasattr(investigation, 'correlation_results') and investigation.correlation_results:
+            key_findings = investigation.correlation_results.get('key_findings', [])
+            critical_findings = [f for f in key_findings if f.get('severity') == 'critical']
+            high_findings = [f for f in key_findings if f.get('severity') == 'high']
+            correlation_risk = len(critical_findings) * 20 + len(high_findings) * 10
+
+        overall_risk = (social_risk + infra_risk + threat_risk + correlation_risk) / 4
 
         investigation.risk_assessment = {
-            "overall_risk_score": round(overall_risk, 1),
+            "overall_risk_score": round(min(100, overall_risk), 1),
             "social_media_risk": round(social_risk, 1),
-            "infrastructure_risk": round(infra_risk, 1),
+            "infrastructure_risk": round(min(100, infra_risk), 1),
             "threat_intelligence_risk": round(threat_risk, 1),
+            "correlation_risk": round(min(100, correlation_risk), 1),
             "risk_level": "low" if overall_risk < 30 else "medium" if overall_risk < 70 else "high"
         }
 
@@ -1115,14 +1167,90 @@ class InvestigationOrchestrator:
 
         # Generate key findings
         if investigation.social_intelligence:
-            investigation.add_finding(f"Social media reputation score: {investigation.social_intelligence.reputation_score}/100", "analysis")
+            investigation.add_finding(
+                f"Social media reputation score: {investigation.social_intelligence.reputation_score}/100",
+                "analysis"
+            )
 
         if investigation.infrastructure_intelligence:
-            investigation.add_finding(f"Infrastructure footprint: {len(investigation.infrastructure_intelligence.subdomains)} subdomains, {len(investigation.infrastructure_intelligence.exposed_services)} services", "analysis")
+            investigation.add_finding(
+                f"Infrastructure footprint: {len(investigation.infrastructure_intelligence.subdomains)} subdomains, "
+                f"{len(investigation.infrastructure_intelligence.exposed_services)} services",
+                "analysis"
+            )
 
-        investigation.add_finding(f"Overall risk level: {investigation.risk_assessment['risk_level'].upper()}", "analysis")
+        # Add entity correlation summary
+        if hasattr(investigation, 'correlation_results') and investigation.correlation_results:
+            stats = investigation.correlation_results.get('statistics', {})
+            investigation.add_finding(
+                f"Entity correlation: {stats.get('total_entities', 0)} entities, "
+                f"{stats.get('total_relationships', 0)} relationships discovered",
+                "correlation"
+            )
 
-        investigation.update_progress(1.0, "Intelligence analysis completed")
+            # Add timeline summary
+            timeline_count = investigation.correlation_results.get('event_count', 0)
+            if timeline_count > 0:
+                investigation.add_finding(
+                    f"Investigation timeline: {timeline_count} events reconstructed",
+                    "correlation"
+                )
+
+        investigation.add_finding(
+            f"Overall risk level: {investigation.risk_assessment['risk_level'].upper()}",
+            "analysis"
+        )
+
+        investigation.update_progress(1.0, "Intelligence analysis and correlation completed")
+
+    def _prepare_correlation_data(self, investigation: OSINTInvestigation) -> dict:
+        """Prepare investigation data for correlation engine"""
+        data = {
+            'infrastructure': {},
+            'social': {},
+            'threat': {},
+            'expanded_sources': {}
+        }
+
+        # Infrastructure intelligence
+        if investigation.infrastructure_intelligence:
+            infra = investigation.infrastructure_intelligence
+            data['infrastructure'] = {
+                'domains': infra.domains,
+                'subdomains': infra.subdomains,
+                'ip_addresses': infra.ip_addresses,
+                'certificates': infra.certificates,
+                'dns_records': infra.dns_records,
+                'exposed_services': infra.exposed_services,
+                'network_topology': infra.network_topology
+            }
+
+        # Social intelligence
+        if investigation.social_intelligence:
+            social = investigation.social_intelligence
+            data['social'] = {
+                'platforms': social.platforms,
+                'sentiment_analysis': social.sentiment_analysis,
+                'engagement_metrics': social.engagement_metrics
+            }
+
+        # Threat intelligence
+        if investigation.threat_intelligence:
+            threat = investigation.threat_intelligence
+            data['threat'] = {
+                'malware_indicators': threat.malware_indicators,
+                'network_indicators': threat.network_indicators,
+                'behavioral_indicators': threat.behavioral_indicators,
+                'threat_actors': threat.threat_actors,
+                'campaigns': threat.campaigns,
+                'mitre_techniques': threat.mitre_techniques
+            }
+
+        # Expanded data sources (if available)
+        if hasattr(investigation, 'expanded_intelligence') and investigation.expanded_intelligence:
+            data['expanded_sources'] = investigation.expanded_intelligence
+
+        return data
     
     @trace_operation("investigation.stage.verifying")
     def _stage_verifying(self, investigation: OSINTInvestigation):
