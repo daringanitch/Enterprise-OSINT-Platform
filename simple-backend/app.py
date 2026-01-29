@@ -105,6 +105,18 @@ except ImportError:
     CORRELATION_AVAILABLE = False
     IntelligenceCorrelator = None
 
+# Advanced analysis engine
+try:
+    from advanced_analysis import (
+        AdvancedAnalysisEngine, MITREMapper, RiskScoringEngine,
+        ExecutiveSummaryGenerator, TrendAnalyzer, ChartDataGenerator,
+        advanced_analysis_engine
+    )
+    ADVANCED_ANALYSIS_AVAILABLE = True
+except ImportError:
+    ADVANCED_ANALYSIS_AVAILABLE = False
+    advanced_analysis_engine = None
+
 # from job_queue import job_queue_manager, update_job_progress
 # Mock job queue manager for Docker compatibility
 class MockJobQueueManager:
@@ -4281,6 +4293,490 @@ def _generate_demo_relationships(demo_inv, rel_type=None, entity_id=None):
                         if r.get('source') == entity_id or r.get('target') == entity_id]
 
     return relationships
+
+
+# ============================================================================
+# Advanced Analysis Endpoints
+# ============================================================================
+
+@app.route('/api/analysis/advanced', methods=['POST'])
+@require_auth
+def perform_advanced_analysis():
+    """
+    Perform advanced analysis on provided findings data.
+
+    Request body:
+    {
+        "target": "example.com",
+        "findings": {
+            "infrastructure": {...},
+            "social": {...},
+            "threat": {...},
+            "expanded_sources": {...}
+        },
+        "correlation_results": {...}  // Optional
+    }
+
+    Returns risk scoring, MITRE mapping, executive summary, and charts.
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    target = data.get('target', 'Unknown')
+    findings = data.get('findings', {})
+    correlation_results = data.get('correlation_results')
+
+    if not findings:
+        return jsonify({'error': 'No findings data provided'}), 400
+
+    try:
+        result = advanced_analysis_engine.analyze(target, findings, correlation_results)
+        return jsonify({
+            'success': True,
+            'analysis': result
+        })
+
+    except Exception as e:
+        logger.error(f"Advanced analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analysis/mitre-mapping', methods=['POST'])
+@require_auth
+def get_mitre_mapping():
+    """
+    Map findings to MITRE ATT&CK techniques.
+
+    Request body:
+    {
+        "findings": {
+            "infrastructure": {...},
+            "threat": {...},
+            "expanded_sources": {...}
+        }
+    }
+
+    Returns mapped techniques with evidence.
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    findings = data.get('findings', {})
+
+    if not findings:
+        return jsonify({'error': 'No findings data provided'}), 400
+
+    try:
+        techniques = MITREMapper.map_findings(findings)
+        attack_surface = MITREMapper.get_attack_surface_summary(techniques)
+
+        return jsonify({
+            'success': True,
+            'techniques': techniques,
+            'attack_surface': attack_surface,
+            'technique_count': len(techniques),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"MITRE mapping error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analysis/risk-score', methods=['POST'])
+@require_auth
+def calculate_risk_score():
+    """
+    Calculate comprehensive risk score.
+
+    Request body:
+    {
+        "findings": {...},
+        "mitre_mapping": [...]  // Optional
+    }
+
+    Returns detailed risk breakdown.
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    findings = data.get('findings', {})
+    mitre_mapping = data.get('mitre_mapping')
+
+    if not findings:
+        return jsonify({'error': 'No findings data provided'}), 400
+
+    try:
+        risk_engine = RiskScoringEngine()
+        risk_score = risk_engine.calculate_risk(findings, None, mitre_mapping)
+
+        return jsonify({
+            'success': True,
+            'risk_score': risk_score.to_dict(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Risk scoring error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analysis/executive-summary', methods=['POST'])
+@require_auth
+def generate_executive_summary():
+    """
+    Generate executive summary from analysis results.
+
+    Request body:
+    {
+        "target": "example.com",
+        "risk_score": {...},
+        "mitre_mapping": [...],
+        "findings": {...},
+        "correlation": {...}  // Optional
+    }
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    target = data.get('target', 'Unknown')
+    findings = data.get('findings', {})
+
+    try:
+        # Calculate risk score if not provided
+        risk_data = data.get('risk_score')
+        if risk_data:
+            # Reconstruct RiskScore from dict
+            from advanced_analysis import RiskScore, RiskFactor, RiskCategory
+            risk_score = RiskScore(
+                overall_score=risk_data.get('overall_score', 0),
+                risk_level=risk_data.get('risk_level', 'low'),
+                category_scores=risk_data.get('category_scores', {}),
+                factors=[],
+                trend=risk_data.get('trend', 'stable'),
+                confidence=risk_data.get('confidence', 0.5)
+            )
+        else:
+            risk_engine = RiskScoringEngine()
+            risk_score = risk_engine.calculate_risk(findings)
+
+        mitre_mapping = data.get('mitre_mapping', [])
+        correlation = data.get('correlation')
+
+        generator = ExecutiveSummaryGenerator()
+        summary = generator.generate_summary(
+            target, risk_score, mitre_mapping, findings, correlation
+        )
+
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Executive summary error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analysis/trends', methods=['POST'])
+@require_auth
+def analyze_trends():
+    """
+    Analyze trends from timeline data.
+
+    Request body:
+    {
+        "timeline": [...]  // From correlation results
+    }
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    timeline = data.get('timeline', [])
+
+    try:
+        analyzer = TrendAnalyzer()
+        trends = analyzer.analyze_trends(timeline)
+
+        return jsonify({
+            'success': True,
+            'trends': trends,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Trend analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analysis/charts', methods=['POST'])
+@require_auth
+def generate_chart_data():
+    """
+    Generate chart data for visualization.
+
+    Request body:
+    {
+        "chart_type": "risk_distribution|severity|timeline|entities|gauge",
+        "risk_score": {...},  // For risk charts
+        "mitre_mapping": [...],  // For severity chart
+        "timeline": [...],  // For timeline chart
+        "entities": {...}  // For entity chart
+    }
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    data = request.json or {}
+    chart_type = data.get('chart_type', 'all')
+
+    try:
+        charts = {}
+
+        if chart_type in ['risk_distribution', 'all']:
+            risk_data = data.get('risk_score', {})
+            if risk_data:
+                from advanced_analysis import RiskScore
+                risk_score = RiskScore(
+                    overall_score=risk_data.get('overall_score', 0),
+                    risk_level=risk_data.get('risk_level', 'low'),
+                    category_scores=risk_data.get('category_scores', {}),
+                    factors=[],
+                    trend='stable',
+                    confidence=0.5
+                )
+                charts['risk_distribution'] = ChartDataGenerator.risk_distribution_chart(risk_score)
+                charts['risk_gauge'] = ChartDataGenerator.risk_gauge_chart(risk_score)
+
+        if chart_type in ['severity', 'all']:
+            mitre = data.get('mitre_mapping', [])
+            if mitre:
+                charts['severity_breakdown'] = ChartDataGenerator.severity_bar_chart(mitre)
+
+        if chart_type in ['timeline', 'all']:
+            timeline = data.get('timeline', [])
+            if timeline:
+                charts['timeline'] = ChartDataGenerator.timeline_chart(timeline)
+
+        if chart_type in ['entities', 'all']:
+            entities = data.get('entities', {})
+            if entities:
+                charts['entity_distribution'] = ChartDataGenerator.entity_type_chart(entities)
+
+        return jsonify({
+            'success': True,
+            'charts': charts,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Chart generation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/investigations/<investigation_id>/advanced-analysis', methods=['GET'])
+@require_auth
+def get_investigation_advanced_analysis(investigation_id):
+    """
+    Get advanced analysis for a specific investigation.
+
+    Returns full analysis including risk score, MITRE mapping,
+    executive summary, trends, and chart data.
+    """
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    # Check demo mode
+    if mode_manager.is_demo_mode():
+        demo_inv = demo_provider.get_demo_investigation(investigation_id)
+        if demo_inv:
+            analysis = _generate_demo_advanced_analysis(demo_inv)
+            return jsonify({
+                'investigation_id': investigation_id,
+                'analysis': analysis,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Check active investigations
+    investigation = orchestrator.get_investigation_status(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Get investigation data and perform analysis
+    try:
+        findings = {
+            'infrastructure': investigation.infrastructure_intelligence.__dict__ if investigation.infrastructure_intelligence else {},
+            'social': investigation.social_intelligence.__dict__ if investigation.social_intelligence else {},
+            'threat': investigation.threat_intelligence.__dict__ if investigation.threat_intelligence else {},
+            'expanded_sources': getattr(investigation, 'expanded_intelligence', {})
+        }
+
+        correlation = getattr(investigation, 'correlation_results', None)
+
+        analysis = advanced_analysis_engine.analyze(
+            investigation.target_profile.primary_identifier,
+            findings,
+            correlation
+        )
+
+        return jsonify({
+            'investigation_id': investigation_id,
+            'analysis': analysis,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Investigation analysis error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/mitre/techniques', methods=['GET'])
+@require_auth
+def get_mitre_techniques():
+    """Get list of supported MITRE ATT&CK techniques."""
+    if not ADVANCED_ANALYSIS_AVAILABLE:
+        return jsonify({'error': 'Advanced analysis not available'}), 503
+
+    from advanced_analysis import MITRE_TECHNIQUES, MITRETactic
+
+    techniques = [
+        {
+            'technique_id': t.technique_id,
+            'name': t.name,
+            'tactic': t.tactic.value,
+            'description': t.description,
+            'severity': t.severity
+        }
+        for t in MITRE_TECHNIQUES.values()
+    ]
+
+    tactics = [{'value': t.value, 'name': t.name} for t in MITRETactic]
+
+    return jsonify({
+        'techniques': techniques,
+        'technique_count': len(techniques),
+        'tactics': tactics,
+        'tactic_count': len(tactics)
+    })
+
+
+def _generate_demo_advanced_analysis(demo_inv):
+    """Generate demo advanced analysis."""
+    target = demo_inv.get('target', 'example.com')
+
+    return {
+        'target': target,
+        'analyzed_at': datetime.utcnow().isoformat(),
+        'risk_score': {
+            'overall_score': 62.5,
+            'risk_level': 'high',
+            'category_scores': {
+                'infrastructure': 55.0,
+                'threat': 70.0,
+                'credential': 45.0,
+                'data_exposure': 60.0,
+                'reputation': 40.0,
+                'compliance': 35.0
+            },
+            'factors': [
+                {
+                    'category': 'infrastructure',
+                    'name': 'Exposed Services',
+                    'score': 60,
+                    'weight': 0.4,
+                    'evidence': ['3 services exposed'],
+                    'recommendations': ['Review exposed services']
+                },
+                {
+                    'category': 'threat',
+                    'name': 'Threat Indicators',
+                    'score': 75,
+                    'weight': 0.3,
+                    'evidence': ['2 threat indicators found'],
+                    'recommendations': ['Investigate indicators']
+                }
+            ],
+            'trend': 'stable',
+            'confidence': 0.78
+        },
+        'mitre_mapping': {
+            'techniques': [
+                {
+                    'technique_id': 'T1190',
+                    'name': 'Exploit Public-Facing Application',
+                    'tactic': 'initial_access',
+                    'severity': 'critical',
+                    'evidence': ['Exposed service detected'],
+                    'evidence_count': 1
+                },
+                {
+                    'technique_id': 'T1592',
+                    'name': 'Gather Victim Host Information',
+                    'tactic': 'reconnaissance',
+                    'severity': 'medium',
+                    'evidence': ['Subdomain enumeration'],
+                    'evidence_count': 1
+                }
+            ],
+            'attack_surface': {
+                'total_techniques': 2,
+                'tactics_covered': ['initial_access', 'reconnaissance'],
+                'critical_count': 1,
+                'high_count': 0,
+                'attack_surface_score': 33.0
+            }
+        },
+        'trends': {
+            'trend_available': True,
+            'trend_direction': 'stable',
+            'total_events': 5,
+            'severity_distribution': {'info': 3, 'warning': 1, 'critical': 1}
+        },
+        'executive_summary': {
+            'title': f'Executive Intelligence Summary: {target}',
+            'overview': f'This investigation of {target} presents significant security concerns. '
+                       f'Analysis was conducted across multiple intelligence sources.',
+            'key_findings': [
+                {
+                    'category': 'infrastructure',
+                    'finding': 'Exposed Services',
+                    'severity': 'high',
+                    'priority': 'high'
+                }
+            ],
+            'recommendations': [
+                {
+                    'recommendation': 'Review and restrict exposed services',
+                    'priority': 'short_term',
+                    'category': 'infrastructure'
+                }
+            ]
+        },
+        'charts': {
+            'risk_gauge': {
+                'chart_type': 'gauge',
+                'title': 'Overall Risk Score',
+                'value': 62.5,
+                'max': 100
+            },
+            'risk_distribution': {
+                'chart_type': 'pie',
+                'title': 'Risk Distribution by Category',
+                'data': [
+                    {'label': 'Threat', 'value': 70, 'color': '#fd7e14'},
+                    {'label': 'Data Exposure', 'value': 60, 'color': '#ffc107'},
+                    {'label': 'Infrastructure', 'value': 55, 'color': '#ffc107'}
+                ]
+            }
+        }
+    }
 
 
 # ============================================================================
