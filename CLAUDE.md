@@ -163,6 +163,46 @@ scripts/
 └── legacy/       # Deprecated scripts (reference only)
 ```
 
+## Graph Intelligence Engine (In Progress)
+
+Palantir-style graph analytics for OSINT investigations. Located in `simple-backend/graph_intelligence/`.
+
+### Completed Components
+- **models.py** - 35+ entity types, 45+ relationship types, graph data structures
+- **neo4j_client.py** - Neo4j database client with mock fallback for development
+- **algorithms/centrality.py** - PageRank, betweenness, closeness, eigenvector, harmonic, katz
+- **algorithms/paths.py** - Shortest path, all paths, reachability, pivot finding
+- **algorithms/community.py** - Louvain, label propagation, k-core, clustering coefficient
+
+### TODO: Next Implementation Steps
+1. **Similarity Analysis** (`algorithms/similarity.py`)
+   - Jaccard similarity for entity neighborhoods
+   - Cosine similarity for entity attributes
+   - Graph structure similarity (subgraph matching)
+
+2. **Anomaly Detection** (`algorithms/anomaly.py`)
+   - Outlier detection using graph metrics
+   - Unusual connection patterns
+   - Temporal anomalies in entity behavior
+
+3. **Influence Propagation** (`algorithms/influence.py`)
+   - Model threat/information spread through graph
+   - Independent cascade model
+   - Linear threshold model
+
+4. **API Endpoints** (`graph_api.py`)
+   - REST routes for graph queries
+   - Integration with Flask app.py
+   - Endpoints: `/api/graph/centrality`, `/api/graph/paths`, `/api/graph/communities`
+
+5. **Correlation Sync** (`sync.py`)
+   - Connect existing investigations to graph database
+   - Auto-extract entities from investigation data
+   - Build relationships from correlation results
+
+### Architecture Documentation
+See `docs/GRAPH_INTELLIGENCE_ARCHITECTURE.md` for full design specifications.
+
 ## Documentation
 
 - `README.md` - Main documentation
