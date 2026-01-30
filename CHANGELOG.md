@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Layout components: Header, Sidebar, responsive Layout wrapper
 - 229+ component tests with comprehensive coverage
 
+#### Visualization Components
+- Chart components: LineChart, BarChart, PieChart, AreaChart using Recharts
+- RiskGauge: Circular gauge with risk level thresholds and labels
+- TimelineChart: Vertical timeline with expandable event details
+- NetworkGraph: Force-directed graph for entity relationships
+- Heatmap: Grid-based color intensity visualization
+- StatCard: KPI cards with trends and sparklines
+- ThreatMatrix: MITRE ATT&CK style tactic/technique display
+- DataTable: MUI DataGrid wrapper with search, filter, and export
+- 85+ visualization tests
+
 #### Accessibility & UX Enhancements (WCAG 2.1)
 - Custom hooks: useKeyboardNavigation, useFocusTrap, useAnnounce, useMediaQuery
 - A11y components: SkipLinks, VisuallyHidden, ErrorBoundary, FocusRing

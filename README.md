@@ -54,8 +54,9 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Design System**: Centralized theme with design tokens
 - **Reusable Components**: Button, Card, Modal, FormField, StatusIndicator, Loading, Toast
 - **Layout Components**: Header, Sidebar, responsive Layout wrapper
+- **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, DataTable
 - **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
-- **229+ Component Tests**: Comprehensive test coverage
+- **430+ Component Tests**: Comprehensive test coverage
 
 ## Deployment Options
 
@@ -161,7 +162,7 @@ Then restart with `./start.sh local`
 - **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis
 - **Frontend**: React 18, TypeScript, Material-UI
 - **Component Library**: Custom design system with 10+ reusable components
-- **Testing**: Jest, React Testing Library, pytest (570+ total tests)
+- **Testing**: Jest, React Testing Library, pytest (650+ total tests)
 - **MCP Servers**: FastAPI, aiohttp
 - **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 
