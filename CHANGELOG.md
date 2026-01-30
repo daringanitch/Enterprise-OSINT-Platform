@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+#### Intelligence Correlation Engine
+- Entity extraction from investigation data (domains, IPs, emails, hashes)
+- Cross-source relationship mapping and confidence scoring
+- Automated timeline reconstruction with event correlation
+- Weighted confidence scoring based on source reliability
+
+#### Advanced Analysis Features
+- MITRE ATT&CK framework mapping with 14 tactics coverage
+- 6-category risk scoring engine (infrastructure, data breach, social engineering, malware, financial, overall)
+- Executive summary generation with key findings
+- Trend analysis with historical comparison
+
+#### Frontend Component Library (TypeScript)
+- Design system with centralized theme and design tokens
+- Common components: Button (6 variants), Card (4 variants), Modal, FormField, StatusIndicator, Loading, Toast
+- Layout components: Header, Sidebar, responsive Layout wrapper
+- 229+ component tests with comprehensive coverage
+
+#### Accessibility & UX Enhancements (WCAG 2.1)
+- Custom hooks: useKeyboardNavigation, useFocusTrap, useAnnounce, useMediaQuery
+- A11y components: SkipLinks, VisuallyHidden, ErrorBoundary, FocusRing
+- Color contrast utilities (WCAG AA/AAA compliance checking)
+- Form validation utilities with 15+ validators (email, URL, domain, IP, hash)
+- 120+ accessibility and utility tests
+
+#### Data Source Expansion
+- 6 new intelligence source collectors
+- Caching service with TTL support
+- Connection pooling for improved performance
+
+#### Infrastructure
 - Comprehensive monitoring stack with Prometheus and Grafana
 - Automated health monitoring with 5-minute interval checks
 - Custom metrics exporter for OSINT-specific metrics

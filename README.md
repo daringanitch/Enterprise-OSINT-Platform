@@ -37,12 +37,25 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **AI-Enhanced Analysis**: GPT-4 powered threat assessment
 - **Financial Intelligence**: SEC filings, company research
 
+### Advanced Analysis
+- **Intelligence Correlation**: Cross-source entity extraction and relationship mapping
+- **MITRE ATT&CK Mapping**: Automated technique identification with 14 tactics
+- **Risk Scoring Engine**: 6-category weighted scoring with trend analysis
+- **Timeline Reconstruction**: Automated event correlation and sequencing
+
 ### Enterprise Features
 - **Professional PDF Reports**: Executive and technical summaries
 - **Compliance Framework**: GDPR/CCPA assessment
 - **Audit Trail**: Complete investigation history
 - **Role-Based Access**: Admin, analyst, viewer roles
 - **Demo Mode**: Full functionality without API keys
+
+### Frontend Component Library
+- **Design System**: Centralized theme with design tokens
+- **Reusable Components**: Button, Card, Modal, FormField, StatusIndicator, Loading, Toast
+- **Layout Components**: Header, Sidebar, responsive Layout wrapper
+- **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
+- **229+ Component Tests**: Comprehensive test coverage
 
 ## Deployment Options
 
@@ -69,23 +82,32 @@ docker compose -f docker-compose.demo.yml up -d
 
 ```
 Enterprise-OSINT-Platform/
-├── simple-backend/          # Flask REST API
-│   ├── app.py              # Main application (58 endpoints)
-│   ├── models.py           # Database models
-│   └── tests/              # Test suite
-├── simple-frontend/         # React SPA
-│   └── index.html          # Single-page application
-├── mcp-servers/            # Intelligence microservices
-│   ├── infrastructure-advanced/   # Port 8021
-│   ├── threat-aggregator/         # Port 8020
-│   └── ai-analyzer/               # Port 8050
-├── k8s/                    # Kubernetes manifests
-├── scripts/                # Organized utility scripts
-│   ├── deploy/             # Deployment helpers
-│   ├── dev/                # Development tools
-│   └── maintenance/        # System maintenance
-├── start.sh                # One-command setup
-└── docker-compose.demo.yml # Demo deployment
+├── simple-backend/              # Flask REST API
+│   ├── app.py                   # Main application (60+ endpoints)
+│   ├── models.py                # Database models
+│   ├── intelligence_correlation.py  # Entity correlation engine
+│   ├── advanced_analysis.py     # MITRE mapping, risk scoring
+│   ├── expanded_data_sources.py # 6 intelligence source collectors
+│   └── tests/                   # Backend test suite (220+ tests)
+├── frontend/                    # React Frontend (TypeScript)
+│   ├── src/components/common/   # Reusable UI components
+│   ├── src/components/layout/   # Layout components
+│   ├── src/components/a11y/     # Accessibility components
+│   ├── src/hooks/               # Custom React hooks
+│   ├── src/utils/               # Theme, validation, a11y utilities
+│   └── src/__tests__/           # Frontend tests (350+ tests)
+├── simple-frontend/             # Legacy React SPA (index.html)
+├── mcp-servers/                 # Intelligence microservices
+│   ├── infrastructure-advanced/ # Port 8021
+│   ├── threat-aggregator/       # Port 8020
+│   └── ai-analyzer/             # Port 8050
+├── k8s/                         # Kubernetes manifests
+├── scripts/                     # Organized utility scripts
+│   ├── deploy/                  # Deployment helpers
+│   ├── dev/                     # Development tools
+│   └── maintenance/             # System maintenance
+├── start.sh                     # One-command setup
+└── docker-compose.demo.yml      # Demo deployment
 ```
 
 ## API Quick Reference
@@ -102,8 +124,12 @@ curl -X POST http://localhost:5001/api/investigations \
   -H "Content-Type: application/json" \
   -d '{"target": "example.com", "investigation_type": "comprehensive"}'
 
-# Get Results
-curl http://localhost:5001/api/investigations/{id} \
+# Get Correlation Analysis
+curl http://localhost:5001/api/investigations/{id}/correlation \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get Advanced Analysis
+curl http://localhost:5001/api/investigations/{id}/analysis/advanced \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -128,11 +154,14 @@ Then restart with `./start.sh local`
 | [API_REFERENCE.md](API_REFERENCE.md) | Complete API documentation |
 | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Production deployment |
 | [CONFIGURATION.md](CONFIGURATION.md) | Environment configuration |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and changes |
 
 ## Technology Stack
 
 - **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis
-- **Frontend**: React 18, Material-UI, Axios
+- **Frontend**: React 18, TypeScript, Material-UI
+- **Component Library**: Custom design system with 10+ reusable components
+- **Testing**: Jest, React Testing Library, pytest (570+ total tests)
 - **MCP Servers**: FastAPI, aiohttp
 - **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 

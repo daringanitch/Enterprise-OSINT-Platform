@@ -228,11 +228,45 @@ Calculates threat scores and confidence levels:
 def assess_risk(self, investigation: OSINTInvestigation) -> RiskAssessment:
     """Calculate comprehensive risk score based on:
     - Infrastructure vulnerabilities
-    - Social engineering susceptibility  
+    - Social engineering susceptibility
     - Data breach exposure
     - Malware/threat indicators
     - Financial risk factors
     """
+```
+
+### 6. Intelligence Correlation Engine (`intelligence_correlation.py`)
+
+Cross-source entity extraction and relationship mapping:
+
+```python
+class IntelligenceCorrelationEngine:
+    """Extract entities and build relationships across sources"""
+
+    def correlate(self, investigation_data: dict) -> CorrelationResult:
+        """
+        - Extract entities (domains, IPs, emails, hashes)
+        - Map relationships between entities
+        - Build investigation timeline
+        - Calculate confidence scores
+        """
+```
+
+### 7. Advanced Analysis Module (`advanced_analysis.py`)
+
+MITRE ATT&CK mapping and executive insights:
+
+```python
+class AdvancedAnalysisEngine:
+    """Advanced threat analysis with MITRE framework"""
+
+    def analyze(self, investigation_data: dict) -> AdvancedAnalysis:
+        """
+        - Map findings to MITRE ATT&CK tactics (14 covered)
+        - Generate risk scores (6 categories)
+        - Create executive summary with key findings
+        - Perform trend analysis
+        """
 ```
 
 ---
@@ -250,11 +284,13 @@ def assess_risk(self, investigation: OSINTInvestigation) -> RiskAssessment:
 
 ### Frontend Technologies
 - **Framework**: React 18.2.0
-- **Language**: TypeScript 5.0+
+- **Language**: TypeScript 5.3+
 - **UI Library**: Material-UI 5.14.5
 - **State Management**: Redux Toolkit
 - **HTTP Client**: Axios 1.5.0
 - **PDF Generation**: jsPDF 2.5.1
+- **Testing**: Jest, React Testing Library (350+ tests)
+- **Accessibility**: WCAG 2.1 compliant components
 
 ### Infrastructure Technologies
 - **Container Runtime**: Docker 24.0+
@@ -722,7 +758,7 @@ mcpServers:
 
 ```
 simple-backend/
-├── app.py                              # Main Flask application
+├── app.py                              # Main Flask application (60+ endpoints)
 ├── models.py                           # SQLAlchemy data models
 ├── investigation_orchestrator.py       # Investigation workflow engine
 ├── mcp_clients.py                      # MCP server communication
@@ -733,11 +769,56 @@ simple-backend/
 ├── postgres_audit_client.py            # Database audit logging
 ├── api_connection_monitor.py           # External API monitoring
 ├── vault_client.py                     # HashiCorp Vault integration
+├── intelligence_correlation.py         # Entity correlation engine
+├── advanced_analysis.py                # MITRE ATT&CK mapping, risk scoring
+├── expanded_data_sources.py            # 6 intelligence source collectors
+├── caching_service.py                  # TTL-based caching
+├── demo_data.py                        # Demo mode data provider
 ├── requirements.txt                    # Python dependencies
+├── tests/                              # Test suite (220+ tests)
 └── Dockerfile                          # Container definition
 ```
 
-### Frontend Structure (`simple-frontend/`)
+### Modern Frontend Structure (`frontend/`)
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── common/                     # Reusable UI components
+│   │   │   ├── Button.tsx              # Button with 6 variants, 3 sizes
+│   │   │   ├── Card.tsx                # Card with CardStat subcomponent
+│   │   │   ├── Modal.tsx               # Modal, ConfirmationModal
+│   │   │   ├── FormField.tsx           # Text, Select, Checkbox, Switch, Textarea
+│   │   │   ├── StatusIndicator.tsx     # Status badges, RiskLevelIndicator
+│   │   │   ├── Loading.tsx             # Spinner, ProgressBar, Skeletons
+│   │   │   └── Toast.tsx               # Toast notifications with provider
+│   │   ├── layout/                     # Layout components
+│   │   │   ├── Header.tsx              # Search, notifications, user menu
+│   │   │   ├── Sidebar.tsx             # Collapsible navigation
+│   │   │   └── Layout.tsx              # Main wrapper with PageWrapper
+│   │   └── a11y/                       # Accessibility components
+│   │       ├── SkipLinks.tsx           # Skip navigation for keyboard users
+│   │       ├── VisuallyHidden.tsx      # Screen reader only content
+│   │       ├── ErrorBoundary.tsx       # Error handling with retry
+│   │       └── FocusRing.tsx           # Consistent focus indicators
+│   ├── hooks/                          # Custom React hooks
+│   │   ├── useKeyboardNavigation.ts    # Arrow key navigation
+│   │   ├── useFocusTrap.ts             # Modal focus trapping
+│   │   ├── useAnnounce.ts              # ARIA live announcements
+│   │   └── useMediaQuery.ts            # Responsive breakpoints
+│   ├── utils/                          # Utilities
+│   │   ├── theme.ts                    # Design system tokens
+│   │   ├── validation.ts               # Form validators (15+)
+│   │   └── a11y.ts                     # Color contrast, focus helpers
+│   ├── types/                          # TypeScript definitions
+│   │   └── index.ts                    # 80+ interfaces
+│   └── __tests__/                      # Test suites (350+ tests)
+├── package.json                        # Node dependencies
+└── tsconfig.json                       # TypeScript configuration
+```
+
+### Legacy Frontend Structure (`simple-frontend/`)
 
 ```
 simple-frontend/

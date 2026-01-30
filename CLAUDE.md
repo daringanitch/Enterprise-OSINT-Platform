@@ -16,7 +16,12 @@ Guidance for Claude Code when working with this repository.
 ```
 Enterprise-OSINT-Platform/
 ├── simple-backend/          # Flask REST API (Python 3.11+)
-├── simple-frontend/         # React SPA (HTML/JS)
+├── simple-frontend/         # Legacy React SPA (HTML/JS)
+├── frontend/                # Modern React Frontend (TypeScript)
+│   ├── src/components/      # Reusable UI components
+│   ├── src/hooks/           # Custom React hooks
+│   ├── src/utils/           # Theme, validation, a11y utilities
+│   └── src/__tests__/       # Frontend tests (350+ tests)
 ├── mcp-servers/             # Intelligence microservices (FastAPI)
 ├── k8s/                     # Kubernetes manifests
 ├── scripts/                 # Utility scripts (deploy/, dev/, maintenance/)
@@ -28,15 +33,25 @@ Enterprise-OSINT-Platform/
 ## Core Components
 
 ### Backend (`simple-backend/`)
-- `app.py` - Flask REST API with 58 endpoints, JWT auth
+- `app.py` - Flask REST API with 60+ endpoints, JWT auth
 - `models.py` - SQLAlchemy ORM for PostgreSQL
 - `investigation_orchestrator.py` - 7-stage investigation workflow
 - `mcp_clients.py` - MCP server communication
 - `professional_report_generator.py` - PDF reports
 - `compliance_framework.py` - GDPR/CCPA validation
 - `demo_data.py` - Demo mode data provider
+- `intelligence_correlation.py` - Entity correlation engine
+- `advanced_analysis.py` - MITRE ATT&CK mapping, risk scoring
+- `expanded_data_sources.py` - 6 intelligence source collectors
 
-### Frontend (`simple-frontend/`)
+### Frontend (`frontend/`) - Modern TypeScript
+- `src/components/common/` - Button, Card, Modal, FormField, StatusIndicator, Loading, Toast
+- `src/components/layout/` - Header, Sidebar, Layout wrapper
+- `src/components/a11y/` - SkipLinks, VisuallyHidden, ErrorBoundary, FocusRing
+- `src/hooks/` - useKeyboardNavigation, useFocusTrap, useAnnounce, useMediaQuery
+- `src/utils/` - theme.ts (design system), validation.ts, a11y.ts
+
+### Legacy Frontend (`simple-frontend/`)
 - `index.html` - React SPA with Material-UI
 - `nginx.conf` / `nginx-demo.conf` - Nginx configuration
 
@@ -80,13 +95,15 @@ kubectl apply -f k8s/simple-frontend-deployment.yaml
 ## Key API Endpoints
 
 ```
-POST /api/auth/login              # Login (admin/admin123)
-GET  /api/investigations          # List investigations
-POST /api/investigations          # Create investigation
-GET  /api/investigations/{id}     # Get investigation
-POST /api/investigations/{id}/report  # Generate report
-GET  /api/system/status           # Platform health
-GET  /api/mcp/servers             # MCP server status
+POST /api/auth/login                        # Login (admin/admin123)
+GET  /api/investigations                    # List investigations
+POST /api/investigations                    # Create investigation
+GET  /api/investigations/{id}               # Get investigation
+POST /api/investigations/{id}/report        # Generate report
+GET  /api/investigations/{id}/correlation   # Entity correlation analysis
+GET  /api/investigations/{id}/analysis/advanced  # MITRE mapping & risk scoring
+GET  /api/system/status                     # Platform health
+GET  /api/mcp/servers                       # MCP server status
 ```
 
 ## Environment Variables
@@ -108,11 +125,33 @@ SHODAN_API_KEY=your-key
 ## Testing
 
 ```bash
+# Backend tests (220+ tests)
 cd simple-backend
 pytest tests/unit/ -v            # Unit tests
 pytest tests/integration/ -v     # Integration tests
 pytest tests/ --cov --cov-report=term-missing
+
+# Frontend tests (350+ tests)
+cd frontend
+npm test                         # Run all tests
+npm test -- --coverage           # With coverage
 ```
+
+## Frontend Development
+
+```bash
+cd frontend
+npm install                      # Install dependencies
+npm start                        # Development server
+npm run build                    # Production build
+npm test                         # Run tests
+```
+
+### Component Library
+- **Design System**: `src/utils/theme.ts` - Color tokens, typography, spacing
+- **Common Components**: Button, Card, Modal, FormField, StatusIndicator, Loading, Toast
+- **Layout Components**: Header, Sidebar, Layout, PageWrapper
+- **Accessibility**: WCAG 2.1 compliant with keyboard navigation, screen reader support
 
 ## Scripts Organization
 
