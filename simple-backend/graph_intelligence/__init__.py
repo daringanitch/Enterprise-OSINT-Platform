@@ -46,6 +46,16 @@ from .neo4j_client import (
     create_graph_client,
 )
 
+# API (requires Flask)
+try:
+    from .api import (
+        graph_bp,
+        register_graph_api,
+    )
+except ImportError:
+    graph_bp = None
+    register_graph_api = None
+
 __version__ = "1.0.0"
 __all__ = [
     # Models
@@ -71,4 +81,7 @@ __all__ = [
     # Client
     "GraphClient",
     "create_graph_client",
+    # API
+    "graph_bp",
+    "register_graph_api",
 ]

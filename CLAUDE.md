@@ -173,29 +173,17 @@ Palantir-style graph analytics for OSINT investigations. Located in `simple-back
 - **algorithms/centrality.py** - PageRank, betweenness, closeness, eigenvector, harmonic, katz
 - **algorithms/paths.py** - Shortest path, all paths, reachability, pivot finding
 - **algorithms/community.py** - Louvain, label propagation, k-core, clustering coefficient
+- **algorithms/similarity.py** - Jaccard, Adamic-Adar, cosine, SimRank, infrastructure/threat actor similarity
+- **algorithms/anomaly.py** - Degree, clustering, bridge, hub/authority, star pattern, attribute anomalies
+- **api.py** - Flask Blueprint with REST endpoints for all graph operations
 
 ### TODO: Next Implementation Steps
-1. **Similarity Analysis** (`algorithms/similarity.py`)
-   - Jaccard similarity for entity neighborhoods
-   - Cosine similarity for entity attributes
-   - Graph structure similarity (subgraph matching)
-
-2. **Anomaly Detection** (`algorithms/anomaly.py`)
-   - Outlier detection using graph metrics
-   - Unusual connection patterns
-   - Temporal anomalies in entity behavior
-
-3. **Influence Propagation** (`algorithms/influence.py`)
+1. **Influence Propagation** (`algorithms/influence.py`)
    - Model threat/information spread through graph
    - Independent cascade model
    - Linear threshold model
 
-4. **API Endpoints** (`graph_api.py`)
-   - REST routes for graph queries
-   - Integration with Flask app.py
-   - Endpoints: `/api/graph/centrality`, `/api/graph/paths`, `/api/graph/communities`
-
-5. **Correlation Sync** (`sync.py`)
+2. **Correlation Sync** (`sync.py`)
    - Connect existing investigations to graph database
    - Auto-extract entities from investigation data
    - Build relationships from correlation results
