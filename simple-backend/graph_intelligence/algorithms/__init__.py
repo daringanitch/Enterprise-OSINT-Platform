@@ -35,6 +35,24 @@ from .community import (
     get_dense_core,
 )
 
+from .similarity import (
+    SimilarityEngine,
+    SimilarityScore,
+    SimilarityResult,
+    BulkSimilarityResult,
+    find_similar_entities,
+    compute_pairwise_similarity,
+)
+
+from .anomaly import (
+    AnomalyEngine,
+    AnomalyScore,
+    AnomalyResult,
+    StructuralAnomalyResult,
+    detect_anomalies,
+    find_suspicious_entities,
+)
+
 __all__ = [
     # Centrality
     "CentralityEngine",
@@ -59,4 +77,18 @@ __all__ = [
     "detect_communities",
     "find_connected_components",
     "get_dense_core",
+    # Similarity
+    "SimilarityEngine",
+    "SimilarityScore",
+    "SimilarityResult",
+    "BulkSimilarityResult",
+    "find_similar_entities",
+    "compute_pairwise_similarity",
+    # Anomaly Detection
+    "AnomalyEngine",
+    "AnomalyScore",
+    "AnomalyResult",
+    "StructuralAnomalyResult",
+    "detect_anomalies",
+    "find_suspicious_entities",
 ]
