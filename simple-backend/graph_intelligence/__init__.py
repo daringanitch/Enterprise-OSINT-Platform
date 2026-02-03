@@ -56,6 +56,14 @@ except ImportError:
     graph_bp = None
     register_graph_api = None
 
+from .sync import (
+    CorrelationSync,
+    ExtractionResult,
+    SyncResult,
+    extract_entities,
+    sync_investigation_to_graph,
+)
+
 __version__ = "1.0.0"
 __all__ = [
     # Models
@@ -84,4 +92,10 @@ __all__ = [
     # API
     "graph_bp",
     "register_graph_api",
+    # Sync
+    "CorrelationSync",
+    "ExtractionResult",
+    "SyncResult",
+    "extract_entities",
+    "sync_investigation_to_graph",
 ]

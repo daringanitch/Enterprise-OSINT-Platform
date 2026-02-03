@@ -175,18 +175,9 @@ Palantir-style graph analytics for OSINT investigations. Located in `simple-back
 - **algorithms/community.py** - Louvain, label propagation, k-core, clustering coefficient
 - **algorithms/similarity.py** - Jaccard, Adamic-Adar, cosine, SimRank, infrastructure/threat actor similarity
 - **algorithms/anomaly.py** - Degree, clustering, bridge, hub/authority, star pattern, attribute anomalies
+- **algorithms/influence.py** - Independent cascade, linear threshold, SIR/SIS epidemic, blast radius
 - **api.py** - Flask Blueprint with REST endpoints for all graph operations
-
-### TODO: Next Implementation Steps
-1. **Influence Propagation** (`algorithms/influence.py`)
-   - Model threat/information spread through graph
-   - Independent cascade model
-   - Linear threshold model
-
-2. **Correlation Sync** (`sync.py`)
-   - Connect existing investigations to graph database
-   - Auto-extract entities from investigation data
-   - Build relationships from correlation results
+- **sync.py** - Extract entities from investigations, build relationships, sync to graph
 
 ### Architecture Documentation
 See `docs/GRAPH_INTELLIGENCE_ARCHITECTURE.md` for full design specifications.

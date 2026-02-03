@@ -53,6 +53,17 @@ from .anomaly import (
     find_suspicious_entities,
 )
 
+from .influence import (
+    InfluenceEngine,
+    PropagationResult,
+    BlastRadiusResult,
+    InfluenceMaxResult,
+    EpidemicResult,
+    simulate_propagation,
+    analyze_blast_radius,
+    find_critical_spreaders,
+)
+
 __all__ = [
     # Centrality
     "CentralityEngine",
@@ -91,4 +102,13 @@ __all__ = [
     "StructuralAnomalyResult",
     "detect_anomalies",
     "find_suspicious_entities",
+    # Influence Propagation
+    "InfluenceEngine",
+    "PropagationResult",
+    "BlastRadiusResult",
+    "InfluenceMaxResult",
+    "EpidemicResult",
+    "simulate_propagation",
+    "analyze_blast_radius",
+    "find_critical_spreaders",
 ]
