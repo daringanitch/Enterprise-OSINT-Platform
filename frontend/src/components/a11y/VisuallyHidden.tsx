@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { styled } from '@mui/material';
+import { Box, SxProps, Theme } from '@mui/material';
 
 export interface VisuallyHiddenProps {
   /** Content to hide visually */
@@ -19,9 +19,7 @@ export interface VisuallyHiddenProps {
   testId?: string;
 }
 
-const HiddenElement = styled('span', {
-  shouldForwardProp: (prop) => prop !== 'focusable',
-})<{ focusable?: boolean }>(({ focusable }) => ({
+const getHiddenStyles = (focusable: boolean): SxProps<Theme> => ({
   position: 'absolute',
   width: '1px',
   height: '1px',
@@ -43,22 +41,22 @@ const HiddenElement = styled('span', {
       whiteSpace: 'normal',
     },
   }),
-}));
+});
 
 export const VisuallyHidden: React.FC<VisuallyHiddenProps> = ({
   children,
-  as = 'span',
+  as: Component = 'span',
   focusable = false,
   testId,
 }) => {
   return (
-    <HiddenElement
-      as={as}
-      focusable={focusable}
+    <Box
+      component={Component}
+      sx={getHiddenStyles(focusable)}
       data-testid={testId}
     >
       {children}
-    </HiddenElement>
+    </Box>
   );
 };
 

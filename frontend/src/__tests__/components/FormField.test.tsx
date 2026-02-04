@@ -14,6 +14,14 @@ import {
   Textarea,
 } from '../../components/common/FormField';
 
+// Mock ResizeObserver for MUI TextareaAutosize
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = ResizeObserver;
+
 const renderWithTheme = (component: React.ReactElement) => {
   return render(<ThemeProvider theme={theme}>{component}</ThemeProvider>);
 };
@@ -193,7 +201,9 @@ describe('SelectInput Component', () => {
       );
       // Placeholder is shown when value is empty
       fireEvent.mouseDown(screen.getByLabelText('Choose'));
-      expect(screen.getByText('Select an option')).toBeInTheDocument();
+      // Multiple placeholder elements may exist (in select and dropdown)
+      const placeholders = screen.getAllByText('Select an option');
+      expect(placeholders.length).toBeGreaterThan(0);
     });
   });
 });

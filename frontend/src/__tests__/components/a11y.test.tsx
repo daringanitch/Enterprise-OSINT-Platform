@@ -13,6 +13,9 @@ import {
   FocusRing,
 } from '../../components/a11y';
 
+// Mock scrollIntoView which is not available in jsdom
+Element.prototype.scrollIntoView = jest.fn();
+
 const renderWithTheme = (component: React.ReactElement) => {
   return render(<ThemeProvider theme={theme}>{component}</ThemeProvider>);
 };

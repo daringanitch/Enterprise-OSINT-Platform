@@ -2,6 +2,21 @@
  * Accessibility Utilities Tests
  */
 
+// Mock matchMedia for tests
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
+
 import {
   getLuminance,
   getContrastRatio,
@@ -141,8 +156,25 @@ describe('Accessibility Utilities', () => {
   });
 
   describe('prefersReducedMotion', () => {
+    beforeEach(() => {
+      // Reset matchMedia mock before each test
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: jest.fn().mockImplementation((query) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: jest.fn(),
+          removeListener: jest.fn(),
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+          dispatchEvent: jest.fn(),
+        })),
+      });
+    });
+
     it('returns false when window is undefined', () => {
-      // In test environment without proper matchMedia mock
+      // In test environment with proper matchMedia mock
       const result = prefersReducedMotion();
       expect(typeof result).toBe('boolean');
     });

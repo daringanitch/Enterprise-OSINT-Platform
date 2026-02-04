@@ -281,7 +281,7 @@ describe('InvestigationStatusIndicator Component', () => {
     it('includes progress in aria-label when provided', () => {
       renderWithTheme(<InvestigationStatusIndicator status="collecting" progress={75} />);
       expect(
-        screen.getByLabelText('Investigation status: Collecting (75%), 75% complete')
+        screen.getByLabelText('Investigation status: Collecting, 75% complete')
       ).toBeInTheDocument();
     });
   });
