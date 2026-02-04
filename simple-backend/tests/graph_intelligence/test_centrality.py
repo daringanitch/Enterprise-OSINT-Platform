@@ -24,22 +24,23 @@ from graph_intelligence.algorithms import (
 
 @pytest.fixture
 def simple_graph():
-    """Create a simple graph: A -> B -> C"""
+    """Create a simple directed graph: A -> B -> C"""
     nodes = [
         GraphNode(value="A", entity_type=ExtendedEntityType.DOMAIN),
-        GraphNode(value="B", entity_type=ExtendedEntityType.DOMAIN),
-        GraphNode(value="C", entity_type=ExtendedEntityType.DOMAIN),
+        GraphNode(value="B", entity_type=ExtendedEntityType.IP_ADDRESS),
+        GraphNode(value="C", entity_type=ExtendedEntityType.IP_ADDRESS),
     ]
+    # Use RESOLVES_TO which is directional (not bidirectional)
     edges = [
         GraphEdge(
             source_id=nodes[0].entity_id,
             target_id=nodes[1].entity_id,
-            relationship_type=ExtendedRelationshipType.ASSOCIATED_WITH,
+            relationship_type=ExtendedRelationshipType.RESOLVES_TO,
         ),
         GraphEdge(
             source_id=nodes[1].entity_id,
             target_id=nodes[2].entity_id,
-            relationship_type=ExtendedRelationshipType.ASSOCIATED_WITH,
+            relationship_type=ExtendedRelationshipType.RESOLVES_TO,
         ),
     ]
     return nodes, edges

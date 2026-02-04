@@ -80,7 +80,7 @@ def disconnected_graph():
         GraphNode(entity_id="C2B", entity_type=ExtendedEntityType.DOMAIN, value="comp2b.com"),
         GraphNode(entity_id="C2C", entity_type=ExtendedEntityType.DOMAIN, value="comp2c.com"),
         # Component 3 (isolated node)
-        GraphNode(entity_id="C3A", entity_type=ExtendedEntityType.HASH_SHA256, value="abc123"),
+        GraphNode(entity_id="C3A", entity_type=ExtendedEntityType.HASH, value="abc123"),
     ]
 
     edges = [

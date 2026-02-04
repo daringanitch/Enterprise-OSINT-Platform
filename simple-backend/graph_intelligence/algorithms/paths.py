@@ -454,6 +454,10 @@ class PathEngine:
         path_nodes = forward_path_nodes + backward_path_nodes
         path_edges = forward_path_edges + backward_path_edges
 
+        # Verify path doesn't exceed max_depth
+        if len(path_edges) > max_depth:
+            return None
+
         return {
             "nodes": path_nodes,
             "edges": path_edges,
@@ -774,11 +778,14 @@ class PathEngine:
                     if not neighbor:
                         continue
 
+                    # Always mark as visited and add to next_level for traversal
+                    visited.add(neighbor_id)
+                    next_level.add(neighbor_id)
+
+                    # Only count if it matches the entity type filter
                     if entity_types and neighbor.entity_type not in entity_types:
                         continue
 
-                    visited.add(neighbor_id)
-                    next_level.add(neighbor_id)
                     reachable_ids.append(neighbor_id)
                     depth_count += 1
 

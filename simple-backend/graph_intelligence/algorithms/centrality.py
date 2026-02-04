@@ -1058,6 +1058,9 @@ class CentralityEngine:
             return 0
         if NETWORKX_AVAILABLE and hasattr(self._graph, 'number_of_edges'):
             return self._graph.number_of_edges()
+        # For fallback mode, count total edges in adjacency list
+        if hasattr(self, '_adjacency'):
+            return sum(len(neighbors) for neighbors in self._adjacency.values())
         return len(getattr(self, '_edges', []))
 
 
