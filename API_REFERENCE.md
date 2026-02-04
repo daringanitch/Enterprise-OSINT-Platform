@@ -6,9 +6,10 @@ Complete API documentation for the Enterprise OSINT Platform REST API and MCP se
 1. [Authentication](#authentication)
 2. [Investigation Management](#investigation-management)
 3. [System Status](#system-status)
-4. [MCP Server APIs](#mcp-server-apis)
-5. [Error Handling](#error-handling)
-6. [Rate Limiting](#rate-limiting)
+4. [Graph Intelligence](#graph-intelligence)
+5. [MCP Server APIs](#mcp-server-apis)
+6. [Error Handling](#error-handling)
+7. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -432,6 +433,412 @@ Get detailed status of all MCP servers and their capabilities.
 
 ---
 
+## Graph Intelligence
+
+Palantir-inspired graph analytics for OSINT investigations. Provides entity relationship mapping, advanced algorithms, and pattern detection.
+
+### Graph Status
+**GET** `/api/graph/status`
+
+Check graph intelligence module availability and configuration.
+
+**Response:**
+```json
+{
+    "available": true,
+    "neo4j_connected": false,
+    "mock_mode": true,
+    "algorithms": {
+        "centrality": true,
+        "paths": true,
+        "community": true,
+        "similarity": true,
+        "anomaly": true,
+        "influence": true
+    },
+    "version": "1.0.0"
+}
+```
+
+### Sync Investigation to Graph
+**POST** `/api/investigations/{id}/graph/sync`
+
+Extract entities from investigation data and sync to graph database.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Response:**
+```json
+{
+    "status": "synced",
+    "investigation_id": "605ba974-9a88-4921-855e-c9dbedc2b3d8",
+    "entities_extracted": 47,
+    "relationships_created": 89,
+    "entity_breakdown": {
+        "IP_ADDRESS": 12,
+        "DOMAIN": 8,
+        "EMAIL": 5,
+        "URL": 15,
+        "FILE_HASH": 7
+    },
+    "sync_timestamp": "2025-08-16T16:45:30Z"
+}
+```
+
+### Full Graph Analysis
+**POST** `/api/investigations/{id}/graph/analyze`
+
+Run comprehensive graph analysis including centrality, communities, and anomalies.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body (optional):**
+```json
+{
+    "include_centrality": true,
+    "include_communities": true,
+    "include_anomalies": true,
+    "include_influence": false
+}
+```
+
+**Response:**
+```json
+{
+    "investigation_id": "605ba974-9a88-4921-855e-c9dbedc2b3d8",
+    "analysis_timestamp": "2025-08-16T16:45:30Z",
+    "centrality": {
+        "top_by_composite": [
+            {
+                "node_id": "ip_192.0.2.1",
+                "composite_score": 0.847,
+                "pagerank": 0.156,
+                "betweenness": 0.234,
+                "closeness": 0.567
+            }
+        ],
+        "hub_nodes": ["ip_192.0.2.1", "domain_example.com"],
+        "bridge_nodes": ["email_admin@example.com"]
+    },
+    "communities": {
+        "total_communities": 3,
+        "modularity": 0.72,
+        "communities": [
+            {
+                "id": 0,
+                "size": 15,
+                "members": ["ip_192.0.2.1", "domain_example.com"],
+                "density": 0.45
+            }
+        ]
+    },
+    "anomalies": {
+        "total_anomalies": 5,
+        "high_risk": 1,
+        "medium_risk": 2,
+        "low_risk": 2,
+        "anomalies": [
+            {
+                "node_id": "ip_192.0.2.100",
+                "anomaly_type": "degree",
+                "severity": "high",
+                "z_score": 3.45,
+                "description": "Unusually high number of connections"
+            }
+        ]
+    }
+}
+```
+
+### Find Paths Between Entities
+**POST** `/api/investigations/{id}/graph/paths`
+
+Find connection paths between two entities in the investigation graph.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "source_id": "ip_192.0.2.1",
+    "target_id": "domain_malicious.com",
+    "max_depth": 5,
+    "include_weights": true
+}
+```
+
+**Response:**
+```json
+{
+    "source": "ip_192.0.2.1",
+    "target": "domain_malicious.com",
+    "paths_found": 3,
+    "shortest_path": {
+        "length": 3,
+        "nodes": ["ip_192.0.2.1", "domain_example.com", "email_admin@example.com", "domain_malicious.com"],
+        "edges": [
+            {"from": "ip_192.0.2.1", "to": "domain_example.com", "type": "RESOLVES_TO"},
+            {"from": "domain_example.com", "to": "email_admin@example.com", "type": "REGISTERED_BY"},
+            {"from": "email_admin@example.com", "to": "domain_malicious.com", "type": "REGISTERED_BY"}
+        ],
+        "total_weight": 2.5
+    },
+    "all_paths": [...]
+}
+```
+
+### Blast Radius Analysis
+**POST** `/api/investigations/{id}/graph/blast-radius`
+
+Analyze potential impact if an entity is compromised.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "entity_id": "ip_192.0.2.1",
+    "max_hops": 3,
+    "propagation_model": "independent_cascade",
+    "probability": 0.3
+}
+```
+
+**Response:**
+```json
+{
+    "source_entity": "ip_192.0.2.1",
+    "model": "independent_cascade",
+    "max_hops": 3,
+    "blast_radius": {
+        "total_affected": 23,
+        "by_hop": {
+            "1": 8,
+            "2": 10,
+            "3": 5
+        },
+        "by_entity_type": {
+            "IP_ADDRESS": 5,
+            "DOMAIN": 8,
+            "EMAIL": 3,
+            "URL": 7
+        },
+        "critical_entities": [
+            {
+                "id": "domain_example.com",
+                "type": "DOMAIN",
+                "impact_score": 0.89,
+                "downstream_count": 12
+            }
+        ]
+    },
+    "risk_assessment": {
+        "severity": "HIGH",
+        "spread_rate": 0.67,
+        "containment_priority": ["domain_example.com", "ip_192.0.2.50"]
+    }
+}
+```
+
+### Centrality Analysis
+**POST** `/api/graph/centrality`
+
+Compute centrality metrics for graph nodes.
+
+**Request Body:**
+```json
+{
+    "node_ids": ["ip_192.0.2.1", "domain_example.com"],
+    "metrics": ["pagerank", "betweenness", "closeness", "eigenvector"],
+    "top_k": 10
+}
+```
+
+**Response:**
+```json
+{
+    "metrics": {
+        "pagerank": {
+            "ip_192.0.2.1": 0.156,
+            "domain_example.com": 0.089
+        },
+        "betweenness": {
+            "ip_192.0.2.1": 0.234,
+            "domain_example.com": 0.145
+        }
+    },
+    "top_nodes": [
+        {"id": "ip_192.0.2.1", "composite_score": 0.847},
+        {"id": "domain_example.com", "composite_score": 0.634}
+    ],
+    "computation_time_ms": 45
+}
+```
+
+### Community Detection
+**POST** `/api/graph/communities`
+
+Detect communities and clusters in the graph.
+
+**Request Body:**
+```json
+{
+    "algorithm": "louvain",
+    "resolution": 1.0,
+    "min_community_size": 3
+}
+```
+
+**Response:**
+```json
+{
+    "algorithm": "louvain",
+    "total_communities": 5,
+    "modularity": 0.72,
+    "communities": [
+        {
+            "id": 0,
+            "size": 15,
+            "members": ["ip_192.0.2.1", "domain_example.com", "..."],
+            "density": 0.45,
+            "dominant_type": "DOMAIN"
+        }
+    ],
+    "computation_time_ms": 120
+}
+```
+
+### Similarity Search
+**POST** `/api/graph/similarity`
+
+Find similar entities based on graph structure.
+
+**Request Body:**
+```json
+{
+    "entity_id": "ip_192.0.2.1",
+    "method": "jaccard",
+    "top_k": 10,
+    "entity_type_filter": "IP_ADDRESS"
+}
+```
+
+**Response:**
+```json
+{
+    "source_entity": "ip_192.0.2.1",
+    "method": "jaccard",
+    "similar_entities": [
+        {
+            "id": "ip_192.0.2.50",
+            "similarity_score": 0.78,
+            "common_neighbors": 5,
+            "entity_type": "IP_ADDRESS"
+        }
+    ],
+    "computation_time_ms": 23
+}
+```
+
+### Anomaly Detection
+**POST** `/api/graph/anomalies`
+
+Detect structural anomalies in the graph.
+
+**Request Body:**
+```json
+{
+    "detection_methods": ["degree", "clustering", "bridge", "star_pattern"],
+    "threshold": 2.0,
+    "min_severity": "medium"
+}
+```
+
+**Response:**
+```json
+{
+    "total_anomalies": 8,
+    "by_severity": {
+        "high": 2,
+        "medium": 3,
+        "low": 3
+    },
+    "anomalies": [
+        {
+            "node_id": "ip_192.0.2.100",
+            "anomaly_type": "degree",
+            "severity": "high",
+            "z_score": 3.45,
+            "description": "Node has 45 connections, 3.45 standard deviations above mean",
+            "investigation_priority": 1
+        },
+        {
+            "node_id": "domain_suspicious.com",
+            "anomaly_type": "star_pattern",
+            "severity": "high",
+            "description": "Hub node connected to 30+ isolated nodes",
+            "investigation_priority": 2
+        }
+    ],
+    "computation_time_ms": 89
+}
+```
+
+### Influence Propagation
+**POST** `/api/graph/influence`
+
+Simulate influence spread through the network.
+
+**Request Body:**
+```json
+{
+    "seed_nodes": ["ip_192.0.2.1"],
+    "model": "independent_cascade",
+    "probability": 0.3,
+    "max_iterations": 100,
+    "simulations": 1000
+}
+```
+
+**Response:**
+```json
+{
+    "model": "independent_cascade",
+    "seed_nodes": ["ip_192.0.2.1"],
+    "propagation_results": {
+        "expected_spread": 15.7,
+        "spread_std": 3.2,
+        "max_spread": 28,
+        "affected_by_iteration": [1, 5, 8, 12, 14, 15],
+        "critical_paths": [
+            {
+                "path": ["ip_192.0.2.1", "domain_example.com", "email_admin@example.com"],
+                "probability": 0.67
+            }
+        ]
+    },
+    "computation_time_ms": 450
+}
+```
+
+---
+
 ## MCP Server APIs
 
 Direct access to MCP server capabilities for advanced users.
@@ -650,6 +1057,16 @@ X-RateLimit-Reset: 1692195600
 | `DELETE /api/investigations/{id}` | Yes | Admin |
 | `GET /api/system/status` | No | None |
 | `GET /api/mcp/servers` | Yes | Any |
+| `GET /api/graph/status` | No | None |
+| `POST /api/investigations/{id}/graph/sync` | Yes | Analyst+ |
+| `POST /api/investigations/{id}/graph/analyze` | Yes | Any |
+| `POST /api/investigations/{id}/graph/paths` | Yes | Any |
+| `POST /api/investigations/{id}/graph/blast-radius` | Yes | Any |
+| `POST /api/graph/centrality` | Yes | Any |
+| `POST /api/graph/communities` | Yes | Any |
+| `POST /api/graph/similarity` | Yes | Any |
+| `POST /api/graph/anomalies` | Yes | Any |
+| `POST /api/graph/influence` | Yes | Any |
 
 ### Role Hierarchy
 1. **Viewer**: Read-only access to investigations

@@ -95,15 +95,27 @@ kubectl apply -f k8s/simple-frontend-deployment.yaml
 ## Key API Endpoints
 
 ```
-POST /api/auth/login                        # Login (admin/admin123)
-GET  /api/investigations                    # List investigations
-POST /api/investigations                    # Create investigation
-GET  /api/investigations/{id}               # Get investigation
-POST /api/investigations/{id}/report        # Generate report
-GET  /api/investigations/{id}/correlation   # Entity correlation analysis
+POST /api/auth/login                             # Login (admin/admin123)
+GET  /api/investigations                         # List investigations
+POST /api/investigations                         # Create investigation
+GET  /api/investigations/{id}                    # Get investigation
+POST /api/investigations/{id}/report             # Generate report
+GET  /api/investigations/{id}/correlation        # Entity correlation analysis
 GET  /api/investigations/{id}/analysis/advanced  # MITRE mapping & risk scoring
-GET  /api/system/status                     # Platform health
-GET  /api/mcp/servers                       # MCP server status
+GET  /api/system/status                          # Platform health
+GET  /api/mcp/servers                            # MCP server status
+
+# Graph Intelligence
+GET  /api/graph/status                           # Graph module status
+POST /api/investigations/{id}/graph/sync         # Sync investigation to graph
+POST /api/investigations/{id}/graph/analyze      # Full graph analysis
+POST /api/investigations/{id}/graph/paths        # Find entity paths
+POST /api/investigations/{id}/graph/blast-radius # Compromise impact analysis
+POST /api/graph/centrality                       # Centrality metrics
+POST /api/graph/communities                      # Community detection
+POST /api/graph/similarity                       # Entity similarity search
+POST /api/graph/anomalies                        # Anomaly detection
+POST /api/graph/influence                        # Influence propagation
 ```
 
 ## Environment Variables
@@ -163,11 +175,11 @@ scripts/
 └── legacy/       # Deprecated scripts (reference only)
 ```
 
-## Graph Intelligence Engine (In Progress)
+## Graph Intelligence Engine
 
 Palantir-style graph analytics for OSINT investigations. Located in `simple-backend/graph_intelligence/`.
 
-### Completed Components
+### Components
 - **models.py** - 35+ entity types, 45+ relationship types, graph data structures
 - **neo4j_client.py** - Neo4j database client with mock fallback for development
 - **algorithms/centrality.py** - PageRank, betweenness, closeness, eigenvector, harmonic, katz
@@ -178,6 +190,18 @@ Palantir-style graph analytics for OSINT investigations. Located in `simple-back
 - **algorithms/influence.py** - Independent cascade, linear threshold, SIR/SIS epidemic, blast radius
 - **api.py** - Flask Blueprint with REST endpoints for all graph operations
 - **sync.py** - Extract entities from investigations, build relationships, sync to graph
+
+### Usage
+```python
+# Sync investigation to graph
+POST /api/investigations/{id}/graph/sync
+
+# Run full analysis
+POST /api/investigations/{id}/graph/analyze
+
+# Blast radius for compromise analysis
+POST /api/investigations/{id}/graph/blast-radius
+```
 
 ### Architecture Documentation
 See `docs/GRAPH_INTELLIGENCE_ARCHITECTURE.md` for full design specifications.
