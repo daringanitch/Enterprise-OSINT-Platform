@@ -17,6 +17,9 @@ COPY *.py ./
 # Copy utils directory
 COPY utils/ ./utils/
 
+# Copy graph_intelligence module
+COPY graph_intelligence/ ./graph_intelligence/
+
 # Expose port
 EXPOSE 5001
 

@@ -6,6 +6,8 @@ aiohttp==3.9.0
 asyncio
 numpy==1.24.3
 pydantic==2.5.0
+networkx>=3.0
+scipy>=1.11.0
 hvac==1.2.1
 reportlab==4.0.4
 psycopg2-binary==2.9.7

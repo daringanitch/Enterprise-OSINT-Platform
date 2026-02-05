@@ -279,5 +279,85 @@ class DemoDataProvider:
             }
         }
 
+    def get_demo_reports(self) -> List[Dict[str, Any]]:
+        """Generate sample demo reports for display"""
+        # Ensure investigations are cached first
+        if not self._cache_generated:
+            self.get_demo_investigations()
+
+        reports = []
+        report_types = [
+            ('threat_assessment', 'Threat Assessment'),
+            ('executive_summary', 'Executive Summary'),
+            ('technical_analysis', 'Technical Analysis'),
+            ('risk_assessment', 'Risk Assessment'),
+            ('threat_assessment', 'Threat Assessment'),
+        ]
+
+        risk_levels = ['high', 'medium', 'critical', 'medium', 'high']
+        pages = [24, 8, 42, 15, 28]
+        findings_count = [18, 12, 31, 9, 22]
+        days_ago = [1, 2, 3, 4, 6]
+
+        for i, inv in enumerate(self._cached_investigations):
+            if inv.get('status') != 'completed':
+                continue
+
+            report_type, type_label = report_types[i % len(report_types)]
+            target = inv.get('target_profile', {}).get('primary_identifier', 'unknown')
+
+            generated_at = datetime.utcnow() - timedelta(days=days_ago[i % len(days_ago)])
+            expires_at = generated_at + timedelta(days=30)  # Demo reports don't expire quickly
+
+            report_id = f"report_{inv['id']}"
+
+            report = {
+                'id': report_id,
+                'investigation_id': inv['id'],
+                'target': target,
+                'title': f"{type_label}: {target}",
+                'type': report_type,
+                'investigator': inv.get('investigator_name', 'Demo Analyst'),
+                'generated_at': generated_at.isoformat(),
+                'expires_at': expires_at.isoformat(),
+                'status': 'completed',
+                'pages': pages[i % len(pages)],
+                'findings_count': findings_count[i % len(findings_count)],
+                'risk_level': risk_levels[i % len(risk_levels)],
+                'content': {
+                    'executive_summary': f'Comprehensive analysis of {target} completed. This investigation examined infrastructure, threat intelligence, and social media presence.',
+                    'key_findings': [
+                        f'{target} infrastructure analysis completed',
+                        'No critical vulnerabilities detected',
+                        'Standard security posture observed',
+                        'Social media presence verified'
+                    ],
+                    'recommendations': [
+                        'Continue routine monitoring',
+                        'Implement additional logging',
+                        'Schedule follow-up review in 90 days'
+                    ],
+                    'risk_assessment': {
+                        'overall_score': inv.get('risk_assessment', {}).get('score', 0.35),
+                        'category': inv.get('risk_assessment', {}).get('level', 'Medium').title() + ' Risk',
+                        'confidence': 'High'
+                    },
+                    'intelligence_data': inv.get('findings', {}),
+                    'investigation_metadata': {
+                        'investigation_id': inv['id'],
+                        'generated_by': inv.get('investigator_name', 'Demo Analyst'),
+                        'classification': 'CONFIDENTIAL',
+                        'created_at': inv.get('created_at'),
+                        'completed_at': inv.get('completed_at'),
+                        'data_points_collected': inv.get('progress', {}).get('data_points_collected', 15),
+                        'demo_mode': True
+                    }
+                }
+            }
+            reports.append(report)
+
+        return reports
+
+
 # Global demo data provider
 demo_provider = DemoDataProvider()

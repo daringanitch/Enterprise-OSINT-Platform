@@ -20,14 +20,20 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            background-image: 
-                radial-gradient(circle at 25% 25%, #1a1a1a 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, #2a2a2a 0%, transparent 50%);
-            color: #e5e7eb;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            background: #050505;
+            background-image:
+                radial-gradient(circle at 25% 25%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255, 0, 255, 0.03) 0%, transparent 50%),
+                linear-gradient(rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+            color: #e4e4e7;
             min-height: 100vh;
         }
+
+        /* Import cyber fonts */
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
         
         .container {
             max-width: 1400px;
@@ -51,24 +57,30 @@
         }
         
         .login-container {
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-            border: 1px solid #374151;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 16px;
             padding: 3rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.9),
+                0 0 40px rgba(0, 255, 255, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
             max-width: 400px;
             width: 90%;
             text-align: center;
         }
-        
+
         .login-title {
+            font-family: 'Orbitron', sans-serif;
             font-size: 2rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #10b981, #3b82f6);
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
         }
         
         .login-subtitle {
@@ -98,36 +110,39 @@
         .form-input {
             width: 100%;
             padding: 0.75rem 1rem;
-            border: 1px solid #374151;
+            border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 8px;
-            background: #111827;
-            color: #e5e7eb;
+            background: rgba(0, 0, 0, 0.5);
+            color: #e4e4e7;
             font-size: 1rem;
-            transition: all 0.2s ease;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s ease;
         }
         
         .form-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #00ffff;
+            box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15), 0 0 20px rgba(0, 255, 255, 0.2);
         }
-        
+
         .login-button {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
+            background: linear-gradient(135deg, #00ffff, #00d4ff);
+            color: #050505;
             border: none;
             padding: 0.75rem 1.5rem;
             border-radius: 8px;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             margin-top: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        
+
         .login-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6), 0 10px 25px -5px rgba(0, 255, 255, 0.4);
         }
         
         .login-button:disabled {
@@ -149,11 +164,12 @@
         .login-demo-info {
             margin-top: 2rem;
             padding: 1rem;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: rgba(0, 255, 136, 0.08);
+            border: 1px solid rgba(0, 255, 136, 0.3);
             border-radius: 8px;
             font-size: 0.8rem;
-            color: #10b981;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
         }
         
         .hidden {
@@ -164,23 +180,45 @@
             text-align: center;
             color: #ffffff;
             margin-bottom: 3rem;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.2);
             padding-bottom: 2rem;
+            position: relative;
         }
-        
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ffff, #ff00ff, transparent);
+        }
+
         .header h1 {
+            font-family: 'Orbitron', sans-serif;
             font-size: 3rem;
             margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #60a5fa, #34d399);
+            background: linear-gradient(135deg, #00ffff, #ff00ff, #00ffff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            text-shadow: 0 0 40px rgba(0, 255, 255, 0.5);
+            animation: titleGlow 3s ease-in-out infinite;
         }
-        
+
+        @keyframes titleGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.5)); }
+            50% { filter: drop-shadow(0 0 30px rgba(255, 0, 255, 0.5)); }
+        }
+
         .header p {
             font-size: 1.2rem;
-            opacity: 0.8;
-            color: #9ca3af;
+            opacity: 0.9;
+            color: #a1a1aa;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
         
         .dashboard {
@@ -191,27 +229,47 @@
         }
         
         .card {
-            background: #1f2937;
-            border: 1px solid #374151;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.5), transparent);
+        }
+
         .card:hover {
             transform: translateY(-5px);
-            border-color: #60a5fa;
-            box-shadow: 0 20px 40px rgba(96, 165, 250, 0.1);
+            border-color: rgba(0, 255, 255, 0.5);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.7),
+                0 0 30px rgba(0, 255, 255, 0.15);
         }
-        
+
         .card h3 {
-            color: #60a5fa;
+            font-family: 'Orbitron', sans-serif;
+            color: #00ffff;
             margin-bottom: 1rem;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            letter-spacing: 1px;
         }
         
         .status {
@@ -228,26 +286,65 @@
             margin-right: 0.5rem;
         }
         
-        .online { 
-            background: #10b981;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        .online {
+            background: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.8);
+            animation: pulseGreen 2s ease-in-out infinite;
         }
-        .offline { 
-            background: #ef4444;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        .offline {
+            background: #ff0044;
+            box-shadow: 0 0 15px rgba(255, 0, 68, 0.8);
+            animation: pulseRed 1.5s ease-in-out infinite;
         }
         .warning {
-            background: #f59e0b;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            background: #ff8800;
+            box-shadow: 0 0 15px rgba(255, 136, 0, 0.8);
+            animation: pulseOrange 2s ease-in-out infinite;
+        }
+
+        @keyframes pulseGreen {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 136, 0.8); }
+            50% { box-shadow: 0 0 20px rgba(0, 255, 136, 1), 0 0 30px rgba(0, 255, 136, 0.4); }
+        }
+
+        @keyframes pulseRed {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 68, 0.8); }
+            50% { box-shadow: 0 0 20px rgba(255, 0, 68, 1), 0 0 30px rgba(255, 0, 68, 0.4); }
+        }
+
+        @keyframes pulseOrange {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 136, 0, 0.8); }
+            50% { box-shadow: 0 0 20px rgba(255, 136, 0, 1), 0 0 30px rgba(255, 136, 0, 0.4); }
         }
         
         .investigation-form {
-            background: #1f2937;
-            border: 1px solid #374151;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
             margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .investigation-form::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 255, 0.5), transparent);
+        }
+
+        .investigation-form h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff00ff;
+            text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+            margin-bottom: 1.5rem;
         }
         
         .form-group {
@@ -264,67 +361,108 @@
         input, select {
             width: 100%;
             padding: 0.75rem;
-            border: 2px solid #374151;
+            border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 8px;
             font-size: 1rem;
-            background: #111827;
-            color: #f3f4f6;
-            transition: border-color 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.5);
+            color: #e4e4e7;
+            transition: all 0.3s ease;
         }
-        
+
         input:focus, select:focus {
             outline: none;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+            border-color: #00ffff;
+            box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15), 0 0 20px rgba(0, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.7);
         }
-        
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
         .btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
+            background: linear-gradient(135deg, #00ffff 0%, #00d4ff 100%);
+            color: #050505;
             border: none;
             padding: 0.75rem 2rem;
             border-radius: 8px;
             font-size: 1rem;
+            font-family: 'Orbitron', sans-serif;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: 600;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        
+
         .btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            background: linear-gradient(135deg, #00ffff 0%, #00ffff 100%);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6), 0 10px 20px rgba(0, 255, 255, 0.3);
         }
-        
+
         .btn-success {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
         }
-        
+
         .btn-success:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: linear-gradient(135deg, #00ff88 0%, #00ff88 100%);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.6), 0 10px 20px rgba(0, 255, 136, 0.3);
         }
-        
+
         .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            background: linear-gradient(135deg, #ff0044 0%, #cc0036 100%);
+            color: white;
         }
-        
+
         .btn-danger:hover {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            background: linear-gradient(135deg, #ff0044 0%, #ff0044 100%);
+            box-shadow: 0 0 30px rgba(255, 0, 68, 0.6), 0 10px 20px rgba(255, 0, 68, 0.3);
         }
         
         .investigation-list {
-            background: #1f2937;
-            border: 1px solid #374151;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
             margin-bottom: 2rem;
+            position: relative;
         }
-        
+
+        .investigation-list::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.5), transparent);
+        }
+
+        .investigation-list h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            margin-bottom: 1.5rem;
+        }
+
         .investigation-item {
-            border-bottom: 1px solid #374151;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
             padding: 1.5rem 0;
             position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .investigation-item:hover {
+            background: rgba(0, 255, 255, 0.03);
+            margin: 0 -1rem;
+            padding: 1.5rem 1rem;
+            border-radius: 8px;
         }
         
         .investigation-item:last-child {
@@ -368,61 +506,127 @@
         .report-status {
             margin-top: 1rem;
             padding: 1rem;
-            background: #111827;
+            background: rgba(0, 0, 0, 0.4);
             border-radius: 8px;
-            border: 1px solid #374151;
+            border: 1px solid rgba(0, 255, 255, 0.15);
         }
-        
+
         .report-expired {
-            color: #f59e0b;
+            color: #ff8800;
+            text-shadow: 0 0 10px rgba(255, 136, 0, 0.5);
         }
-        
+
         .report-available {
-            color: #10b981;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
-        
+
         .health-check {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #1f2937;
-            border: 1px solid #374151;
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
             padding: 1rem;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.1);
         }
-        
+
         .timer {
-            color: #f59e0b;
+            color: #ff8800;
             font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 0 10px rgba(255, 136, 0, 0.5);
         }
-        
+
         .expired {
-            color: #ef4444;
+            color: #ff0044;
+            text-shadow: 0 0 10px rgba(255, 0, 68, 0.5);
         }
-        
+
         .progress-bar {
             width: 100%;
             height: 8px;
-            background: #374151;
+            background: rgba(0, 0, 0, 0.5);
             border-radius: 4px;
             overflow: hidden;
             margin: 0.5rem 0;
+            border: 1px solid rgba(0, 255, 255, 0.2);
         }
-        
+
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            background: linear-gradient(90deg, #00ffff, #ff00ff);
             transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        
+
         .loading {
             animation: pulse 2s infinite;
+        }
+
+        /* Cyber loading spinner */
+        @keyframes cyberSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .cyber-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 255, 255, 0.1);
+            border-top: 3px solid #00ffff;
+            border-radius: 50%;
+            animation: cyberSpin 1s linear infinite;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        /* Scanline effect (optional overlay) */
+        .scanlines::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1) 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.3;
+        }
+
+        /* Glitch text effect for critical alerts */
+        @keyframes glitch {
+            0%, 100% { text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+            25% { text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; }
+            50% { text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff; }
+            75% { text-shadow: -1px 0 #00ffff, 1px 0 #ff00ff; }
+        }
+
+        .glitch-text {
+            animation: glitch 3s ease-in-out infinite;
+        }
+
+        /* Neon border animation */
+        @keyframes neonBorder {
+            0%, 100% { border-color: rgba(0, 255, 255, 0.3); }
+            50% { border-color: rgba(255, 0, 255, 0.3); }
+        }
+
+        .neon-border {
+            animation: neonBorder 4s ease-in-out infinite;
         }
         
         /* World Clocks Styling */
@@ -441,75 +645,93 @@
         }
         
         .clock-face {
-            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-            border: 2px solid #374151;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 1rem;
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .clock-face::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+        }
+
         .clock-face:hover {
-            border-color: #60a5fa;
+            border-color: rgba(0, 255, 255, 0.5);
             transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
         }
-        
+
         .clock-label {
-            color: #9ca3af;
-            font-size: 0.8rem;
+            font-family: 'Orbitron', sans-serif;
+            color: #a1a1aa;
+            font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
             margin-bottom: 0.5rem;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
-        
+
         .clock-time {
-            color: #60a5fa;
+            color: #00ffff;
             font-size: 1.4rem;
             font-weight: 700;
-            font-family: 'Courier New', monospace;
+            font-family: 'JetBrains Mono', monospace;
             margin-bottom: 0.2rem;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
-        
+
         .clock-date {
             color: #d1d5db;
             font-size: 0.75rem;
             font-weight: 500;
+            font-family: 'JetBrains Mono', monospace;
         }
         
         /* Mode Toggle Switch */
         .toggle-switch {
             width: 50px;
             height: 24px;
-            background: #374151;
+            background: rgba(0, 0, 0, 0.5);
             border-radius: 12px;
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
-            border: 1px solid #4b5563;
+            border: 1px solid rgba(255, 136, 0, 0.5);
         }
-        
+
         .toggle-switch.production {
-            background: #10b981;
-            border-color: #059669;
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
         }
-        
+
         .toggle-slider {
             width: 18px;
             height: 18px;
-            background: #e5e7eb;
+            background: #ff8800;
             border-radius: 50%;
             position: absolute;
             top: 2px;
             left: 2px;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 10px rgba(255, 136, 0, 0.5);
         }
-        
+
         .toggle-switch.production .toggle-slider {
             left: 28px;
-            background: #ffffff;
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
         }
-        
+
         .mode-toggle-container:hover .toggle-switch {
             transform: scale(1.05);
         }
@@ -534,18 +756,103 @@
             .container {
                 padding: 1rem;
             }
-            
+
             .header h1 {
                 font-size: 2rem;
             }
-            
+
             .dashboard {
                 grid-template-columns: 1fr;
             }
-            
+
             .investigation-actions {
                 flex-direction: column;
             }
+        }
+
+        /* Custom Scrollbar - Cyber Style */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+            border-left: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #00ffff, #ff00ff);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #00ffff, #00ffff);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Selection highlight */
+        ::selection {
+            background: rgba(0, 255, 255, 0.3);
+            color: #ffffff;
+        }
+
+        /* Link styles */
+        a {
+            color: #00d4ff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        a:hover {
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Badge styles */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-critical {
+            background: rgba(255, 0, 68, 0.2);
+            color: #ff0044;
+            border: 1px solid rgba(255, 0, 68, 0.4);
+            box-shadow: 0 0 10px rgba(255, 0, 68, 0.2);
+        }
+
+        .badge-high {
+            background: rgba(255, 0, 255, 0.2);
+            color: #ff00ff;
+            border: 1px solid rgba(255, 0, 255, 0.4);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
+        }
+
+        .badge-medium {
+            background: rgba(255, 136, 0, 0.2);
+            color: #ff8800;
+            border: 1px solid rgba(255, 136, 0, 0.4);
+            box-shadow: 0 0 10px rgba(255, 136, 0, 0.2);
+        }
+
+        .badge-low {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+        }
+
+        .badge-info {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -606,11 +913,11 @@
                     </div>
                     <!-- User Info -->
                     <div style="text-align: right;">
-                        <div id="user-info" style="font-size: 0.9rem; color: #e5e7eb;">
-                            <div id="user-name">Loading...</div>
-                            <div id="user-role" style="font-size: 0.8rem; color: #9ca3af;"></div>
+                        <div id="user-info" style="font-size: 0.9rem; color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">
+                            <div id="user-name" style="color: #00ffff; text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);">Loading...</div>
+                            <div id="user-role" style="font-size: 0.8rem; color: #a1a1aa;"></div>
                         </div>
-                        <button onclick="logout()" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #374151; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 4px; cursor: pointer;">
+                        <button onclick="logout()" style="margin-top: 0.5rem; padding: 0.25rem 0.75rem; font-size: 0.75rem; background: rgba(255, 0, 68, 0.1); border: 1px solid rgba(255, 0, 68, 0.4); color: #ff0044; border-radius: 4px; cursor: pointer; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255, 0, 68, 0.2)'; this.style.boxShadow='0 0 15px rgba(255, 0, 68, 0.3)'" onmouseout="this.style.background='rgba(255, 0, 68, 0.1)'; this.style.boxShadow='none'">
                             🚪 Logout
                         </button>
                     </div>
@@ -764,11 +1071,11 @@
         </div>
         
         <!-- Audit History Modal -->
-        <div id="audit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
-            <div style="position: relative; margin: 5% auto; width: 90%; max-width: 1200px; background: #1f2937; border-radius: 12px; padding: 2rem; max-height: 80vh; overflow-y: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #374151; padding-bottom: 1rem;">
-                    <h2 style="color: #60a5fa; margin: 0;">📊 Report Audit History</h2>
-                    <button onclick="closeAuditHistory()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">✕ Close</button>
+        <div id="audit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 1000;">
+            <div style="position: relative; margin: 5% auto; width: 90%; max-width: 1200px; background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 12px; padding: 2rem; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(0, 255, 255, 0.2); padding-bottom: 1rem;">
+                    <h2 style="color: #00ffff; margin: 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);">📊 Report Audit History</h2>
+                    <button onclick="closeAuditHistory()" style="background: linear-gradient(135deg, #ff0044, #cc0036); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-family: 'Orbitron', sans-serif; transition: all 0.3s ease;" onmouseover="this.style.boxShadow='0 0 20px rgba(255, 0, 68, 0.5)'" onmouseout="this.style.boxShadow='none'">✕ Close</button>
                 </div>
                 
                 <div style="margin-bottom: 2rem;">
@@ -1502,8 +1809,8 @@
                         <div class="investigation-item">
                             <div class="investigation-header">
                                 <div class="investigation-title">
-                                    <h4>${inv.target || inv.target_profile?.primary_identifier || 'Unknown Target'}</h4>
-                                    <p style="color: #60a5fa;">${(inv.investigation_type || inv.type || 'unknown').replace('_', ' ').toUpperCase()}</p>
+                                    <h4 style="color: #e4e4e7; font-family: 'JetBrains Mono', monospace; margin-bottom: 0.25rem;">${inv.target || inv.target_profile?.primary_identifier || 'Unknown Target'}</h4>
+                                    <p style="color: #ff00ff; text-shadow: 0 0 5px rgba(255, 0, 255, 0.3); font-size: 0.85rem; letter-spacing: 1px;">${(inv.investigation_type || inv.type || 'unknown').replace('_', ' ').toUpperCase()}</p>
                                 </div>
                                 <div class="investigation-actions">
                                     ${canGenerateReport ? 
@@ -1633,79 +1940,79 @@
         function displayAuditSummary(summary, statistics) {
             const summaryHtml = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #60a5fa; margin: 0 0 0.5rem 0;">Total Reports</h4>
-                        <p style="font-size: 1.5rem; margin: 0; color: #f3f4f6;">${summary.total_reports}</p>
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                        <h4 style="color: #00ffff; margin: 0 0 0.5rem 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);">Total Reports</h4>
+                        <p style="font-size: 1.5rem; margin: 0; color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">${summary.total_reports}</p>
                     </div>
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #10b981; margin: 0 0 0.5rem 0;">Active Reports</h4>
-                        <p style="font-size: 1.5rem; margin: 0; color: #f3f4f6;">${summary.active_reports}</p>
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(0, 255, 136, 0.2);">
+                        <h4 style="color: #00ff88; margin: 0 0 0.5rem 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);">Active Reports</h4>
+                        <p style="font-size: 1.5rem; margin: 0; color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">${summary.active_reports}</p>
                     </div>
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #f59e0b; margin: 0 0 0.5rem 0;">Expired Reports</h4>
-                        <p style="font-size: 1.5rem; margin: 0; color: #f3f4f6;">${summary.expired_reports}</p>
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 136, 0, 0.2);">
+                        <h4 style="color: #ff8800; margin: 0 0 0.5rem 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(255, 136, 0, 0.5);">Expired Reports</h4>
+                        <p style="font-size: 1.5rem; margin: 0; color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">${summary.expired_reports}</p>
                     </div>
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #8b5cf6; margin: 0 0 0.5rem 0;">Investigators</h4>
-                        <p style="font-size: 1.5rem; margin: 0; color: #f3f4f6;">${summary.investigators_count}</p>
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 0, 255, 0.2);">
+                        <h4 style="color: #ff00ff; margin: 0 0 0.5rem 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);">Investigators</h4>
+                        <p style="font-size: 1.5rem; margin: 0; color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">${summary.investigators_count}</p>
                     </div>
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #60a5fa; margin: 0 0 1rem 0;">Reports by Investigator</h4>
-                        ${Object.entries(statistics.reports_by_investigator).map(([investigator, count]) => 
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                        <h4 style="color: #00ffff; margin: 0 0 1rem 0; font-family: 'Orbitron', sans-serif;">Reports by Investigator</h4>
+                        ${Object.entries(statistics.reports_by_investigator).map(([investigator, count]) =>
                             `<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                 <span style="color: #d1d5db;">${investigator}</span>
-                                <span style="color: #f3f4f6; font-weight: bold;">${count}</span>
+                                <span style="color: #00ffff; font-weight: bold; font-family: 'JetBrains Mono', monospace;">${count}</span>
                             </div>`
                         ).join('')}
                     </div>
-                    <div style="background: #111827; padding: 1rem; border-radius: 8px; border: 1px solid #374151;">
-                        <h4 style="color: #60a5fa; margin: 0 0 1rem 0;">Reports by Type</h4>
-                        ${Object.entries(statistics.reports_by_type).map(([type, count]) => 
+                    <div style="background: rgba(0, 0, 0, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                        <h4 style="color: #00ffff; margin: 0 0 1rem 0; font-family: 'Orbitron', sans-serif;">Reports by Type</h4>
+                        ${Object.entries(statistics.reports_by_type).map(([type, count]) =>
                             `<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                 <span style="color: #d1d5db;">${type.replace('_', ' ').toUpperCase()}</span>
-                                <span style="color: #f3f4f6; font-weight: bold;">${count}</span>
+                                <span style="color: #ff00ff; font-weight: bold; font-family: 'JetBrains Mono', monospace;">${count}</span>
                             </div>`
                         ).join('')}
                     </div>
                 </div>
             `;
-            
+
             document.getElementById('audit-summary').innerHTML = summaryHtml;
         }
         
         function displayAuditHistory(auditHistory) {
             if (auditHistory.length === 0) {
-                document.getElementById('audit-history-content').innerHTML = 
-                    '<p style="color: #9ca3af; text-align: center; padding: 2rem;">No reports found for the selected criteria.</p>';
+                document.getElementById('audit-history-content').innerHTML =
+                    '<p style="color: #a1a1aa; text-align: center; padding: 2rem;">No reports found for the selected criteria.</p>';
                 return;
             }
-            
+
             const historyHtml = `
-                <div style="background: #111827; border-radius: 8px; border: 1px solid #374151;">
-                    <div style="padding: 1rem; border-bottom: 1px solid #374151;">
-                        <h4 style="color: #60a5fa; margin: 0;">Report Generation History</h4>
+                <div style="background: rgba(0, 0, 0, 0.4); border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                    <div style="padding: 1rem; border-bottom: 1px solid rgba(0, 255, 255, 0.2);">
+                        <h4 style="color: #00ffff; margin: 0; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);">Report Generation History</h4>
                     </div>
                     <div style="max-height: 400px; overflow-y: auto;">
                         ${auditHistory.map((entry, index) => `
-                            <div style="padding: 1rem; border-bottom: 1px solid #374151; ${index % 2 === 0 ? 'background: #1f2937;' : ''}">
+                            <div style="padding: 1rem; border-bottom: 1px solid rgba(0, 255, 255, 0.1); ${index % 2 === 0 ? 'background: rgba(0, 255, 255, 0.02);' : ''}">
                                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 1rem; align-items: center;">
                                     <div>
-                                        <div style="color: #f3f4f6; font-weight: bold; margin-bottom: 0.25rem;">${entry.target}</div>
-                                        <div style="color: #9ca3af; font-size: 0.875rem;">ID: ${entry.investigation_id.substring(0, 8)}...</div>
+                                        <div style="color: #e4e4e7; font-weight: bold; margin-bottom: 0.25rem; font-family: 'JetBrains Mono', monospace;">${entry.target}</div>
+                                        <div style="color: #a1a1aa; font-size: 0.875rem;">ID: ${entry.investigation_id.substring(0, 8)}...</div>
                                     </div>
                                     <div>
-                                        <div style="color: #60a5fa; font-weight: bold;">${entry.investigator_name}</div>
-                                        <div style="color: #9ca3af; font-size: 0.875rem;">${entry.investigator_id}</div>
+                                        <div style="color: #00ffff; font-weight: bold; text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);">${entry.investigator_name}</div>
+                                        <div style="color: #a1a1aa; font-size: 0.875rem;">${entry.investigator_id}</div>
                                     </div>
                                     <div>
-                                        <div style="color: #34d399;">${entry.report_type.replace('_', ' ').toUpperCase()}</div>
-                                        <div style="color: #9ca3af; font-size: 0.875rem;">${entry.priority.toUpperCase()}</div>
+                                        <div style="color: #00ff88; text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);">${entry.report_type.replace('_', ' ').toUpperCase()}</div>
+                                        <div style="color: #a1a1aa; font-size: 0.875rem;">${entry.priority.toUpperCase()}</div>
                                     </div>
                                     <div>
-                                        <div style="color: #f3f4f6;">${new Date(entry.generated_at).toLocaleDateString()}</div>
+                                        <div style="color: #e4e4e7; font-family: 'JetBrains Mono', monospace;">${new Date(entry.generated_at).toLocaleDateString()}</div>
                                         <div style="color: #9ca3af; font-size: 0.875rem;">${new Date(entry.generated_at).toLocaleTimeString()}</div>
                                     </div>
                                     <div>
@@ -1770,31 +2077,36 @@
         function updateModeDisplay(modeData) {
             const toggle = document.getElementById('mode-toggle');
             const label = document.getElementById('current-mode-label');
-            
+
             if (modeData.current_mode === 'production') {
                 toggle.classList.add('production');
                 label.textContent = 'Production Mode';
-                label.style.color = '#10b981';
+                label.style.color = '#00ff88';
+                label.style.textShadow = '0 0 5px rgba(0, 255, 136, 0.5)';
             } else {
                 toggle.classList.remove('production');
                 label.textContent = 'Demo Mode';
-                label.style.color = '#60a5fa';
+                label.style.color = '#ff8800';
+                label.style.textShadow = '0 0 5px rgba(255, 136, 0, 0.5)';
             }
         }
-        
+
         function updateApiKeyDisplay(keyData) {
             const apiCount = document.getElementById('api-count');
             const available = keyData.available_count;
             const total = keyData.total_count;
-            
+
             apiCount.textContent = `${available}/${total} API keys`;
-            
+
             if (available === 0) {
-                apiCount.style.color = '#ef4444';
+                apiCount.style.color = '#ff0044';
+                apiCount.style.textShadow = '0 0 5px rgba(255, 0, 68, 0.5)';
             } else if (available < total) {
-                apiCount.style.color = '#f59e0b';
+                apiCount.style.color = '#ff8800';
+                apiCount.style.textShadow = '0 0 5px rgba(255, 136, 0, 0.5)';
             } else {
-                apiCount.style.color = '#10b981';
+                apiCount.style.color = '#00ff88';
+                apiCount.style.textShadow = '0 0 5px rgba(0, 255, 136, 0.5)';
             }
             
             // Update tooltip with key details
@@ -1850,19 +2162,26 @@
                 transition: all 0.3s ease;
             `;
             
-            // Set background based on type
+            // Set background based on type (cyberpunk theme)
             switch (type) {
                 case 'success':
-                    notification.style.background = '#059669';
+                    notification.style.background = 'linear-gradient(135deg, #00ff88, #00cc6a)';
+                    notification.style.color = '#050505';
+                    notification.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.5)';
                     break;
                 case 'warning':
-                    notification.style.background = '#d97706';
+                    notification.style.background = 'linear-gradient(135deg, #ff8800, #cc6a00)';
+                    notification.style.color = '#050505';
+                    notification.style.boxShadow = '0 0 20px rgba(255, 136, 0, 0.5)';
                     break;
                 case 'error':
-                    notification.style.background = '#dc2626';
+                    notification.style.background = 'linear-gradient(135deg, #ff0044, #cc0036)';
+                    notification.style.boxShadow = '0 0 20px rgba(255, 0, 68, 0.5)';
                     break;
                 default:
-                    notification.style.background = '#3b82f6';
+                    notification.style.background = 'linear-gradient(135deg, #00ffff, #00d4ff)';
+                    notification.style.color = '#050505';
+                    notification.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.5)';
             }
             
             notification.textContent = message;

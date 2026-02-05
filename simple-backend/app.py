@@ -1642,23 +1642,32 @@ def get_all_reports():
     # Return all reports with expiration status
     result = []
     expired_reports = []
-    
+
     for report_id, report in reports.items():
-        report_time = datetime.fromisoformat(report['generated_at'])
-        if datetime.utcnow() - report_time >= timedelta(minutes=60):
-            expired_reports.append(report_id)
-        else:
-            expires_at = datetime.fromisoformat(report['expires_at'])
-            time_remaining = expires_at - datetime.utcnow()
-            
+        # Skip expiration check for demo reports (they have demo_mode flag in metadata)
+        is_demo = report.get('content', {}).get('investigation_metadata', {}).get('demo_mode', False)
+
+        if is_demo:
+            # Demo reports don't expire
             report_data = report.copy()
-            report_data['time_remaining_seconds'] = int(time_remaining.total_seconds())
+            report_data['time_remaining_seconds'] = 999999  # Long time remaining
             result.append(report_data)
-    
-    # Clean up expired reports
+        else:
+            report_time = datetime.fromisoformat(report['generated_at'])
+            if datetime.utcnow() - report_time >= timedelta(minutes=60):
+                expired_reports.append(report_id)
+            else:
+                expires_at = datetime.fromisoformat(report['expires_at'])
+                time_remaining = expires_at - datetime.utcnow()
+
+                report_data = report.copy()
+                report_data['time_remaining_seconds'] = int(time_remaining.total_seconds())
+                result.append(report_data)
+
+    # Clean up expired reports (not demo reports)
     for report_id in expired_reports:
         del reports[report_id]
-    
+
     return jsonify(result)
 
 @app.route('/api/investigations/<inv_id>/report/download', methods=['GET'])
@@ -2825,10 +2834,15 @@ def cleanup_expired_reports():
         time.sleep(60)  # Check every minute
         expired_reports = []
         for report_id, report in reports.items():
+            # Skip demo reports - they don't expire
+            is_demo = report.get('content', {}).get('investigation_metadata', {}).get('demo_mode', False)
+            if is_demo:
+                continue
+
             report_time = datetime.fromisoformat(report['generated_at'])
             if datetime.utcnow() - report_time >= timedelta(minutes=60):
                 expired_reports.append(report_id)
-        
+
         for report_id in expired_reports:
             del reports[report_id]
             logger.info(f"Cleaned up expired report: {report_id}")
@@ -5104,6 +5118,18 @@ def _generate_demo_advanced_analysis(demo_inv):
 
 
 # ============================================================================
+
+# Seed demo reports if in demo mode
+def seed_demo_reports():
+    """Seed sample reports when running in demo mode"""
+    if mode_manager.is_demo_mode():
+        demo_reports = demo_provider.get_demo_reports()
+        for report in demo_reports:
+            reports[report['id']] = report
+        logger.info(f"Seeded {len(demo_reports)} demo reports")
+
+# Initialize demo data
+seed_demo_reports()
 
 # Start background cleanup thread
 cleanup_thread = threading.Thread(target=cleanup_expired_reports, daemon=True)
