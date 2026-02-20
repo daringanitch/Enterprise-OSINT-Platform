@@ -24,7 +24,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enterprise-OSINT-Platform/simple-backend
+        working-directory: simple-backend
 
     env:
       PLATFORM_MODE: demo
@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: Enterprise-OSINT-Platform/simple-backend/requirements.txt
+          cache-dependency-path: simple-backend/requirements.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -86,8 +86,8 @@ jobs:
         with:
           name: backend-test-results-py${{ matrix.python-version }}
           path: |
-            Enterprise-OSINT-Platform/simple-backend/htmlcov/
-            Enterprise-OSINT-Platform/simple-backend/coverage.xml
+            simple-backend/htmlcov/
+            simple-backend/coverage.xml
           retention-days: 7
 
   # ──────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enterprise-OSINT-Platform/frontend
+        working-directory: frontend
 
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-          cache-dependency-path: Enterprise-OSINT-Platform/frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -138,7 +138,7 @@ jobs:
         if: always()
         with:
           name: frontend-coverage-node${{ matrix.node-version }}
-          path: Enterprise-OSINT-Platform/frontend/coverage/
+          path: frontend/coverage/
           retention-days: 7
 
   # ──────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enterprise-OSINT-Platform
+        working-directory: .
 
     steps:
       - uses: actions/checkout@v4
@@ -195,7 +195,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Enterprise-OSINT-Platform/simple-backend
+        working-directory: simple-backend
 
     steps:
       - uses: actions/checkout@v4
