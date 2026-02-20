@@ -17,6 +17,7 @@ os.environ['JWT_SECRET_KEY'] = 'test-secret-key'
 os.environ['POSTGRES_URL'] = 'postgresql://test:test@localhost:5432/test_osint'
 os.environ['PLATFORM_MODE'] = 'demo'  # Enable demo mode for testing
 os.environ['DEMO_MODE'] = 'true'
+os.environ['APP_DATA_DIR'] = tempfile.gettempdir()  # prevent mode_manager creating /app/data at import time
 
 from app import app as flask_app
 from models import OSINTInvestigation, InvestigationType, InvestigationStatus, Priority
