@@ -19,6 +19,8 @@ import NewInvestigationPage from './pages/NewInvestigation';
 import InvestigationDetailPage from './pages/InvestigationDetail';
 import ReportsPage from './pages/Reports';
 import SettingsPage from './pages/Settings';
+import GraphIntelligencePage from './pages/GraphIntelligence';
+import ThreatAnalysisPage from './pages/ThreatAnalysis';
 
 // Components
 import Layout from './components/Layout';
@@ -76,6 +78,8 @@ function App() {
                       <Route index element={<InvestigationsPage />} />
                       <Route path="new" element={<NewInvestigationPage />} />
                       <Route path=":id" element={<InvestigationDetailPage />} />
+                      <Route path=":id/graph" element={<GraphIntelligencePage />} />
+                      <Route path=":id/threats" element={<ThreatAnalysisPage />} />
                     </Route>
                     <Route path="reports" element={<ReportsPage />} />
                     <Route path="settings" element={<SettingsPage />} />

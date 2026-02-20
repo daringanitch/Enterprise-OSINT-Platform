@@ -115,8 +115,7 @@ const TimelineEventItem: React.FC<TimelineEventItemProps> = ({
     <TimelineItem>
       {showTimestamp && (
         <TimelineOppositeContent
-          sx={{ flex: 0.3, py: 1.5 }}
-          color="text.secondary"
+          sx={{ flex: 0.3, py: 1.5, color: 'text.secondary' }}
         >
           <Typography variant="caption" display="block">
             {formatDate(eventDate)}

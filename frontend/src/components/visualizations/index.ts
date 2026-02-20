@@ -20,3 +20,9 @@ export { ThreatMatrix, type ThreatMatrixProps } from './ThreatMatrix';
 
 // Data display
 export { DataTable, type DataTableProps } from './DataTable';
+
+// Advanced Graph Intelligence visualizations
+export { InvestigationGraph, type InvestigationGraphProps, type GraphEntity, type GraphRelationship } from './InvestigationGraph';
+export { CommunityMap, type CommunityMapProps, type Community, type CommunityEntity, type InterCommunityEdge } from './CommunityMap';
+export { InvestigationTimeline, type InvestigationTimelineProps, type TimelineEvent, type EventType, type EventSeverity } from './InvestigationTimeline';
+export { CorrelationMatrix, type CorrelationMatrixProps, type CorrelatedEntity, type SourceCorrelation } from './CorrelationMatrix';

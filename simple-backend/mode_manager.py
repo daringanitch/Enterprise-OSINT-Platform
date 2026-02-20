@@ -47,7 +47,8 @@ class ModeManager:
     """Manages demo/production mode switching and API key validation"""
     
     def __init__(self):
-        self.config_file = Path('/app/data/mode_config.json')
+        data_dir = os.environ.get('APP_DATA_DIR', '/app/data')
+        self.config_file = Path(data_dir) / 'mode_config.json'
         self.config_file.parent.mkdir(exist_ok=True, parents=True)
         self.config = self._load_config()
         self.api_key_status: Dict[str, APIKeyStatus] = {}

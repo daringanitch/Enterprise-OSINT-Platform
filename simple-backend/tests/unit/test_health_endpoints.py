@@ -50,8 +50,9 @@ class TestHealthEndpoints:
     
     def test_readiness_with_healthy_dependencies(self, client, mock_postgres_client, monkeypatch):
         """Test readiness probe when all dependencies are healthy"""
-        # Mock the postgres_client in the app module
-        monkeypatch.setattr('app.postgres_client', mock_postgres_client)
+        # Mock the audit_client in the shared services singleton
+        import shared
+        monkeypatch.setattr(shared.services, 'audit_client', mock_postgres_client)
         
         response = client.get('/health/ready')
         data = json.loads(response.data)

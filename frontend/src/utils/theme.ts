@@ -1,11 +1,63 @@
 /**
- * OSINT Platform Design System
+ * OSINT Platform Design System - Cyberpunk/Hacker Aesthetic
  *
  * Centralized theme configuration with CSS variables,
- * color palette, typography, and spacing system.
+ * color palette, typography, spacing system, and glassmorphism effects.
  */
 
-import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { createTheme, ThemeOptions, alpha } from '@mui/material/styles';
+
+// =============================================================================
+// Cyberpunk Color Palette
+// =============================================================================
+
+export const cyberColors = {
+  // Neon accent colors
+  neon: {
+    cyan: '#00ffff',
+    magenta: '#ff00ff',
+    electricBlue: '#00d4ff',
+    green: '#00ff88',
+    orange: '#ff8800',
+    red: '#ff0044',
+    yellow: '#ffff00',
+    purple: '#bf00ff',
+  },
+  // Dark backgrounds
+  dark: {
+    void: '#000000',
+    deepSpace: '#050505',
+    charcoal: '#0a0a0a',
+    midnight: '#0f1419',
+    slate: '#111827',
+    graphite: '#1a1a2e',
+    steel: '#1f2937',
+    ash: '#374151',
+  },
+  // Text colors
+  text: {
+    primary: '#e4e4e7',
+    secondary: '#a1a1aa',
+    muted: '#71717a',
+    accent: '#00ffff',
+    glowing: '#00ffff',
+  },
+  // Glow effects
+  glow: {
+    cyan: 'rgba(0, 255, 255, 0.5)',
+    magenta: 'rgba(255, 0, 255, 0.5)',
+    blue: 'rgba(0, 212, 255, 0.5)',
+    green: 'rgba(0, 255, 136, 0.5)',
+    red: 'rgba(255, 0, 68, 0.5)',
+  },
+  // Border colors
+  border: {
+    subtle: 'rgba(255, 255, 255, 0.1)',
+    default: 'rgba(255, 255, 255, 0.2)',
+    strong: 'rgba(255, 255, 255, 0.3)',
+    glow: 'rgba(0, 255, 255, 0.3)',
+  },
+};
 
 // =============================================================================
 // Design Tokens (CSS Variables compatible)
@@ -13,84 +65,90 @@ import { createTheme, ThemeOptions } from '@mui/material/styles';
 
 export const designTokens = {
   colors: {
-    // Primary palette
+    // Primary palette - Cyan accent
     primary: {
-      main: '#3b82f6',
-      light: '#60a5fa',
-      dark: '#2563eb',
-      contrastText: '#ffffff',
+      main: cyberColors.neon.cyan,
+      light: '#66ffff',
+      dark: '#00cccc',
+      contrastText: '#000000',
     },
-    // Secondary palette
+    // Secondary palette - Magenta accent
     secondary: {
-      main: '#8b5cf6',
-      light: '#a78bfa',
-      dark: '#7c3aed',
-      contrastText: '#ffffff',
+      main: cyberColors.neon.magenta,
+      light: '#ff66ff',
+      dark: '#cc00cc',
+      contrastText: '#000000',
     },
     // Status colors
     success: {
-      main: '#10b981',
-      light: '#34d399',
-      dark: '#059669',
-      contrastText: '#ffffff',
+      main: cyberColors.neon.green,
+      light: '#66ffaa',
+      dark: '#00cc6a',
+      contrastText: '#000000',
     },
     warning: {
-      main: '#f59e0b',
-      light: '#fbbf24',
-      dark: '#d97706',
+      main: cyberColors.neon.orange,
+      light: '#ffaa44',
+      dark: '#cc6600',
       contrastText: '#000000',
     },
     error: {
-      main: '#ef4444',
-      light: '#f87171',
-      dark: '#dc2626',
+      main: cyberColors.neon.red,
+      light: '#ff4477',
+      dark: '#cc0033',
       contrastText: '#ffffff',
     },
     info: {
-      main: '#06b6d4',
-      light: '#22d3ee',
-      dark: '#0891b2',
-      contrastText: '#ffffff',
+      main: cyberColors.neon.electricBlue,
+      light: '#66e5ff',
+      dark: '#00a8cc',
+      contrastText: '#000000',
     },
     // Risk levels
     risk: {
-      critical: '#dc2626',
-      high: '#f97316',
-      medium: '#eab308',
-      low: '#22c55e',
+      critical: cyberColors.neon.magenta,
+      high: cyberColors.neon.red,
+      medium: cyberColors.neon.orange,
+      low: cyberColors.neon.green,
     },
     // Dark theme backgrounds
     background: {
-      default: '#0a0a0a',
-      paper: '#111827',
-      elevated: '#1f2937',
-      surface: '#374151',
+      default: cyberColors.dark.charcoal,
+      paper: cyberColors.dark.slate,
+      elevated: cyberColors.dark.steel,
+      surface: cyberColors.dark.ash,
     },
     // Text colors
     text: {
-      primary: '#f9fafb',
-      secondary: '#9ca3af',
-      disabled: '#6b7280',
+      primary: cyberColors.text.primary,
+      secondary: cyberColors.text.secondary,
+      disabled: cyberColors.text.muted,
       hint: '#4b5563',
     },
     // Border colors
     border: {
-      light: '#374151',
-      main: '#4b5563',
-      dark: '#1f2937',
+      light: alpha(cyberColors.neon.cyan, 0.3),
+      main: alpha(cyberColors.neon.cyan, 0.2),
+      dark: alpha(cyberColors.neon.cyan, 0.1),
+      glow: cyberColors.glow.cyan,
     },
     // Gradients
     gradients: {
-      primary: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-      success: 'linear-gradient(135deg, #10b981, #3b82f6)',
-      danger: 'linear-gradient(135deg, #ef4444, #f97316)',
-      surface: 'radial-gradient(ellipse at top, #1f2937 0%, #0a0a0a 100%)',
+      primary: `linear-gradient(135deg, ${cyberColors.neon.cyan}, ${cyberColors.neon.magenta})`,
+      success: `linear-gradient(135deg, ${cyberColors.neon.green}, ${cyberColors.neon.cyan})`,
+      danger: `linear-gradient(135deg, ${cyberColors.neon.red}, ${cyberColors.neon.orange})`,
+      surface: `radial-gradient(ellipse at top, ${cyberColors.dark.graphite} 0%, ${cyberColors.dark.charcoal} 100%)`,
+      cyber: `linear-gradient(90deg, ${cyberColors.neon.cyan}, ${cyberColors.neon.magenta}, ${cyberColors.neon.cyan})`,
+      neonBorder: `linear-gradient(90deg, ${cyberColors.neon.cyan}, ${cyberColors.neon.magenta})`,
     },
+    // Cyber-specific colors
+    cyber: cyberColors,
   },
   typography: {
     fontFamily: {
       primary: '"Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
       mono: '"JetBrains Mono", "Fira Code", "Consolas", monospace',
+      display: '"Orbitron", "Inter", sans-serif',
     },
     fontSizes: {
       xs: '0.75rem',    // 12px
@@ -101,6 +159,7 @@ export const designTokens = {
       '2xl': '1.5rem',  // 24px
       '3xl': '1.875rem', // 30px
       '4xl': '2.25rem', // 36px
+      '5xl': '3rem',    // 48px
     },
     fontWeights: {
       normal: 400,
@@ -129,23 +188,33 @@ export const designTokens = {
     md: '0.5rem',   // 8px
     lg: '0.75rem',  // 12px
     xl: '1rem',     // 16px
+    '2xl': '1.5rem', // 24px
     full: '9999px',
   },
   shadows: {
-    sm: '0 1px 2px rgba(0, 0, 0, 0.3)',
-    md: '0 4px 6px rgba(0, 0, 0, 0.4)',
-    lg: '0 10px 15px rgba(0, 0, 0, 0.5)',
-    xl: '0 20px 25px rgba(0, 0, 0, 0.6)',
+    sm: '0 1px 2px rgba(0, 0, 0, 0.5)',
+    md: '0 4px 6px rgba(0, 0, 0, 0.6)',
+    lg: '0 10px 15px rgba(0, 0, 0, 0.7)',
+    xl: '0 20px 25px rgba(0, 0, 0, 0.8)',
     glow: {
-      primary: '0 0 20px rgba(59, 130, 246, 0.4)',
-      success: '0 0 20px rgba(16, 185, 129, 0.4)',
-      error: '0 0 20px rgba(239, 68, 68, 0.4)',
+      primary: `0 0 20px ${cyberColors.glow.cyan}, 0 0 40px ${alpha(cyberColors.neon.cyan, 0.3)}`,
+      secondary: `0 0 20px ${cyberColors.glow.magenta}, 0 0 40px ${alpha(cyberColors.neon.magenta, 0.3)}`,
+      success: `0 0 20px ${cyberColors.glow.green}`,
+      error: `0 0 20px ${cyberColors.glow.red}`,
+      subtle: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.2)}`,
+    },
+    neon: {
+      cyan: `0 0 5px ${cyberColors.neon.cyan}, 0 0 20px ${cyberColors.glow.cyan}`,
+      magenta: `0 0 5px ${cyberColors.neon.magenta}, 0 0 20px ${cyberColors.glow.magenta}`,
+      green: `0 0 5px ${cyberColors.neon.green}, 0 0 20px ${cyberColors.glow.green}`,
+      red: `0 0 5px ${cyberColors.neon.red}, 0 0 20px ${cyberColors.glow.red}`,
     },
   },
   transitions: {
     fast: '150ms ease',
     normal: '200ms ease',
     slow: '300ms ease',
+    glow: '300ms ease-in-out',
   },
   breakpoints: {
     xs: 0,
@@ -159,6 +228,125 @@ export const designTokens = {
     modal: 1300,
     snackbar: 1400,
     tooltip: 1500,
+  },
+};
+
+// =============================================================================
+// Glassmorphism Styles
+// =============================================================================
+
+export const glassmorphism = {
+  // Standard glass panel
+  panel: {
+    background: alpha(cyberColors.dark.slate, 0.8),
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    border: `1px solid ${alpha(cyberColors.neon.cyan, 0.15)}`,
+    boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 ${alpha(cyberColors.neon.cyan, 0.1)}`,
+  },
+  // Elevated glass card
+  card: {
+    background: alpha(cyberColors.dark.slate, 0.7),
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: `1px solid ${alpha(cyberColors.neon.cyan, 0.2)}`,
+    boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 ${alpha(cyberColors.neon.cyan, 0.1)}`,
+  },
+  // Interactive glass element
+  interactive: {
+    background: alpha(cyberColors.dark.graphite, 0.6),
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    border: `1px solid ${alpha(cyberColors.neon.cyan, 0.1)}`,
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      background: alpha(cyberColors.dark.graphite, 0.8),
+      border: `1px solid ${alpha(cyberColors.neon.cyan, 0.3)}`,
+      boxShadow: `0 0 20px ${alpha(cyberColors.neon.cyan, 0.2)}`,
+    },
+  },
+  // Frosted overlay
+  overlay: {
+    background: alpha(cyberColors.dark.charcoal, 0.9),
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+  },
+};
+
+// =============================================================================
+// Cyber Effects
+// =============================================================================
+
+export const cyberEffects = {
+  // Glowing text effect
+  glowText: (color: string = cyberColors.neon.cyan) => ({
+    color: color,
+    textShadow: `0 0 10px ${color}, 0 0 20px ${alpha(color, 0.5)}, 0 0 30px ${alpha(color, 0.3)}`,
+  }),
+  // Pulsing border animation
+  pulsingBorder: {
+    animation: 'pulsingBorder 2s ease-in-out infinite',
+    '@keyframes pulsingBorder': {
+      '0%, 100%': {
+        borderColor: alpha(cyberColors.neon.cyan, 0.3),
+        boxShadow: `0 0 5px ${alpha(cyberColors.neon.cyan, 0.2)}`,
+      },
+      '50%': {
+        borderColor: alpha(cyberColors.neon.cyan, 0.6),
+        boxShadow: `0 0 20px ${alpha(cyberColors.neon.cyan, 0.4)}`,
+      },
+    },
+  },
+  // Scanline effect
+  scanlines: {
+    position: 'relative' as const,
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: `repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        ${alpha(cyberColors.dark.void, 0.03)} 2px,
+        ${alpha(cyberColors.dark.void, 0.03)} 4px
+      )`,
+      pointerEvents: 'none',
+    },
+  },
+  // Grid pattern background
+  gridPattern: {
+    backgroundImage: `
+      linear-gradient(${alpha(cyberColors.neon.cyan, 0.03)} 1px, transparent 1px),
+      linear-gradient(90deg, ${alpha(cyberColors.neon.cyan, 0.03)} 1px, transparent 1px)
+    `,
+    backgroundSize: '20px 20px',
+  },
+  // HUD-style corner brackets
+  hudBrackets: {
+    position: 'relative' as const,
+    '&::before, &::after': {
+      content: '""',
+      position: 'absolute',
+      width: '20px',
+      height: '20px',
+      border: `2px solid ${cyberColors.neon.cyan}`,
+    },
+    '&::before': {
+      top: 0,
+      left: 0,
+      borderRight: 'none',
+      borderBottom: 'none',
+    },
+    '&::after': {
+      bottom: 0,
+      right: 0,
+      borderLeft: 'none',
+      borderTop: 'none',
+    },
   },
 };
 
@@ -184,21 +372,26 @@ const themeOptions: ThemeOptions = {
       secondary: designTokens.colors.text.secondary,
       disabled: designTokens.colors.text.disabled,
     },
-    divider: designTokens.colors.border.light,
+    divider: designTokens.colors.border.main,
   },
   typography: {
     fontFamily: designTokens.typography.fontFamily.primary,
     h1: {
+      fontFamily: designTokens.typography.fontFamily.display,
       fontSize: designTokens.typography.fontSizes['4xl'],
       fontWeight: designTokens.typography.fontWeights.bold,
       lineHeight: designTokens.typography.lineHeights.tight,
+      letterSpacing: '0.02em',
     },
     h2: {
+      fontFamily: designTokens.typography.fontFamily.display,
       fontSize: designTokens.typography.fontSizes['3xl'],
       fontWeight: designTokens.typography.fontWeights.bold,
       lineHeight: designTokens.typography.lineHeights.tight,
+      letterSpacing: '0.01em',
     },
     h3: {
+      fontFamily: designTokens.typography.fontFamily.display,
       fontSize: designTokens.typography.fontSizes['2xl'],
       fontWeight: designTokens.typography.fontWeights.semibold,
       lineHeight: designTokens.typography.lineHeights.tight,
@@ -233,6 +426,13 @@ const themeOptions: ThemeOptions = {
     button: {
       textTransform: 'none',
       fontWeight: designTokens.typography.fontWeights.medium,
+      letterSpacing: '0.02em',
+    },
+    overline: {
+      fontFamily: designTokens.typography.fontFamily.mono,
+      fontSize: designTokens.typography.fontSizes.xs,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
     },
   },
   shape: {
@@ -268,27 +468,42 @@ const themeOptions: ThemeOptions = {
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        '@import': [
+          'url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap")',
+          'url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap")',
+        ],
         body: {
           background: designTokens.colors.gradients.surface,
           minHeight: '100vh',
+          // Subtle grid pattern
+          backgroundImage: `
+            radial-gradient(ellipse at top, ${cyberColors.dark.graphite} 0%, ${cyberColors.dark.charcoal} 100%),
+            linear-gradient(${alpha(cyberColors.neon.cyan, 0.02)} 1px, transparent 1px),
+            linear-gradient(90deg, ${alpha(cyberColors.neon.cyan, 0.02)} 1px, transparent 1px)
+          `,
+          backgroundSize: '100% 100%, 40px 40px, 40px 40px',
         },
         '*': {
           scrollbarWidth: 'thin',
-          scrollbarColor: `${designTokens.colors.border.main} ${designTokens.colors.background.paper}`,
+          scrollbarColor: `${cyberColors.neon.cyan} ${cyberColors.dark.slate}`,
         },
         '*::-webkit-scrollbar': {
           width: '8px',
           height: '8px',
         },
         '*::-webkit-scrollbar-track': {
-          background: designTokens.colors.background.paper,
+          background: cyberColors.dark.slate,
         },
         '*::-webkit-scrollbar-thumb': {
-          background: designTokens.colors.border.main,
+          background: alpha(cyberColors.neon.cyan, 0.5),
           borderRadius: '4px',
+          '&:hover': {
+            background: cyberColors.neon.cyan,
+          },
         },
-        '*::-webkit-scrollbar-thumb:hover': {
-          background: designTokens.colors.border.light,
+        '::selection': {
+          background: alpha(cyberColors.neon.cyan, 0.3),
+          color: cyberColors.text.primary,
         },
       },
     },
@@ -296,23 +511,40 @@ const themeOptions: ThemeOptions = {
       styleOverrides: {
         root: {
           borderRadius: designTokens.borderRadius.md,
-          padding: '8px 16px',
-          transition: designTokens.transitions.normal,
+          padding: '10px 20px',
+          transition: 'all 0.3s ease',
+          fontWeight: 600,
           '&:hover': {
-            transform: 'translateY(-1px)',
+            transform: 'translateY(-2px)',
           },
         },
         contained: {
-          boxShadow: designTokens.shadows.md,
+          boxShadow: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.3)}`,
           '&:hover': {
-            boxShadow: designTokens.shadows.lg,
+            boxShadow: `0 0 20px ${alpha(cyberColors.neon.cyan, 0.5)}, 0 0 40px ${alpha(cyberColors.neon.cyan, 0.3)}`,
           },
         },
         containedPrimary: {
           background: designTokens.colors.gradients.primary,
+          color: '#000000',
           '&:hover': {
             background: designTokens.colors.gradients.primary,
-            filter: 'brightness(1.1)',
+            filter: 'brightness(1.2)',
+          },
+        },
+        outlined: {
+          borderWidth: '2px',
+          '&:hover': {
+            borderWidth: '2px',
+            boxShadow: `0 0 15px ${alpha(cyberColors.neon.cyan, 0.4)}`,
+          },
+        },
+        outlinedPrimary: {
+          borderColor: cyberColors.neon.cyan,
+          color: cyberColors.neon.cyan,
+          '&:hover': {
+            borderColor: cyberColors.neon.cyan,
+            backgroundColor: alpha(cyberColors.neon.cyan, 0.1),
           },
         },
       },
@@ -320,15 +552,23 @@ const themeOptions: ThemeOptions = {
     MuiCard: {
       styleOverrides: {
         root: {
-          background: designTokens.colors.background.paper,
+          ...glassmorphism.card,
           borderRadius: designTokens.borderRadius.lg,
-          border: `1px solid ${designTokens.colors.border.dark}`,
-          transition: designTokens.transitions.normal,
+          transition: 'all 0.3s ease',
           '&:hover': {
-            borderColor: designTokens.colors.border.light,
-            boxShadow: designTokens.shadows.lg,
+            borderColor: alpha(cyberColors.neon.cyan, 0.4),
+            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px ${alpha(cyberColors.neon.cyan, 0.2)}`,
           },
         },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+        elevation1: glassmorphism.panel,
+        elevation2: glassmorphism.card,
       },
     },
     MuiTextField: {
@@ -336,8 +576,24 @@ const themeOptions: ThemeOptions = {
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: designTokens.borderRadius.md,
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: designTokens.colors.primary.main,
+            background: alpha(cyberColors.dark.midnight, 0.5),
+            transition: 'all 0.3s ease',
+            '& fieldset': {
+              borderColor: alpha(cyberColors.neon.cyan, 0.2),
+              borderWidth: '2px',
+            },
+            '&:hover fieldset': {
+              borderColor: alpha(cyberColors.neon.cyan, 0.4),
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: cyberColors.neon.cyan,
+              boxShadow: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.3)}`,
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: cyberColors.text.secondary,
+            '&.Mui-focused': {
+              color: cyberColors.neon.cyan,
             },
           },
         },
@@ -347,53 +603,188 @@ const themeOptions: ThemeOptions = {
       styleOverrides: {
         root: {
           borderRadius: designTokens.borderRadius.md,
+          fontWeight: 500,
+          backdropFilter: 'blur(4px)',
+        },
+        filled: {
+          background: alpha(cyberColors.neon.cyan, 0.2),
+          '&:hover': {
+            background: alpha(cyberColors.neon.cyan, 0.3),
+          },
+        },
+        outlined: {
+          borderColor: alpha(cyberColors.neon.cyan, 0.5),
         },
       },
     },
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
-          background: designTokens.colors.background.elevated,
-          border: `1px solid ${designTokens.colors.border.light}`,
+          ...glassmorphism.panel,
           borderRadius: designTokens.borderRadius.md,
           fontSize: designTokens.typography.fontSizes.sm,
+          padding: '8px 12px',
+        },
+        arrow: {
+          color: alpha(cyberColors.dark.slate, 0.9),
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: designTokens.colors.background.paper,
+          ...glassmorphism.card,
           borderRadius: designTokens.borderRadius.xl,
-          border: `1px solid ${designTokens.colors.border.dark}`,
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: designTokens.colors.background.paper,
-          borderRight: `1px solid ${designTokens.colors.border.dark}`,
+          ...glassmorphism.panel,
+          borderRight: `1px solid ${alpha(cyberColors.neon.cyan, 0.2)}`,
         },
       },
     },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: designTokens.colors.background.paper,
-          borderBottom: `1px solid ${designTokens.colors.border.dark}`,
-          boxShadow: 'none',
+          ...glassmorphism.panel,
+          boxShadow: `0 4px 20px rgba(0, 0, 0, 0.3), 0 0 40px ${alpha(cyberColors.neon.cyan, 0.1)}`,
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderColor: designTokens.colors.border.dark,
+          borderColor: alpha(cyberColors.neon.cyan, 0.1),
         },
         head: {
           fontWeight: designTokens.typography.fontWeights.semibold,
-          background: designTokens.colors.background.elevated,
+          background: alpha(cyberColors.dark.steel, 0.8),
+          fontFamily: designTokens.typography.fontFamily.mono,
+          textTransform: 'uppercase',
+          fontSize: designTokens.typography.fontSizes.xs,
+          letterSpacing: '0.05em',
+        },
+      },
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: alpha(cyberColors.neon.cyan, 0.05),
+          },
+        },
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        indicator: {
+          backgroundColor: cyberColors.neon.cyan,
+          height: 3,
+          boxShadow: `0 0 10px ${cyberColors.neon.cyan}`,
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          fontWeight: 500,
+          textTransform: 'none',
+          '&.Mui-selected': {
+            color: cyberColors.neon.cyan,
+          },
+        },
+      },
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.borderRadius.full,
+          backgroundColor: alpha(cyberColors.neon.cyan, 0.1),
+        },
+        bar: {
+          borderRadius: designTokens.borderRadius.full,
+          background: designTokens.colors.gradients.primary,
+        },
+      },
+    },
+    MuiCircularProgress: {
+      styleOverrides: {
+        root: {
+          color: cyberColors.neon.cyan,
+        },
+      },
+    },
+    MuiBadge: {
+      styleOverrides: {
+        badge: {
+          fontWeight: 600,
+        },
+        colorPrimary: {
+          background: designTokens.colors.gradients.primary,
+          boxShadow: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.5)}`,
+        },
+        colorError: {
+          background: cyberColors.neon.red,
+          boxShadow: `0 0 10px ${alpha(cyberColors.neon.red, 0.5)}`,
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.borderRadius.md,
+          backdropFilter: 'blur(8px)',
+        },
+        standardError: {
+          backgroundColor: alpha(cyberColors.neon.red, 0.15),
+          border: `1px solid ${alpha(cyberColors.neon.red, 0.3)}`,
+        },
+        standardWarning: {
+          backgroundColor: alpha(cyberColors.neon.orange, 0.15),
+          border: `1px solid ${alpha(cyberColors.neon.orange, 0.3)}`,
+        },
+        standardInfo: {
+          backgroundColor: alpha(cyberColors.neon.cyan, 0.15),
+          border: `1px solid ${alpha(cyberColors.neon.cyan, 0.3)}`,
+        },
+        standardSuccess: {
+          backgroundColor: alpha(cyberColors.neon.green, 0.15),
+          border: `1px solid ${alpha(cyberColors.neon.green, 0.3)}`,
+        },
+      },
+    },
+    MuiSwitch: {
+      styleOverrides: {
+        switchBase: {
+          '&.Mui-checked': {
+            color: cyberColors.neon.cyan,
+            '& + .MuiSwitch-track': {
+              backgroundColor: alpha(cyberColors.neon.cyan, 0.5),
+            },
+          },
+        },
+        track: {
+          backgroundColor: alpha(cyberColors.text.muted, 0.3),
+        },
+      },
+    },
+    MuiSlider: {
+      styleOverrides: {
+        root: {
+          color: cyberColors.neon.cyan,
+        },
+        thumb: {
+          boxShadow: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.5)}`,
+          '&:hover': {
+            boxShadow: `0 0 20px ${cyberColors.neon.cyan}`,
+          },
+        },
+        track: {
+          background: designTokens.colors.gradients.primary,
         },
       },
     },
@@ -407,6 +798,7 @@ export const theme = createTheme(themeOptions);
 // =============================================================================
 
 export const getCSSVariables = (): Record<string, string> => ({
+  // Colors
   '--color-primary': designTokens.colors.primary.main,
   '--color-primary-light': designTokens.colors.primary.light,
   '--color-primary-dark': designTokens.colors.primary.dark,
@@ -421,16 +813,51 @@ export const getCSSVariables = (): Record<string, string> => ({
   '--color-text-primary': designTokens.colors.text.primary,
   '--color-text-secondary': designTokens.colors.text.secondary,
   '--color-border': designTokens.colors.border.main,
+  // Cyber colors
+  '--cyber-cyan': cyberColors.neon.cyan,
+  '--cyber-magenta': cyberColors.neon.magenta,
+  '--cyber-green': cyberColors.neon.green,
+  '--cyber-red': cyberColors.neon.red,
+  '--cyber-orange': cyberColors.neon.orange,
+  // Typography
   '--font-family': designTokens.typography.fontFamily.primary,
   '--font-family-mono': designTokens.typography.fontFamily.mono,
+  '--font-family-display': designTokens.typography.fontFamily.display,
+  // Spacing
   '--radius-sm': designTokens.borderRadius.sm,
   '--radius-md': designTokens.borderRadius.md,
   '--radius-lg': designTokens.borderRadius.lg,
+  // Shadows
   '--shadow-sm': designTokens.shadows.sm,
   '--shadow-md': designTokens.shadows.md,
   '--shadow-lg': designTokens.shadows.lg,
+  '--shadow-glow': designTokens.shadows.glow.primary,
+  // Transitions
   '--transition-fast': designTokens.transitions.fast,
   '--transition-normal': designTokens.transitions.normal,
 });
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Get risk color based on severity level
+ */
+export const getRiskColor = (level: 'critical' | 'high' | 'medium' | 'low'): string => {
+  return designTokens.colors.risk[level];
+};
+
+/**
+ * Get glow shadow for a specific color
+ */
+export const getGlowShadow = (color: string, intensity: 'subtle' | 'medium' | 'strong' = 'medium'): string => {
+  const intensities = {
+    subtle: `0 0 10px ${alpha(color, 0.3)}`,
+    medium: `0 0 20px ${alpha(color, 0.5)}, 0 0 40px ${alpha(color, 0.3)}`,
+    strong: `0 0 30px ${color}, 0 0 60px ${alpha(color, 0.5)}, 0 0 90px ${alpha(color, 0.3)}`,
+  };
+  return intensities[intensity];
+};
 
 export default theme;

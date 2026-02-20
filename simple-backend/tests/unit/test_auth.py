@@ -47,7 +47,7 @@ class TestAuthentication:
                 }
             return None
         
-        monkeypatch.setattr('app.authenticate_user', mock_auth)
+        monkeypatch.setattr('blueprints.auth.authenticate_user', mock_auth)
         
         response = client.post('/api/auth/login',
                               data=json.dumps({

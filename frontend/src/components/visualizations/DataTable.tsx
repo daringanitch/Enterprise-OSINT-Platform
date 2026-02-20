@@ -258,7 +258,7 @@ export function DataTable<T extends { id: string | number }>({
           autoHeight={autoHeight}
           density={dense ? 'compact' : 'standard'}
           // Pagination
-          pagination={paginated}
+          pagination={paginated ? true : undefined}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={pageSizeOptions}
@@ -272,7 +272,7 @@ export function DataTable<T extends { id: string | number }>({
           checkboxSelection={selectable && multiSelect}
           rowSelectionModel={selectionModel}
           onRowSelectionModelChange={handleSelectionChange}
-          disableMultipleRowSelection={!multiSelect}
+          disableRowSelectionOnClick={!multiSelect}
           // Row click
           onRowClick={handleRowClick}
           // Toolbar
@@ -345,5 +345,4 @@ export function DataTable<T extends { id: string | number }>({
   );
 }
 
-export type { DataTableProps };
 export default DataTable;

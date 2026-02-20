@@ -2,7 +2,7 @@
  * Card Component
  *
  * Reusable card container with header, content, and footer sections.
- * Supports different variants and interactive states.
+ * Supports different variants and interactive states including glassmorphism.
  */
 
 import React from 'react';
@@ -15,10 +15,13 @@ import {
   Box,
   Skeleton,
   styled,
+  alpha,
 } from '@mui/material';
-import { designTokens } from '../../utils/theme';
+import { motion, AnimatePresence } from 'framer-motion';
+import { designTokens, glassmorphism, cyberColors } from '../../utils/theme';
+import { cardVariants, glassCardVariants } from '../../utils/animations';
 
-export type CardVariant = 'default' | 'elevated' | 'outlined' | 'gradient';
+export type CardVariant = 'default' | 'elevated' | 'outlined' | 'gradient' | 'glass' | 'cyber';
 
 export interface CardProps {
   /** Card title */
@@ -45,6 +48,12 @@ export interface CardProps {
   testId?: string;
   /** Additional CSS class */
   className?: string;
+  /** Enable framer-motion animations */
+  animated?: boolean;
+  /** Custom glow color for cyber/glass variants */
+  glowColor?: string;
+  /** Animation delay (for staggered lists) */
+  animationDelay?: number;
 }
 
 const paddingValues = {
@@ -72,32 +81,84 @@ const variantStyles = {
     background: designTokens.colors.gradients.surface,
     border: `1px solid ${designTokens.colors.border.dark}`,
   },
+  glass: {
+    ...glassmorphism.card,
+  },
+  cyber: {
+    ...glassmorphism.card,
+    border: `1px solid ${alpha(cyberColors.neon.cyan, 0.3)}`,
+    position: 'relative' as const,
+    overflow: 'hidden',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '2px',
+      background: designTokens.colors.gradients.primary,
+    },
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: `repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        ${alpha(cyberColors.dark.void, 0.03)} 2px,
+        ${alpha(cyberColors.dark.void, 0.03)} 4px
+      )`,
+      pointerEvents: 'none',
+      zIndex: 1,
+    },
+  },
 };
 
 const StyledCard = styled(MuiCard, {
   shouldForwardProp: (prop) =>
-    !['cardVariant', 'interactive', 'cardPadding'].includes(prop as string),
+    !['cardVariant', 'interactive', 'cardPadding', 'glowColor'].includes(prop as string),
 })<{
   cardVariant: CardVariant;
   interactive?: boolean;
   cardPadding: string | number;
-}>(({ cardVariant, interactive }) => ({
+  glowColor?: string;
+}>(({ cardVariant, interactive, glowColor }) => ({
   borderRadius: designTokens.borderRadius.lg,
-  transition: designTokens.transitions.normal,
+  transition: 'all 0.3s ease',
   ...variantStyles[cardVariant],
   ...(interactive && {
     cursor: 'pointer',
     '&:hover': {
-      borderColor: designTokens.colors.border.light,
-      boxShadow: designTokens.shadows.lg,
-      transform: 'translateY(-2px)',
+      borderColor: cardVariant === 'cyber' || cardVariant === 'glass'
+        ? alpha(cyberColors.neon.cyan, 0.5)
+        : designTokens.colors.border.light,
+      boxShadow: cardVariant === 'cyber' || cardVariant === 'glass'
+        ? `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px ${alpha(glowColor || cyberColors.neon.cyan, 0.3)}`
+        : designTokens.shadows.lg,
+      transform: 'translateY(-4px)',
     },
     '&:focus-visible': {
       outline: `2px solid ${designTokens.colors.primary.main}`,
       outlineOffset: '2px',
     },
   }),
+  ...(cardVariant === 'cyber' && {
+    '&:hover::before': {
+      animation: 'gradientShift 2s linear infinite',
+    },
+    '@keyframes gradientShift': {
+      '0%': { backgroundPosition: '0% 50%' },
+      '100%': { backgroundPosition: '200% 50%' },
+    },
+  }),
 }));
+
+// Motion-enabled card wrapper
+const MotionCard = motion(StyledCard);
 
 const StyledCardHeader = styled(CardHeader)({
   padding: '16px 16px 8px',
@@ -105,10 +166,13 @@ const StyledCardHeader = styled(CardHeader)({
     fontSize: designTokens.typography.fontSizes.lg,
     fontWeight: designTokens.typography.fontWeights.semibold,
     color: designTokens.colors.text.primary,
+    fontFamily: designTokens.typography.fontFamily.display,
+    letterSpacing: '0.02em',
   },
   '& .MuiCardHeader-subheader': {
     fontSize: designTokens.typography.fontSizes.sm,
     color: designTokens.colors.text.secondary,
+    fontFamily: designTokens.typography.fontFamily.mono,
   },
 });
 
@@ -140,8 +204,15 @@ export const Card: React.FC<CardProps> = ({
   padding = 'md',
   testId,
   className,
+  animated = false,
+  glowColor,
+  animationDelay = 0,
 }) => {
   const cardPadding = paddingValues[padding];
+  const isGlassVariant = variant === 'glass' || variant === 'cyber';
+
+  // Animation variants based on card type
+  const variants = isGlassVariant ? glassCardVariants : cardVariants;
 
   if (loading) {
     return (
@@ -149,6 +220,7 @@ export const Card: React.FC<CardProps> = ({
         cardVariant={variant}
         interactive={false}
         cardPadding={cardPadding}
+        glowColor={glowColor}
         data-testid={testId}
         className={className}
       >
@@ -165,11 +237,62 @@ export const Card: React.FC<CardProps> = ({
     );
   }
 
+  const cardContent = (
+    <>
+      {(title || subtitle || headerAction) && (
+        <StyledCardHeader
+          title={title}
+          subheader={subtitle}
+          action={headerAction}
+        />
+      )}
+      <StyledCardContent cardPadding={cardPadding}>{children}</StyledCardContent>
+      {footer && <StyledCardActions>{footer}</StyledCardActions>}
+    </>
+  );
+
+  // Use motion wrapper if animated
+  if (animated) {
+    return (
+      <MotionCard
+        cardVariant={variant}
+        interactive={interactive}
+        cardPadding={cardPadding}
+        glowColor={glowColor}
+        onClick={interactive ? onClick : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        onKeyDown={
+          interactive
+            ? (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onClick?.();
+                }
+              }
+            : undefined
+        }
+        role={interactive ? 'button' : undefined}
+        data-testid={testId}
+        className={className}
+        initial="initial"
+        animate="enter"
+        exit="exit"
+        whileHover={interactive ? 'hover' : undefined}
+        whileTap={interactive ? 'tap' : undefined}
+        variants={variants}
+        transition={{ delay: animationDelay }}
+      >
+        {cardContent}
+      </MotionCard>
+    );
+  }
+
   return (
     <StyledCard
       cardVariant={variant}
       interactive={interactive}
       cardPadding={cardPadding}
+      glowColor={glowColor}
       onClick={interactive ? onClick : undefined}
       tabIndex={interactive ? 0 : undefined}
       onKeyDown={
@@ -186,15 +309,7 @@ export const Card: React.FC<CardProps> = ({
       data-testid={testId}
       className={className}
     >
-      {(title || subtitle || headerAction) && (
-        <StyledCardHeader
-          title={title}
-          subheader={subtitle}
-          action={headerAction}
-        />
-      )}
-      <StyledCardContent cardPadding={cardPadding}>{children}</StyledCardContent>
-      {footer && <StyledCardActions>{footer}</StyledCardActions>}
+      {cardContent}
     </StyledCard>
   );
 };
@@ -230,30 +345,39 @@ const StatLabel = styled(Typography)({
 const StatValue = styled(Typography)({
   fontSize: designTokens.typography.fontSizes['2xl'],
   fontWeight: designTokens.typography.fontWeights.bold,
-  color: designTokens.colors.text.primary,
+  color: cyberColors.text.primary,
+  fontFamily: designTokens.typography.fontFamily.mono,
 });
 
 const StatTrend = styled(Typography, {
   shouldForwardProp: (prop) => prop !== 'trend',
 })<{ trend: 'up' | 'down' | 'neutral' }>(({ trend }) => ({
   fontSize: designTokens.typography.fontSizes.sm,
+  fontWeight: designTokens.typography.fontWeights.medium,
   color:
     trend === 'up'
-      ? designTokens.colors.success.main
+      ? cyberColors.neon.green
       : trend === 'down'
-      ? designTokens.colors.error.main
+      ? cyberColors.neon.red
       : designTokens.colors.text.secondary,
+  textShadow: trend === 'up'
+    ? `0 0 10px ${alpha(cyberColors.neon.green, 0.5)}`
+    : trend === 'down'
+    ? `0 0 10px ${alpha(cyberColors.neon.red, 0.5)}`
+    : 'none',
 }));
 
 const StatIconContainer = styled(Box)({
   width: 48,
   height: 48,
   borderRadius: designTokens.borderRadius.md,
-  background: designTokens.colors.background.elevated,
+  background: alpha(cyberColors.neon.cyan, 0.1),
+  border: `1px solid ${alpha(cyberColors.neon.cyan, 0.2)}`,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: designTokens.colors.primary.main,
+  color: cyberColors.neon.cyan,
+  boxShadow: `0 0 10px ${alpha(cyberColors.neon.cyan, 0.2)}`,
 });
 
 export const CardStat: React.FC<CardStatProps> = ({

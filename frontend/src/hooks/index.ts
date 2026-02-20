@@ -44,3 +44,39 @@ export {
   useOrientation,
 } from './useMediaQuery';
 export type { BreakpointName, WindowSize, Orientation } from './useMediaQuery';
+
+// Graph Intelligence
+export { useGraphIntelligence } from './useGraphIntelligence';
+export type {
+  UseGraphIntelligenceOptions,
+  GraphEntity,
+  GraphRelationship,
+  GraphData,
+  CentralityResult,
+  PathResult,
+  CommunityResult,
+  AnomalyResult,
+  BlastRadiusResult,
+  GraphAnalysisResult,
+} from './useGraphIntelligence';
+
+// Advanced Analysis
+export { useAdvancedAnalysis } from './useAdvancedAnalysis';
+export type {
+  UseAdvancedAnalysisOptions,
+  MITRETechnique,
+  MITRETactic,
+  MITREAnalysisResult,
+  CategoryRisk,
+  RiskCategory,
+  RiskFactor,
+  Recommendation,
+  RiskAssessmentResult,
+  CorrelatedEntity,
+  CorrelationResult,
+  TimelineEvent,
+  TimelineResult,
+  KeyFinding,
+  RecommendedAction,
+  ExecutiveSummaryResult,
+} from './useAdvancedAnalysis';
