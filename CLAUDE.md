@@ -2,6 +2,23 @@
 
 Guidance for Claude Code when working with this repository.
 
+---
+
+> **CANONICAL BACKEND: `simple-backend/`**
+>
+> This repo contains **three** backend directories.  Only one is active:
+>
+> | Directory | Status | Notes |
+> |-----------|--------|-------|
+> | `simple-backend/` | ✅ **Active — use this** | Flask API, 220+ tests, full feature set |
+> | `fastapi-backend/` | ❌ Archived | Incomplete FastAPI port — see `fastapi-backend/ARCHIVED.md` |
+> | `backend/` | ❌ Archived | Early prototype — see `backend/ARCHIVED.md` |
+>
+> Always work in `simple-backend/`.  Never route CI, Docker builds, or Kubernetes
+> manifests to `fastapi-backend/` or `backend/`.
+
+---
+
 ## Quick Reference
 
 ```bash
@@ -15,7 +32,7 @@ Guidance for Claude Code when working with this repository.
 
 ```
 Enterprise-OSINT-Platform/
-├── simple-backend/          # Flask REST API (Python 3.11+)
+├── simple-backend/          # ✅ CANONICAL Flask REST API (Python 3.11+)
 ├── simple-frontend/         # Legacy React SPA (HTML/JS)
 ├── frontend/                # Modern React Frontend (TypeScript)
 │   ├── src/components/      # Reusable UI components
@@ -23,11 +40,16 @@ Enterprise-OSINT-Platform/
 │   ├── src/utils/           # Theme, validation, a11y utilities
 │   └── src/__tests__/       # Frontend tests (350+ tests)
 ├── mcp-servers/             # Intelligence microservices (FastAPI)
+│   └── tests/               # MCP server smoke tests (no API keys needed)
 ├── k8s/                     # Kubernetes manifests
 ├── scripts/                 # Utility scripts (deploy/, dev/, maintenance/)
 ├── docs/                    # Extended documentation
 ├── start.sh                 # One-command setup
-└── docker-compose.demo.yml  # Demo deployment
+├── docker-compose.demo.yml  # Demo deployment
+│
+│   --- ARCHIVED (do not use) ---
+├── fastapi-backend/         # ❌ Archived FastAPI port (incomplete)
+└── backend/                 # ❌ Archived early prototype
 ```
 
 ## Core Components

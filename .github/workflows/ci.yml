@@ -161,11 +161,20 @@ jobs:
           python-version: "3.10"
 
       - name: Install MCP test dependencies
-        run: pip install httpx pytest pytest-asyncio fastapi uvicorn
+        # flask + requests needed for social-media-enhanced (Flask-based server)
+        # aiohttp needed for infrastructure-advanced + threat-aggregator async clients
+        # httpx pinned to 0.24.x: starlette 0.27's TestClient uses the old httpx.Client(app=...)
+        # API which was removed in httpx 0.25+. Pin until fastapi/starlette is upgraded.
+        run: pip install "httpx==0.24.1" pytest pytest-asyncio fastapi uvicorn flask requests aiohttp
 
       - name: Install infrastructure-advanced dependencies
         run: |
           pip install -r mcp-servers/infrastructure-advanced/requirements.txt \
+            --ignore-requires-python 2>/dev/null || true
+
+      - name: Install threat-aggregator dependencies
+        run: |
+          pip install -r mcp-servers/threat-aggregator/requirements.txt \
             --ignore-requires-python 2>/dev/null || true
 
       - name: Run MCP server smoke tests
