@@ -279,7 +279,7 @@ audit_client = init_audit_client()
 # In-memory data storage
 legacy_investigations = {}
 reports = {}
-reports_audit_history = []
+reports_audit_history = {}  # keyed by report_id
 
 # Core service objects
 services.orchestrator = orchestrator
