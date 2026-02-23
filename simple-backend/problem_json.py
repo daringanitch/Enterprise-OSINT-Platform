@@ -44,7 +44,7 @@ class ProblemDetail:
         self.status = status
         self.detail = detail
         self.instance = instance or request.path if request else None
-        self.trace_id = trace_id or TraceContextManager.get_or_create_trace_id()
+        self.trace_id = trace_id or TraceContextManager.get_current_trace_id()
         self.timestamp = datetime.utcnow().isoformat()
         self.extensions = extensions
     

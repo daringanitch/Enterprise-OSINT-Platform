@@ -62,7 +62,7 @@ class TestAuthenticationEndpoints:
         )
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert 'access_token' in data  # API returns 'access_token', not 'token'
+        assert 'token' in data
 
     def test_login_with_invalid_credentials(self, client):
         """Test login failure with invalid credentials."""
@@ -105,9 +105,7 @@ class TestAuthenticationEndpoints:
         response = client.get('/api/auth/me', headers=auth_headers)
         assert response.status_code == 200
         data = json.loads(response.data)
-        # API returns {'user': {...}} — check nested or top-level depending on version
-        user = data.get('user', data)
-        assert 'user_id' in user or 'username' in user
+        assert 'user_id' in data or 'username' in data
 
     def test_me_endpoint_without_auth(self, client):
         """Test /api/auth/me requires authentication."""

@@ -33,15 +33,19 @@ Guidance for Claude Code when working with this repository.
 ```
 Enterprise-OSINT-Platform/
 ├── simple-backend/          # ✅ CANONICAL Flask REST API (Python 3.11+)
-├── simple-frontend/         # Legacy React SPA (HTML/JS)
+│   ├── blueprints/          # Flask Blueprints (auth, health, admin)
+│   ├── graph_intelligence/  # Palantir-style graph analytics
+│   ├── tests/               # Backend tests (220+ functions)
+│   └── utils/               # Startup validation, utilities
 ├── frontend/                # Modern React Frontend (TypeScript)
 │   ├── src/components/      # Reusable UI components
 │   ├── src/hooks/           # Custom React hooks
 │   ├── src/utils/           # Theme, validation, a11y utilities
 │   └── src/__tests__/       # Frontend tests (350+ tests)
+├── simple-frontend/         # Legacy React SPA (HTML/JS)
 ├── mcp-servers/             # Intelligence microservices (FastAPI)
 │   └── tests/               # MCP server smoke tests (no API keys needed)
-├── k8s/                     # Kubernetes manifests
+├── k8s/                     # Kubernetes manifests (54 files)
 ├── scripts/                 # Utility scripts (deploy/, dev/, maintenance/)
 ├── docs/                    # Extended documentation
 ├── start.sh                 # One-command setup
@@ -55,16 +59,31 @@ Enterprise-OSINT-Platform/
 ## Core Components
 
 ### Backend (`simple-backend/`)
+
+**Core Application:**
 - `app.py` - Flask REST API with 60+ endpoints, JWT auth
+- `shared.py` - Services singleton container
 - `models.py` - SQLAlchemy ORM for PostgreSQL
+
+**Blueprint Architecture** (Phase 1 complete):
+- `blueprints/auth.py` - Authentication routes, JWT tokens
+- `blueprints/health.py` - Health checks, Kubernetes probes
+- `blueprints/admin.py` - Admin routes
+- `utils/startup_validation.py` - Security validation at startup
+
+**Intelligence Modules:**
 - `investigation_orchestrator.py` - 7-stage investigation workflow
 - `mcp_clients.py` - MCP server communication
-- `professional_report_generator.py` - PDF reports
-- `compliance_framework.py` - GDPR/CCPA validation
-- `demo_data.py` - Demo mode data provider
 - `intelligence_correlation.py` - Entity correlation engine
 - `advanced_analysis.py` - MITRE ATT&CK mapping, risk scoring
 - `expanded_data_sources.py` - 6 intelligence source collectors
+
+**Supporting Services:**
+- `professional_report_generator.py` - PDF reports
+- `compliance_framework.py` - GDPR/CCPA validation
+- `demo_data.py` - Demo mode data provider
+- `observability.py` - OpenTelemetry, tracing
+- `problem_json.py` - RFC 7807 error handling
 
 ### Frontend (`frontend/`) - Modern TypeScript
 - `src/components/common/` - Button, Card, Modal, FormField, StatusIndicator, Loading, Toast

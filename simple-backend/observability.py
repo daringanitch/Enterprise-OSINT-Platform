@@ -28,11 +28,7 @@ from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
-try:
-    from opentelemetry.instrumentation.aiohttp import AioHTTPClientInstrumentor
-    _AIOHTTP_INSTRUMENTOR_AVAILABLE = True
-except ImportError:
-    _AIOHTTP_INSTRUMENTOR_AVAILABLE = False  # not packaged on Python 3.11
+from opentelemetry.instrumentation.aiohttp import AioHTTPClientInstrumentor
 
 # Prometheus metrics
 from prometheus_client import Counter, Histogram, Gauge, Info, generate_latest
@@ -197,9 +193,8 @@ class ObservabilityManager:
         # Redis instrumentation
         RedisInstrumentor().instrument()
         
-        # Async HTTP client instrumentation (optional — package not available on Python 3.11)
-        if _AIOHTTP_INSTRUMENTOR_AVAILABLE:
-            AioHTTPClientInstrumentor().instrument()
+        # Async HTTP client instrumentation
+        AioHTTPClientInstrumentor().instrument()
         
         logger.info("Third-party libraries instrumented")
     

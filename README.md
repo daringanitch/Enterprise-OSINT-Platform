@@ -42,6 +42,7 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **MITRE ATT&CK Mapping**: Automated technique identification with 14 tactics
 - **Risk Scoring Engine**: 6-category weighted scoring with trend analysis
 - **Timeline Reconstruction**: Automated event correlation and sequencing
+- **Graph Intelligence**: Neo4j-based relationship analysis with PageRank, community detection, and blast radius analysis
 
 ### Enterprise Features
 - **Professional PDF Reports**: Executive and technical summaries
@@ -56,7 +57,7 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Layout Components**: Header, Sidebar, responsive Layout wrapper
 - **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, DataTable
 - **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
-- **430+ Component Tests**: Comprehensive test coverage
+- **350+ Component Tests**: Comprehensive test coverage
 
 ## Deployment Options
 
@@ -85,15 +86,22 @@ docker compose -f docker-compose.demo.yml up -d
 Enterprise-OSINT-Platform/
 ├── simple-backend/              # Flask REST API
 │   ├── app.py                   # Main application (60+ endpoints)
+│   ├── blueprints/              # Flask Blueprint modules
+│   │   ├── auth.py              # Authentication routes
+│   │   └── health.py            # Health/monitoring endpoints
+│   ├── graph_intelligence/      # Palantir-style graph analytics
+│   │   ├── algorithms/          # Centrality, paths, community, etc.
+│   │   └── api.py               # Graph REST endpoints
 │   ├── models.py                # Database models
 │   ├── intelligence_correlation.py  # Entity correlation engine
 │   ├── advanced_analysis.py     # MITRE mapping, risk scoring
-│   ├── expanded_data_sources.py # 6 intelligence source collectors
 │   └── tests/                   # Backend test suite (220+ tests)
 ├── frontend/                    # React Frontend (TypeScript)
-│   ├── src/components/common/   # Reusable UI components
-│   ├── src/components/layout/   # Layout components
-│   ├── src/components/a11y/     # Accessibility components
+│   ├── src/components/          # UI components
+│   │   ├── common/              # Button, Card, Modal, etc.
+│   │   ├── layout/              # Header, Sidebar, Layout
+│   │   ├── dashboard/           # Dashboard components
+│   │   └── visualizations/      # Charts, graphs, heatmaps
 │   ├── src/hooks/               # Custom React hooks
 │   ├── src/utils/               # Theme, validation, a11y utilities
 │   └── src/__tests__/           # Frontend tests (350+ tests)
@@ -101,12 +109,11 @@ Enterprise-OSINT-Platform/
 ├── mcp-servers/                 # Intelligence microservices
 │   ├── infrastructure-advanced/ # Port 8021
 │   ├── threat-aggregator/       # Port 8020
+│   ├── social-media-enhanced/   # Port 8010
+│   ├── financial-enhanced/      # Port 8040
 │   └── ai-analyzer/             # Port 8050
-├── k8s/                         # Kubernetes manifests
+├── k8s/                         # Kubernetes manifests (54 files)
 ├── scripts/                     # Organized utility scripts
-│   ├── deploy/                  # Deployment helpers
-│   ├── dev/                     # Development tools
-│   └── maintenance/             # System maintenance
 ├── start.sh                     # One-command setup
 └── docker-compose.demo.yml      # Demo deployment
 ```
@@ -159,10 +166,10 @@ Then restart with `./start.sh local`
 
 ## Technology Stack
 
-- **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis
+- **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis, Neo4j (optional)
 - **Frontend**: React 18, TypeScript, Material-UI
 - **Component Library**: Custom design system with 10+ reusable components
-- **Testing**: Jest, React Testing Library, pytest (650+ total tests)
+- **Testing**: Jest, React Testing Library, pytest (570+ total tests)
 - **MCP Servers**: FastAPI, aiohttp
 - **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 

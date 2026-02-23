@@ -370,55 +370,9 @@ class WorkspaceSettings:
 
 class InvestigationError(Exception):
     """Custom exception for investigation-related errors"""
-
+    
     def __init__(self, message: str, investigation_id: str = None, error_code: str = None):
         self.message = message
         self.investigation_id = investigation_id
         self.error_code = error_code
         super().__init__(message)
-
-
-# ---------------------------------------------------------------------------
-# Intelligence result types
-# Canonical definition lives here; mcp_clients imports from models to avoid
-# having the same dataclass defined in two places.
-# ---------------------------------------------------------------------------
-
-@dataclass
-class IntelligenceResult:
-    """Standardized intelligence data result returned by MCP clients"""
-    source: str
-    data_type: str
-    target: str
-    raw_data: Dict[str, Any]
-    processed_data: Dict[str, Any]
-    confidence_score: float
-    timestamp: datetime
-    metadata: Dict[str, Any]
-
-
-@dataclass
-class IntelligenceResults:
-    """Aggregated collection of IntelligenceResult objects for an investigation"""
-    investigation_id: str
-    target: str
-    results: List[IntelligenceResult] = field(default_factory=list)
-    total_sources: int = 0
-    successful_sources: int = 0
-    failed_sources: int = 0
-    gathered_at: datetime = field(default_factory=datetime.utcnow)
-
-    def add(self, result: IntelligenceResult) -> None:
-        self.results.append(result)
-        self.total_sources += 1
-        self.successful_sources += 1
-
-    def add_failure(self) -> None:
-        self.total_sources += 1
-        self.failed_sources += 1
-
-
-# Re-export types that live in sibling modules so tests can import everything
-# from a single `models` namespace without circular-import risk.
-from advanced_analysis import RiskScore          # noqa: E402
-from compliance_framework import ComplianceAssessment  # noqa: E402

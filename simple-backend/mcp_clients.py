@@ -48,8 +48,17 @@ class APICredentials:
     rate_limit_per_minute: int = 60
 
 
-# Canonical definition is in models.py; import here to avoid duplicate definitions.
-from models import IntelligenceResult  # noqa: F401 (re-exported for callers that import from mcp_clients)
+@dataclass
+class IntelligenceResult:
+    """Standardized intelligence data result"""
+    source: str
+    data_type: str
+    target: str
+    raw_data: Dict[str, Any]
+    processed_data: Dict[str, Any]
+    confidence_score: float
+    timestamp: datetime
+    metadata: Dict[str, Any]
 
 
 class MCPClientBase(ABC):

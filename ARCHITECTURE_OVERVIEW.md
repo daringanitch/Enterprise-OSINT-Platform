@@ -30,6 +30,7 @@ The Enterprise OSINT Platform is a Kubernetes-native, microservices-based open-s
 - **Threat Intelligence**: VirusTotal integration, Shodan scanning, threat feed correlation
 - **Financial Intelligence**: SEC filings, stock data, company analysis
 - **Technical Intelligence**: GitHub/GitLab repository analysis, code intelligence
+- **Graph Intelligence**: Palantir-style relationship analysis, community detection, blast radius analysis
 
 ---
 
@@ -268,6 +269,64 @@ class AdvancedAnalysisEngine:
         - Perform trend analysis
         """
 ```
+
+### 8. Graph Intelligence Engine (`graph_intelligence/`)
+
+Palantir-style graph analytics for advanced relationship analysis:
+
+```python
+# Entity and relationship modeling
+class GraphEntity:
+    """35+ entity types: Person, Organization, Domain, IP, etc."""
+    entity_id: str
+    entity_type: EntityType
+    properties: Dict[str, Any]
+    risk_score: float
+
+class GraphRelationship:
+    """45+ relationship types: OWNS, OPERATES, CONNECTS_TO, etc."""
+    source_id: str
+    target_id: str
+    relationship_type: RelationshipType
+    properties: Dict[str, Any]
+```
+
+**Algorithm Modules:**
+- `algorithms/centrality.py` - PageRank, betweenness, closeness, eigenvector, harmonic, katz
+- `algorithms/paths.py` - Shortest path, all paths, reachability, pivot finding
+- `algorithms/community.py` - Louvain, label propagation, k-core, clustering coefficient
+- `algorithms/similarity.py` - Jaccard, Adamic-Adar, cosine, SimRank
+- `algorithms/anomaly.py` - Degree anomalies, bridge detection, hub/authority, star patterns
+- `algorithms/influence.py` - Independent cascade, linear threshold, SIR/SIS epidemic, blast radius
+
+**Key Features:**
+- Neo4j database integration with mock fallback for development
+- Investigation-to-graph synchronization
+- Blast radius analysis for compromise impact assessment
+- Entity similarity search across investigations
+
+### 9. Blueprint Architecture
+
+Modular route organization for the Flask backend:
+
+```python
+# blueprints/auth.py - Authentication
+@bp.route('/api/auth/login', methods=['POST'])
+def login(): ...
+
+# blueprints/health.py - Health/Monitoring
+@bp.route('/health', methods=['GET'])
+def health_check(): ...
+
+# shared.py - Services singleton
+class Services:
+    orchestrator: InvestigationOrchestrator
+    compliance_engine: ComplianceFramework
+    vault_client: VaultClient
+    # ... shared across blueprints
+```
+
+**Current Status:** Phase 1 complete (auth, health blueprints). Phase 2 planned for remaining routes.
 
 ---
 
@@ -759,23 +818,42 @@ mcpServers:
 ```
 simple-backend/
 ├── app.py                              # Main Flask application (60+ endpoints)
+├── shared.py                           # Services singleton container
 ├── models.py                           # SQLAlchemy data models
-├── investigation_orchestrator.py       # Investigation workflow engine
+├── blueprints/                         # Flask Blueprint modules
+│   ├── __init__.py                     # Blueprint package
+│   ├── auth.py                         # Authentication routes (JWT)
+│   ├── health.py                       # Health checks, K8s probes
+│   └── admin.py                        # Admin routes
+├── utils/
+│   └── startup_validation.py           # Security validation at startup
+├── graph_intelligence/                 # Palantir-style graph analytics
+│   ├── models.py                       # 35+ entity types, 45+ relationships
+│   ├── neo4j_client.py                 # Graph database client + mock
+│   ├── api.py                          # REST endpoints
+│   ├── sync.py                         # Investigation-to-graph sync
+│   └── algorithms/                     # Graph algorithms (~6,300 lines)
+│       ├── centrality.py               # PageRank, betweenness, closeness
+│       ├── paths.py                    # Shortest path, reachability
+│       ├── community.py                # Louvain, label propagation
+│       ├── similarity.py               # Jaccard, Adamic-Adar, SimRank
+│       ├── anomaly.py                  # Anomaly detection patterns
+│       └── influence.py                # Cascade, epidemic, blast radius
+├── investigation_orchestrator.py       # 7-stage investigation workflow
 ├── mcp_clients.py                      # MCP server communication
-├── compliance_framework.py             # Regulatory compliance
-├── risk_assessment_engine.py           # Risk scoring algorithms
-├── professional_report_generator.py    # PDF report generation
-├── audit_report_generator.py           # Audit trail reports
-├── postgres_audit_client.py            # Database audit logging
-├── api_connection_monitor.py           # External API monitoring
-├── vault_client.py                     # HashiCorp Vault integration
 ├── intelligence_correlation.py         # Entity correlation engine
 ├── advanced_analysis.py                # MITRE ATT&CK mapping, risk scoring
+├── compliance_framework.py             # Regulatory compliance
+├── professional_report_generator.py    # PDF report generation
+├── observability.py                    # OpenTelemetry, tracing
+├── problem_json.py                     # RFC 7807 error handling
 ├── expanded_data_sources.py            # 6 intelligence source collectors
-├── caching_service.py                  # TTL-based caching
 ├── demo_data.py                        # Demo mode data provider
+├── tests/                              # Test suite (220+ functions)
+│   ├── unit/                           # Unit tests
+│   ├── integration/                    # Integration tests
+│   └── graph_intelligence/             # Graph module tests
 ├── requirements.txt                    # Python dependencies
-├── tests/                              # Test suite (220+ tests)
 └── Dockerfile                          # Container definition
 ```
 
