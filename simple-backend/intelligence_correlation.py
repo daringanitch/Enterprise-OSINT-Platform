@@ -32,6 +32,8 @@ class EntityType(Enum):
     CERTIFICATE = "certificate"
     ASN = "asn"
     TECHNOLOGY = "technology"
+    CVE = "cve"
+    CRYPTOCURRENCY = "cryptocurrency"
 
 
 class RelationshipType(Enum):
@@ -1135,6 +1137,95 @@ class IntelligenceCorrelator:
             })
 
         return findings
+
+    def ingest_nlp_result(self, nlp_result: Any, source: str = "nlp") -> int:
+        """
+        Convert a :class:`~nlp_pipeline.NLPResult` (or its ``to_dict()``
+        representation) to :class:`Entity` objects and add them to
+        ``self.entities``.
+
+        Returns the count of *new* entities added (duplicates are merged into
+        existing entities via :meth:`_add_entity`).
+        """
+        import hashlib
+        from datetime import datetime, timezone
+
+        def _make_id(entity_type_value: str, value: str) -> str:
+            key = f"{entity_type_value}:{value.lower()}"
+            return hashlib.md5(key.encode()).hexdigest()[:16]
+
+        # Support both NLPResult dataclass instances and to_dict() output
+        if hasattr(nlp_result, "to_dict"):
+            data = nlp_result.to_dict()
+        else:
+            data = dict(nlp_result)
+
+        added = 0
+        now = datetime.now(tz=timezone.utc)
+
+        type_map = [
+            ("cves",              EntityType.CVE,           0.95),
+            ("bitcoin_addresses", EntityType.CRYPTOCURRENCY, 0.90),
+            ("ethereum_addresses",EntityType.CRYPTOCURRENCY, 0.90),
+            ("onion_domains",     EntityType.DOMAIN,        0.95),
+            ("organizations",     EntityType.ORGANIZATION,  0.75),
+            ("persons",           EntityType.PERSON,        0.70),
+        ]
+
+        for field_name, entity_type, confidence in type_map:
+            for value in data.get(field_name, []):
+                if not value:
+                    continue
+                entity_id = _make_id(entity_type.value, value)
+                entity = Entity(
+                    id=entity_id,
+                    entity_type=entity_type,
+                    value=value,
+                    normalized_value=value.lower(),
+                    sources=[source],
+                    first_seen=now,
+                    last_seen=now,
+                    confidence=confidence,
+                    attributes={
+                        "nlp_field": field_name,
+                        "currency": "BTC" if field_name == "bitcoin_addresses"
+                                    else "ETH" if field_name == "ethereum_addresses"
+                                    else None,
+                    },
+                )
+                before = len(self.entities)
+                self._add_entity(entity)
+                if len(self.entities) > before:
+                    added += 1
+
+        # Threat actors → ORGANIZATION with is_threat_actor flag
+        for actor in data.get("threat_actors", []):
+            if not actor:
+                continue
+            entity_id = _make_id(EntityType.ORGANIZATION.value, actor)
+            entity = Entity(
+                id=entity_id,
+                entity_type=EntityType.ORGANIZATION,
+                value=actor,
+                normalized_value=actor.lower(),
+                sources=[source],
+                first_seen=now,
+                last_seen=now,
+                confidence=0.85,
+                attributes={"is_threat_actor": True},
+                tags=["threat-actor"],
+            )
+            before = len(self.entities)
+            self._add_entity(entity)
+            if len(self.entities) > before:
+                added += 1
+
+        logger.info(
+            "ingest_nlp_result: added %d new entities from source='%s'",
+            added,
+            source,
+        )
+        return added
 
     def _build_confidence_summary(self) -> Dict[str, float]:
         """Build summary of confidence scores by entity type"""

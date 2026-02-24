@@ -56,6 +56,7 @@ class ReportFormat(Enum):
     HTML = "html"
     DOCX = "docx"
     JSON = "json"
+    STIX = "stix"
 
 
 class ClassificationLevel(Enum):
@@ -584,8 +585,27 @@ class ProfessionalReportGenerator:
             return self._export_html(report).encode('utf-8')
         elif format_type == ReportFormat.JSON:
             return self._export_json(report).encode('utf-8')
+        elif format_type == ReportFormat.STIX:
+            return self._export_stix(report)
         else:
             raise ValueError(f"Unsupported export format: {format_type}")
+
+    def _export_stix(self, report: "ProfessionalReport") -> bytes:
+        """Export report as a STIX 2.1 bundle (JSON bytes)."""
+        from stix_export import STIXExporter
+
+        exporter = STIXExporter()
+        # Build a minimal investigation-like dict from the report
+        investigation_dict = {
+            "id": getattr(report, "report_id", "unknown"),
+            "name": getattr(report, "title", "OSINT Report"),
+            "summary": getattr(report, "executive_summary", ""),
+        }
+        bundle = exporter.export_investigation(investigation_dict)
+        if isinstance(bundle, dict) and "error" in bundle:
+            import json
+            return json.dumps(bundle).encode("utf-8")
+        return exporter.to_json(bundle).encode("utf-8")
     
     def _export_pdf(self, report: ProfessionalReport) -> bytes:
         """Export report as professional PDF"""

@@ -19,6 +19,9 @@ import ipaddress
 import certifi
 from functools import lru_cache
 
+from passive_dns_circl import CIRCLPassiveDNS
+from cert_chain import CertificateChainAnalyzer
+
 class AdvancedInfrastructureIntel:
     """Advanced infrastructure intelligence gathering"""
     
@@ -83,6 +86,82 @@ class AdvancedInfrastructureIntel:
                     
         except Exception as e:
             return {'error': str(e)}
+
+    async def passive_dns_multi(self, domain: str) -> Dict[str, Any]:
+        """Multi-source passive DNS: CIRCL pDNS (free, always) + SecurityTrails (if key set).
+
+        Returns a merged view with per-source results and a deduplicated list of
+        all unique IPs seen across sources.
+        """
+        sources: Dict[str, Any] = {}
+
+        # Source 1: CIRCL pDNS — free, no API key required
+        try:
+            async with CIRCLPassiveDNS() as circl:
+                circl_result = await circl.query(domain)
+            sources['circl_pdns'] = circl_result
+        except Exception as exc:
+            sources['circl_pdns'] = {'error': str(exc), 'source': 'circl_pdns'}
+
+        # Source 2: SecurityTrails — only if API key is present
+        if self.securitytrails_api_key:
+            st_result = await self.passive_dns(domain)
+            if 'error' not in st_result:
+                sources['securitytrails'] = st_result
+            else:
+                sources['securitytrails'] = st_result  # include the error for transparency
+
+        # Merge unique IPs across all sources
+        all_ips: set = set()
+        for src_name, src_data in sources.items():
+            for ip in src_data.get('unique_ips', []):
+                all_ips.add(ip)
+
+        return {
+            'domain': domain,
+            'sources': sources,
+            'unique_ips': sorted(all_ips),
+            'source_count': len(sources),
+        }
+
+    async def certificate_deep_analysis(self, domain: str) -> Dict[str, Any]:
+        """Deep certificate analysis: CT log history + live cert chain (SANs, expiry, fingerprint).
+
+        Combines:
+        * crt.sh certificate transparency query (historical certs + discovered subdomains)
+        * Live TLS handshake parsed by CertificateChainAnalyzer (SANs, expiry alert, fingerprint)
+        """
+        result: Dict[str, Any] = {
+            'domain': domain,
+            'ct_history': {},
+            'live_cert': {},
+            'all_sans': [],
+            'expiry_alert': None,
+        }
+
+        # --- CT log history (crt.sh) ---
+        try:
+            ct_data = await self.certificate_transparency(domain)
+            result['ct_history'] = ct_data
+            ct_sans = ct_data.get('subdomains', [])
+        except Exception as exc:
+            result['ct_history'] = {'error': str(exc)}
+            ct_sans = []
+
+        # --- Live TLS certificate ---
+        try:
+            live = await CertificateChainAnalyzer.fetch_live_cert(domain)
+            result['live_cert'] = live
+            live_sans = live.get('subject_alt_names', [])
+            result['expiry_alert'] = live.get('expiry_alert')
+        except Exception as exc:
+            result['live_cert'] = {'error': str(exc)}
+            live_sans = []
+
+        # Merge and deduplicate SANs from both sources
+        result['all_sans'] = CertificateChainAnalyzer.merge_san_lists(ct_sans, live_sans)
+
+        return result
 
     async def asn_lookup(self, ip: str) -> Dict[str, Any]:
         """Get ASN information for an IP address"""
@@ -333,9 +412,12 @@ class AdvancedInfrastructureIntel:
             # Domain-based recon
             results['intelligence']['whois'] = await self._whois_lookup(target)
             results['intelligence']['dns'] = await self._comprehensive_dns_lookup(target)
-            results['intelligence']['certificate_transparency'] = await self.certificate_transparency(target)
+            # Enhanced: multi-source passive DNS (CIRCL always; SecurityTrails if key present)
+            results['intelligence']['passive_dns_multi'] = await self.passive_dns_multi(target)
+            # Enhanced: deep certificate analysis (CT history + live cert chain)
+            results['intelligence']['certificate_deep_analysis'] = await self.certificate_deep_analysis(target)
             results['intelligence']['web_technologies'] = await self.web_technologies(f"https://{target}")
-            
+
             # Get IP for port scan
             try:
                 ip = socket.gethostbyname(target)
@@ -420,6 +502,8 @@ class InfrastructureAdvancedMCPServer:
         handlers = {
             'infrastructure/certificate_transparency': self.intel.certificate_transparency,
             'infrastructure/passive_dns': self.intel.passive_dns,
+            'infrastructure/passive_dns_multi': self.intel.passive_dns_multi,
+            'infrastructure/certificate_deep_analysis': self.intel.certificate_deep_analysis,
             'infrastructure/asn_lookup': self.intel.asn_lookup,
             'infrastructure/reverse_ip': self.intel.reverse_ip_lookup,
             'infrastructure/port_scan': self.intel.port_scan,
@@ -459,8 +543,18 @@ class InfrastructureAdvancedMCPServer:
                     'params': ['domain']
                 },
                 {
-                    'name': 'infrastructure/passive_dns', 
-                    'description': 'Get historical DNS records',
+                    'name': 'infrastructure/passive_dns',
+                    'description': 'Get historical DNS records via SecurityTrails (requires API key)',
+                    'params': ['domain']
+                },
+                {
+                    'name': 'infrastructure/passive_dns_multi',
+                    'description': 'Multi-source passive DNS: CIRCL pDNS (free, always on) + SecurityTrails (if key set)',
+                    'params': ['domain']
+                },
+                {
+                    'name': 'infrastructure/certificate_deep_analysis',
+                    'description': 'Deep cert analysis: CT log history (crt.sh) + live TLS cert chain (SANs, expiry, fingerprint)',
                     'params': ['domain']
                 },
                 {
@@ -581,10 +675,30 @@ if __name__ == '__main__':
         url = request.get('url')
         if not url:
             raise HTTPException(status_code=400, detail="URL required")
-            
+
         async with AdvancedInfrastructureIntel() as intel:
             result = await intel.web_technologies(url)
             return {"success": True, "data": result}
-    
+
+    @app.post("/infrastructure/passive_dns_multi")
+    async def passive_dns_multi(request: dict):
+        domain = request.get('domain')
+        if not domain:
+            raise HTTPException(status_code=400, detail="Domain required")
+
+        async with AdvancedInfrastructureIntel() as intel:
+            result = await intel.passive_dns_multi(domain)
+            return {"success": True, "data": result}
+
+    @app.post("/infrastructure/certificate_deep_analysis")
+    async def certificate_deep_analysis(request: dict):
+        domain = request.get('domain')
+        if not domain:
+            raise HTTPException(status_code=400, detail="Domain required")
+
+        async with AdvancedInfrastructureIntel() as intel:
+            result = await intel.certificate_deep_analysis(domain)
+            return {"success": True, "data": result}
+
     print("Starting Advanced Infrastructure Intelligence MCP Server on port 8021...")
     uvicorn.run(app, host="0.0.0.0", port=8021)

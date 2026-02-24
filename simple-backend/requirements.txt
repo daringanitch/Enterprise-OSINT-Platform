@@ -33,6 +33,13 @@ opentelemetry-exporter-prometheus==0.41b0
 opentelemetry-propagator-b3==1.20.0
 prometheus-client==0.18.0
 
+# NLP intelligence pipeline
+langdetect>=1.0.9
+# spacy>=3.5.0  # Optional — uncomment + run: python -m spacy download en_core_web_sm
+
+# STIX 2.1 export + MISP integration
+stix2>=3.0.1
+
 # Testing dependencies
 pytest==7.4.0
 pytest-asyncio==0.21.1

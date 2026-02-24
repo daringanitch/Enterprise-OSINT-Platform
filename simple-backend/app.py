@@ -343,6 +343,8 @@ from blueprints.intelligence import bp as intelligence_bp
 from blueprints.graph import bp as graph_bp
 from blueprints.analysis import bp as analysis_bp
 from blueprints.admin import bp as admin_bp
+from blueprints.nlp import bp as nlp_bp
+from blueprints.stix import bp as stix_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(auth_bp)
@@ -354,6 +356,8 @@ app.register_blueprint(intelligence_bp)
 app.register_blueprint(graph_bp)
 app.register_blueprint(analysis_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(nlp_bp)
+app.register_blueprint(stix_bp)
 
 logger.info("All blueprints registered successfully")
 
