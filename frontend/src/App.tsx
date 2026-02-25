@@ -21,6 +21,8 @@ import ReportsPage from './pages/Reports';
 import SettingsPage from './pages/Settings';
 import GraphIntelligencePage from './pages/GraphIntelligence';
 import ThreatAnalysisPage from './pages/ThreatAnalysis';
+import AnalyticWorkbenchPage from './pages/AnalyticWorkbench';
+import MonitoringPage from './pages/Monitoring';
 
 // Components
 import Layout from './components/Layout';
@@ -80,8 +82,10 @@ function App() {
                       <Route path=":id" element={<InvestigationDetailPage />} />
                       <Route path=":id/graph" element={<GraphIntelligencePage />} />
                       <Route path=":id/threats" element={<ThreatAnalysisPage />} />
+                      <Route path=":id/workbench" element={<AnalyticWorkbenchPage />} />
                     </Route>
                     <Route path="reports" element={<ReportsPage />} />
+                    <Route path="monitoring" element={<MonitoringPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
                   

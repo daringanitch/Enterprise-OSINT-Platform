@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Analytic Tradecraft & Confidence Scoring (IC Standards)
+- **`analytic_tradecraft.py`** — Full implementation of intelligence community structured analytic techniques:
+  - NATO/Admiralty scale (A-F source reliability × 1-6 information credibility) with complete label/description reference data
+  - IC-standard confidence levels (High/Moderate/Low) with ICD 203 controlled vocabulary and Sherman Kent Words of Estimative Probability scale
+  - Analysis of Competing Hypotheses (ACH) matrix engine: evidence × hypothesis consistency ratings (C/I/N/NA) with Heuer diagnostic scoring
+  - `AlternativeExplanation` model: forces analysts to document why alternatives were rejected, preventing confirmation bias
+  - `DevilsAdvocacy` model: designated dissent workflow with lead analyst response tracking
+  - `AnalyticConclusion` model: IC-statement generator ("We assess with high confidence that…"), completeness enforcer before finalisation
+- **`blueprints/tradecraft.py`** — 20+ REST endpoints for all tradecraft workflows
+- **`frontend/src/pages/AnalyticWorkbench.tsx`** — Analytic Workbench UI (route `/investigations/:id/workbench`):
+  - Tab 1 Intelligence Items: Admiralty-rated source table (A1–F6 codes), add/edit dialog
+  - Tab 2 Hypotheses: type-badged cards, status workflow, rejection rationale enforcement
+  - Tab 3 ACH Matrix: interactive grid with C/I/N/NA cell toggles, hypothesis inconsistency scores and rank badges
+  - Tab 4 Conclusions: IC confidence badge, WEP phrase selector, IC statement preview, alternative explanations panel with completeness indicator
+
+#### Real-Time Alerting & Infrastructure Monitoring
+- **`alert_engine.py`** — Watchlist and alerting data layer: 9 target types, 14 alert types, snapshot diffing engine
+- **`monitoring_scheduler.py`** — Daemon background thread: configurable check intervals (1h–7d), free collectors (DNS, crt.sh, WHOIS, AbuseIPDB), on-demand trigger API
+- **`blueprints/monitoring.py`** — Full watchlist and alert management REST API
+- **`frontend/src/pages/Monitoring.tsx`** — Monitoring dashboard (route `/monitoring`):
+  - Watchlist tab: asset cards with type icons, enable/disable, check-now button, alert badge counts
+  - Alerts tab: severity filter chips, status filter, diff summary display, Acknowledge/Resolve/Dismiss actions, 30s auto-refresh
+- Sidebar navigation: added **Monitoring** entry with MonitorHeart icon
+
 #### Service Configuration UI & API Key Management
 - **`service_config.py`** — Central service catalog with 19 intelligence services categorised by tier (free / freemium / paid) and category (network, threat, social, AI, breach). Persists API keys to `service_config.json` and injects them into `os.environ` on startup so existing code requires no changes.
 - **`blueprints/settings.py`** — New Flask blueprint exposing `/api/settings/*` endpoints:

@@ -32,6 +32,8 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import { designTokens } from '../../utils/theme';
 
 export interface NavItem {
@@ -106,6 +108,12 @@ const defaultNavItems: NavItem[] = [
     label: 'Data Sources',
     icon: <StorageIcon />,
     path: '/data-sources',
+  },
+  {
+    id: 'monitoring',
+    label: 'Monitoring',
+    icon: <MonitorHeartIcon />,
+    path: '/monitoring',
   },
   {
     id: 'settings',
