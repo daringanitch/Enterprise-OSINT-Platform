@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Service Configuration UI & API Key Management
+- **`service_config.py`** — Central service catalog with 19 intelligence services categorised by tier (free / freemium / paid) and category (network, threat, social, AI, breach). Persists API keys to `service_config.json` and injects them into `os.environ` on startup so existing code requires no changes.
+- **`blueprints/settings.py`** — New Flask blueprint exposing `/api/settings/*` endpoints:
+  - `GET  /api/settings/services` — full catalog with live key/operational status
+  - `POST /api/settings/services/{id}/enable|disable` — toggle a service
+  - `POST /api/settings/services/{id}/key` — save API key (auto-enables service)
+  - `DELETE /api/settings/services/{id}/key` — remove key (auto-disables if required)
+  - `POST /api/settings/services/{id}/test` — live validation call to the upstream API
+  - `GET/POST /api/settings/mode` — read/switch Demo ↔ Live mode
+- **`frontend/src/pages/Settings.tsx`** — Complete Settings page rewrite:
+  - **Services tab**: filter chips by category and tier; services grouped as *Free*, *Free Tier Available*, *Optional Premium*; per-service cards with name, tier badge, operational status chip, description, rate-limit note, direct signup link, API key input (show/hide), Save, Test Connection, and Remove actions with live test result feedback
+  - **Mode & General tab**: visual Demo vs Live mode selector cards; 4-step Quick Start Guide
+  - **Status summary bar**: shows operational service count and free-tier count at a glance
+- **9 services operational with zero configuration**: DNS, WHOIS, Certificate Transparency (crt.sh), IP Geolocation, MalwareBazaar, ThreatFox, URLScan.io, Have I Been Pwned (password check), GitHub — all free, no API keys required
+- Platform registered `settings_bp` blueprint in `app.py`
+
 #### Intelligence Correlation Engine
 - Entity extraction from investigation data (domains, IPs, emails, hashes)
 - Cross-source relationship mapping and confidence scoring

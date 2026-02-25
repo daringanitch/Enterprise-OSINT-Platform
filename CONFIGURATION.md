@@ -1,28 +1,115 @@
 # Enterprise OSINT Platform - Configuration Reference
 
-Complete configuration guide for the Enterprise OSINT Platform including environment variables, API keys, Kubernetes secrets, and deployment options.
+Complete configuration guide for the Enterprise OSINT Platform including the in-app service configuration UI, environment variables, API keys, Kubernetes secrets, and deployment options.
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [Environment Variables](#environment-variables)
-3. [API Keys Configuration](#api-keys-configuration)
-4. [Kubernetes Secrets](#kubernetes-secrets)
-5. [Database Configuration](#database-configuration)
-6. [MCP Server Configuration](#mcp-server-configuration)
-7. [Security Configuration](#security-configuration)
-8. [Performance Tuning](#performance-tuning)
-9. [Monitoring Configuration](#monitoring-configuration)
+2. [In-App Service Configuration (Recommended)](#in-app-service-configuration-recommended)
+3. [Environment Variables](#environment-variables)
+4. [API Keys Configuration](#api-keys-configuration)
+5. [Kubernetes Secrets](#kubernetes-secrets)
+6. [Database Configuration](#database-configuration)
+7. [MCP Server Configuration](#mcp-server-configuration)
+8. [Security Configuration](#security-configuration)
+9. [Performance Tuning](#performance-tuning)
+10. [Monitoring Configuration](#monitoring-configuration)
 
 ---
 
 ## Overview
 
-The Enterprise OSINT Platform uses a combination of environment variables, Kubernetes secrets, and configuration files. This guide covers all configuration options for development and production deployments.
+The Enterprise OSINT Platform is designed to be **immediately useful with zero configuration**. Nine intelligence services work out of the box for free. Additional services can be unlocked by adding optional API keys — most of which have free tiers.
 
 ### Configuration Hierarchy
-1. **Kubernetes Secrets** (highest priority) - API keys, passwords
-2. **Environment Variables** - Service URLs, database connections
-3. **Default Values** - Built-in fallbacks
+1. **In-App Settings UI** (recommended) — point-and-click, persisted to `service_config.json`
+2. **Environment Variables** — for CI/CD pipelines and Kubernetes deployments
+3. **Kubernetes Secrets** — for production deployments
+4. **Default Values** — built-in fallbacks
+
+---
+
+## In-App Service Configuration (Recommended)
+
+The easiest way to configure the platform is through the **Settings** page in the web UI (`/settings`). No file editing or environment variable knowledge required.
+
+### What Works Without Any API Keys
+
+The following services are active immediately after installation:
+
+| Service | Category | What It Provides |
+|---|---|---|
+| DNS Resolution | Network | A, MX, TXT, NS, CNAME records; subdomain enumeration |
+| WHOIS Lookup | Network | Registrar, registration dates, name servers |
+| Certificate Transparency (crt.sh) | Network | Subdomain discovery via SSL cert logs |
+| IP Geolocation (ip-api.com) | Network | Country, city, ISP, ASN — 45 req/min |
+| MalwareBazaar (abuse.ch) | Threat | Malware hash lookups and family classification |
+| ThreatFox (abuse.ch) | Threat | Community IOC database (IPs, domains, hashes) |
+| URLScan.io (basic) | Threat | URL sandbox scans and verdicts |
+| Have I Been Pwned (password) | Breach | k-anonymity password breach check |
+| GitHub (unauthenticated) | Social | Public repo and profile searches — 10 req/min |
+
+### Adding Optional API Keys (UI)
+
+1. Navigate to **Settings → Services** in the web UI
+2. Find the service you want to configure
+3. Click the **expand arrow (›)** on the service card
+4. Paste your API key and click **Save Key**
+5. Click **Test Connection** to verify the key works
+
+Keys are stored in `$APP_DATA_DIR/service_config.json` and loaded automatically on restart.
+
+### Services Available With a Free API Key
+
+All of these services have a **free tier** — sign-up takes under 2 minutes:
+
+| Service | Free Tier | Sign Up |
+|---|---|---|
+| VirusTotal | 500 lookups/day, 4 req/min | https://www.virustotal.com/gui/join-us |
+| AbuseIPDB | 1,000 checks/day | https://www.abuseipdb.com/register |
+| AlienVault OTX | Unlimited community lookups | https://otx.alienvault.com/accounts/signup |
+| GreyNoise Community | 50 req/day | https://www.greynoise.io/signup |
+| Have I Been Pwned | Rate-limited breach search | https://haveibeenpwned.com/API/Key |
+| Shodan | 2 query credits/month | https://account.shodan.io/register |
+| Censys | 250 queries/month | https://search.censys.io/register |
+| GitHub (authenticated) | 30 req/min | https://github.com/settings/tokens |
+| URLScan.io (full) | 5,000 scans/day | https://urlscan.io/user/signup |
+
+### Optional Paid Services
+
+| Service | Cost | Purpose |
+|---|---|---|
+| OpenAI (GPT-4) | ~$0.01–0.03/investigation | AI summaries, threat profiling, narrative generation |
+| Twitter / X | $100/month Basic | Social intelligence and network analysis |
+| Dehashed | From $5.49/month | Breached credential search (billions of records) |
+| Shodan Membership | From $49/month | Full port scan data, vulnerability tracking, alerts |
+
+### Operating Modes
+
+Switch between modes on the **Settings → Mode & General** tab:
+
+- **Demo Mode** (default) — All data is synthetic. Safe to explore, no API calls made, no rate limits consumed.
+- **Live Mode** — Real intelligence gathering. Free services work immediately; configured API keys are used.
+
+### service_config.json
+
+Keys saved via the UI are stored in `$APP_DATA_DIR/service_config.json` (default: `/app/data/service_config.json`). This file is loaded at startup and keys are injected into the process environment automatically.
+
+```json
+{
+  "services": {
+    "virustotal": { "enabled": true },
+    "dns": { "enabled": true }
+  },
+  "api_keys": {
+    "VIRUSTOTAL_API_KEY": "your-key-here"
+  },
+  "updated_at": "2026-02-25T00:00:00"
+}
+```
+
+> **Security note:** The config file contains plaintext API keys. Ensure `$APP_DATA_DIR` is on a volume with appropriate filesystem permissions (readable only by the app process). For production Kubernetes deployments, prefer environment variables or Vault integration instead.
+
+---
 
 ---
 
