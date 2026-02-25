@@ -4,3 +4,38 @@
 ssl/
 *.pem
 *.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+coverage.xml
+*.coverage
+
+# Node / frontend
+node_modules/
+frontend/coverage/
+frontend/build/
+frontend/.env.local
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Claude internal
+.claude/
