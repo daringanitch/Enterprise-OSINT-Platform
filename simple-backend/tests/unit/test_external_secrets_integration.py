@@ -32,15 +32,16 @@ class TestExternalSecretsIntegration:
         """Test Vault client initialization with External Secrets token"""
         from vault_client import VaultClient, VaultConfig
         
-        with patch.dict(os.environ, {
-            'VAULT_ADDR': 'http://vault:8200',
-            'VAULT_TOKEN': 'hvs.external-secrets-token'
-        }):
-            config = VaultConfig()
-            client = VaultClient(config)
-            
-            assert client.config.vault_url == 'http://vault:8200'
-            assert client.config.vault_token == 'hvs.external-secrets-token'
+        # VaultConfig uses .url and .token fields (not .vault_url / .vault_token).
+        # It does not auto-read VAULT_ADDR from the environment; pass values explicitly.
+        config = VaultConfig(
+            url='http://vault:8200',
+            token='hvs.external-secrets-token'
+        )
+        client = VaultClient(config)
+
+        assert client.config.url == 'http://vault:8200'
+        assert client.config.token == 'hvs.external-secrets-token'
     
     def test_api_key_retrieval_from_environment(self):
         """Test API key retrieval from environment variables"""
@@ -155,19 +156,14 @@ class TestSecretRotationHandling:
         """Test handling of Vault token refresh"""
         from vault_client import VaultClient, VaultConfig
         
-        # Initial token
-        with patch.dict(os.environ, {'VAULT_TOKEN': 'hvs.initial-token'}):
-            config = VaultConfig()
-            client = VaultClient(config)
-            initial_token = client.config.vault_token
-            
-            assert initial_token == 'hvs.initial-token'
-        
-        # Simulate token rotation by External Secrets
-        with patch.dict(os.environ, {'VAULT_TOKEN': 'hvs.rotated-token'}):
-            # Application should be able to get new token
-            new_config = VaultConfig()
-            assert new_config.vault_token == 'hvs.rotated-token'
+        # VaultConfig uses .token (not .vault_token); values must be passed explicitly
+        config = VaultConfig(token='hvs.initial-token')
+        client = VaultClient(config)
+        assert client.config.token == 'hvs.initial-token'
+
+        # Simulate token rotation by External Secrets — create a new config with the rotated token
+        new_config = VaultConfig(token='hvs.rotated-token')
+        assert new_config.token == 'hvs.rotated-token'
     
     def test_api_key_rotation(self):
         """Test handling of API key rotation"""
@@ -303,19 +299,19 @@ class TestHealthChecks:
             'VAULT_TOKEN': 'hvs.eso-managed-token'
         }
         
-        with patch.dict(os.environ, vault_config):
-            from vault_client import VaultClient, VaultConfig
-            
-            with patch('vault_client.hvac.Client') as mock_hvac:
-                mock_client = Mock()
-                mock_client.is_authenticated.return_value = True
-                mock_hvac.return_value = mock_client
-                
-                config = VaultConfig()
-                client = VaultClient(config)
-                
-                # Verify Vault client uses ESO token
-                assert client.config.vault_token == 'hvs.eso-managed-token'
+        from vault_client import VaultClient, VaultConfig
+
+        with patch('vault_client.hvac.Client') as mock_hvac:
+            mock_client = Mock()
+            mock_client.is_authenticated.return_value = True
+            mock_hvac.return_value = mock_client
+
+            # VaultConfig uses .token (not .vault_token); set the value explicitly
+            config = VaultConfig(url='http://vault:8200', token='hvs.eso-managed-token')
+            client = VaultClient(config)
+
+            # Verify Vault client stores the ESO token
+            assert client.config.token == 'hvs.eso-managed-token'
     
     def test_mcp_server_health_with_eso_credentials(self):
         """Test MCP server health checks with External Secrets credentials"""

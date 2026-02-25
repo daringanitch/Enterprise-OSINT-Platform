@@ -263,10 +263,9 @@ describe('ToastProvider and useToast', () => {
   describe('hideToast', () => {
     const HideToastComponent: React.FC = () => {
       const toast = useToast();
-      const [toastId, setToastId] = React.useState<string | null>(null);
 
       const handleShow = () => {
-        // We can't easily get the ID in this test, so we'll test via close button
+        // Test via close button — ID not needed here
         toast.showSuccess('Dismissible toast');
       };
 

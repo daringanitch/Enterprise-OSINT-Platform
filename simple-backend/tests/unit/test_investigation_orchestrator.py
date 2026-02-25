@@ -44,9 +44,9 @@ class TestInvestigationOrchestrator:
         )
         
         assert investigation_id is not None
-        assert investigation_id in orchestrator.investigations
-        
-        investigation = orchestrator.investigations[investigation_id]
+        assert investigation_id in orchestrator.active_investigations
+
+        investigation = orchestrator.active_investigations[investigation_id]
         assert investigation.target_profile.primary_identifier == "example.com"
         assert investigation.investigation_type == InvestigationType.COMPREHENSIVE
         assert investigation.investigator_name == "test_user"

@@ -22,7 +22,6 @@ import {
   styled,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';

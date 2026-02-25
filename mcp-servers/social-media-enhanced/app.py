@@ -309,6 +309,7 @@ def list_tools():
 @app.route('/execute', methods=['POST'])
 def execute_tool():
     """Execute a specific tool"""
+    data = {}  # initialised before try so the except clause can safely reference it
     try:
         data = request.get_json()
         tool = data.get('tool')
