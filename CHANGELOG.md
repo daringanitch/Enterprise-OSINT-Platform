@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Credential Intelligence & Exposure Monitoring
+- **`mcp-servers/credential-intel/`** — FastAPI MCP server with four independent source clients:
+  - `hibp_client.py`: Have I Been Pwned breaches + pastes (free, no key for password checks)
+  - `dehashed_client.py`: Dehashed leaked credential search (API key required)
+  - `hudson_rock_client.py`: Hudson Rock Cavalier infostealer victim database
+  - `paste_monitor.py`: Paste site monitoring for credential dumps
+- **`credential_intel_service.py`** — Orchestrator that fans out to all 4 sources, merges results, and computes a 0–100 risk score (→ none/low/medium/high/critical)
+- **`blueprints/credentials.py`** — Flask REST blueprint:
+  - `GET  /api/credentials/status` — source availability and API key status
+  - `POST /api/credentials/check/email` — multi-source email exposure check
+  - `POST /api/credentials/check/domain` — domain-wide credential exposure (all @domain accounts)
+  - `POST /api/credentials/check/password` — k-anonymity HIBP password check (full password never sent)
+  - `POST /api/credentials/analyze/passwords` — local password pattern and reuse analysis (no external calls)
+  - `GET  /api/investigations/<id>/credentials/exposure` — auto-extracts emails/domains from investigation entities and runs exposure checks
+- **`k8s/credential-intel-mcp.yaml`** — Kubernetes Deployment + Service manifest
+- **`frontend/src/pages/CredentialIntelligence.tsx`** — Credential Intelligence UI (route `/credentials`):
+  - Email tab: HIBP breach count, paste count, infostealer flag, plaintext password indicator with risk scoring
+  - Domain tab: exposed email count, infostealer employee count, dehashed entries, paste count
+  - Password tab: k-anonymity check with privacy explanation; shows pwned count
+  - Source status panel: live availability indicators (HIBP, Dehashed, Hudson Rock, Paste)
+  - Risk badges colour-coded critical/high/medium/low/none with progress bars
+- Sidebar: added **Credentials** nav entry (ManageSearchIcon) between Monitoring and Settings
+
 #### Analytic Tradecraft & Confidence Scoring (IC Standards)
 - **`analytic_tradecraft.py`** — Full implementation of intelligence community structured analytic techniques:
   - NATO/Admiralty scale (A-F source reliability × 1-6 information credibility) with complete label/description reference data
@@ -117,6 +140,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Investigation tracking bug (self.investigations -> self.active_investigations)
 - Python 3.11 compatibility issues with OpenTelemetry
 - Authentication to support both email and username login
+- **CI pipeline** — backend tests were exiting with code 4 (collection error) due to `APP_DATA_DIR` not being set before app import in `conftest.py`; fixed by adding env var before the import
+- **Duplicate `IntelligenceResult` dataclass** — canonical definition moved to `models.py`; `mcp_clients.py` now re-imports from there
+- **`AioHTTPClientInstrumentor` import** — guarded with `try/except` since the package is unavailable on Python 3.11
+- **`problem_json.py`** — called non-existent `get_current_trace_id()`; corrected to `get_or_create_trace_id()`
+- **Social media MCP server** — `data` variable could raise `NameError` in `except` clause; initialised before `try` block
+- **Frontend unused imports** — removed `AnimatePresence` (Card), `Tooltip` (MITREDashboard), `AssessmentIcon` (ExecutiveSummary), `within` (visualizations.test), `waitFor` (Modal.test), `toastId`/`setToastId` (Toast.test)
+- **CI config** — switched from ignoring entire test files to `--deselect`ing only the specific tests that require live Postgres/Redis/Vault infrastructure
+
+### Maintenance
+- **`.gitignore`** — added comprehensive Python (`__pycache__`, `*.pyc`, `htmlcov/`), Node.js (`node_modules/`, `frontend/coverage/`), IDE, and OS exclusions; removed all previously-tracked build artifacts from git history
+- **Unit test coverage** — added 143 new tests across 5 new modules: `test_analytic_tradecraft.py` (38 tests), `test_alert_engine.py` (35 tests), `test_service_config.py` (23 tests), `test_credential_intel_service.py` (21 tests), `test_monitoring_scheduler.py` (26 tests)
 
 ### Security
 - Vault integration for secure secret management

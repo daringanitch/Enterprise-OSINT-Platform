@@ -32,6 +32,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { designTokens } from '../../utils/theme';
@@ -114,6 +115,12 @@ const defaultNavItems: NavItem[] = [
     label: 'Monitoring',
     icon: <MonitorHeartIcon />,
     path: '/monitoring',
+  },
+  {
+    id: 'credentials',
+    label: 'Credentials',
+    icon: <ManageSearchIcon />,
+    path: '/credentials',
   },
   {
     id: 'settings',

@@ -23,6 +23,7 @@ import GraphIntelligencePage from './pages/GraphIntelligence';
 import ThreatAnalysisPage from './pages/ThreatAnalysis';
 import AnalyticWorkbenchPage from './pages/AnalyticWorkbench';
 import MonitoringPage from './pages/Monitoring';
+import CredentialIntelligencePage from './pages/CredentialIntelligence';
 
 // Components
 import Layout from './components/Layout';
@@ -86,6 +87,7 @@ function App() {
                     </Route>
                     <Route path="reports" element={<ReportsPage />} />
                     <Route path="monitoring" element={<MonitoringPage />} />
+                    <Route path="credentials" element={<CredentialIntelligencePage />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
                   
