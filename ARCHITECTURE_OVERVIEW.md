@@ -484,6 +484,36 @@ class GraphRelationship:
 - Blast radius analysis for compromise impact assessment
 - Entity similarity search across investigations
 
+### 10. Pivot Suggestions Engine (`pivot_engine.py`)
+Stateless next-pivot recommendation engine with composite scoring:
+- **5 weighted signals**: threat_flag (0.35), corroboration (0.25), centrality (0.20), recency (0.10), unresolved edges (0.10)
+- **7 pivot types**: expand_infrastructure, check_reputation, check_credentials, lookup_registration, enumerate_subdomains, cert_transparency, social_footprint
+- REST: `GET /api/investigations/<id>/pivots`, dismiss endpoint, scoring explanation
+
+### 11. Threat Actor Dossier Library (`threat_actor_library.py`)
+26 nation-state and criminal actor dossiers with full MITRE ATT&CK coverage:
+- Actors: APT28, APT29, APT41, Lazarus Group, FIN7, Scattered Spider, Sandworm, and 19 others
+- `match_ttps()` overlap scoring returns ranked `TTPMatchResult` objects with `match_score`
+- Filtering by sector, technique, actor type, and motivation
+- REST: `GET /api/threat-actors`, `POST /api/threat-actors/match`, `POST /api/threat-actors/fingerprint`
+
+### 12. Cross-Investigation Correlator (`cross_investigation_correlator.py`)
+Inverted-index engine detecting shared indicators across all investigations:
+- **Indicator types**: domain, ip, email, cert_thumbprint, asn, registrant
+- **Significance tiers**: critical (shared certs), high (IPs, domains, emails), medium (ASNs)
+- Composite link-strength scoring per investigation pair
+- REST: `GET /api/correlations`, `GET /api/investigations/<id>/correlations`, indicator lookup
+
+### 13. Investigation Templates (`investigation_templates.py`)
+6 analyst-ready investigation templates with pre-seeded analytic structure:
+- `apt_attribution` — 180-day history, 4 ACH hypotheses, 11 MITRE techniques
+- `ransomware_profiling` — 365-day history, 3 ACH hypotheses, 9 MITRE techniques
+- `phishing_infrastructure` — 60-day history, 3 ACH hypotheses
+- `ma_due_diligence` — corporate records enabled, GDPR/CCPA compliance
+- `insider_threat` — PII handling guidance, privacy compliance
+- `vulnerability_exposure` — 30-day history, infrastructure focus
+- REST: `GET /api/templates`, `POST /api/templates/<id>/apply` (resolves target placeholders)
+
 ### 9. Blueprint Architecture
 
 Modular route organization for the Flask backend:
@@ -505,7 +535,7 @@ class Services:
     # ... shared across blueprints
 ```
 
-**Current Status:** All 15 blueprints fully implemented and registered in `app.py`.
+**Current Status:** All 20 blueprints fully implemented and registered in `app.py`.
 
 | Blueprint | Prefix | Purpose |
 |-----------|--------|---------|
@@ -525,6 +555,10 @@ class Services:
 | `settings.py` | `/api/settings/*` | Service catalog, API key management |
 | `tradecraft.py` | `/api/tradecraft/*` | ACH, Admiralty scale, IC confidence |
 | `monitoring.py` | `/api/monitoring/watchlist/*`, `/api/monitoring/alerts/*` | Watchlist + alerts |
+| `pivots.py` | `/api/investigations/*/pivots` | Pivot suggestion endpoints |
+| `correlations.py` | `/api/correlations/*` | Cross-investigation correlation endpoints |
+| `threat_actors.py` | `/api/threat-actors/*` | Threat actor dossier endpoints |
+| `templates.py` | `/api/templates/*` | Investigation template endpoints |
 
 ---
 
@@ -546,7 +580,7 @@ class Services:
 - **State Management**: Redux Toolkit
 - **HTTP Client**: Axios 1.5.0
 - **PDF Generation**: jsPDF 2.5.1
-- **Testing**: Jest, React Testing Library (484 tests)
+- **Testing**: Jest, React Testing Library (484 frontend tests)
 - **Accessibility**: WCAG 2.1 compliant components
 
 ### Infrastructure Technologies
@@ -1072,7 +1106,7 @@ simple-backend/
 ├── mode_manager.py                     # Demo/Live mode switching
 ├── vault_client.py                     # HashiCorp Vault integration
 ├── cache_service.py                    # Redis caching layer
-├── tests/                              # Test suite (900+ functions)
+├── tests/                              # Test suite (871 unit/integration passing, 5 require live infra)
 │   ├── unit/                           # Unit tests
 │   ├── integration/                    # Integration tests
 │   └── graph_intelligence/             # Graph module tests
@@ -1153,7 +1187,7 @@ frontend/
 │   │   └── a11y.ts                     # Color contrast, focus helpers
 │   ├── types/                          # TypeScript definitions
 │   │   └── index.ts                    # 80+ interfaces
-│   └── __tests__/                      # Test suites (484 tests)
+│   └── __tests__/                      # Test suites (484 frontend tests)
 ├── package.json                        # Node dependencies
 └── tsconfig.json                       # TypeScript configuration
 ```

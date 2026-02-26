@@ -5,17 +5,21 @@ Complete API documentation for the Enterprise OSINT Platform REST API and MCP se
 ## Table of Contents
 1. [Authentication](#authentication)
 2. [Investigation Management](#investigation-management)
-3. [Analytic Tradecraft](#analytic-tradecraft)
-4. [Real-Time Monitoring](#real-time-monitoring)
-5. [Credential Intelligence](#credential-intelligence)
-6. [NLP Intelligence](#nlp-intelligence)
-7. [Service Settings](#service-settings)
-8. [STIX/MISP Export](#stixmisp-export)
-9. [System Status](#system-status)
-10. [Graph Intelligence](#graph-intelligence)
-11. [MCP Server APIs](#mcp-server-apis)
-12. [Error Handling](#error-handling)
-13. [Rate Limiting](#rate-limiting)
+3. [Pivot Suggestions](#pivot-suggestions)
+4. [Threat Actor Dossiers](#threat-actor-dossiers)
+5. [Cross-Investigation Correlation](#cross-investigation-correlation)
+6. [Investigation Templates](#investigation-templates)
+7. [Analytic Tradecraft](#analytic-tradecraft)
+8. [Real-Time Monitoring](#real-time-monitoring)
+9. [Credential Intelligence](#credential-intelligence)
+10. [NLP Intelligence](#nlp-intelligence)
+11. [Service Settings](#service-settings)
+12. [STIX/MISP Export](#stixmisp-export)
+13. [System Status](#system-status)
+14. [Graph Intelligence](#graph-intelligence)
+15. [MCP Server APIs](#mcp-server-apis)
+16. [Error Handling](#error-handling)
+17. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -323,6 +327,269 @@ Authorization: Bearer <jwt_token>
 ```
 
 ---
+
+---
+
+## Pivot Suggestions
+
+Ranked next-pivot recommendations for investigation entities, scored across 5 weighted signals.
+
+### Get Pivot Suggestions
+**GET** `/api/investigations/{investigation_id}/pivots`
+
+Returns ranked pivot suggestions for all entities in an investigation.
+
+**Query Parameters:**
+- `max` (integer, optional) — Maximum suggestions to return (default: 10)
+
+**Response:**
+```json
+{
+    "investigation_id": "inv-001",
+    "target": "evil.example.com",
+    "suggestions": [
+        {
+            "entity_value": "185.220.101.47",
+            "entity_type": "ip",
+            "pivot_type": "check_reputation",
+            "score": 0.87,
+            "reason": "High-abuse IP with threat flag — verify across AbuseIPDB, Shodan, VirusTotal",
+            "suggested_tools": ["abuseipdb", "shodan", "virustotal"]
+        }
+    ],
+    "coverage_score": 0.72,
+    "total_entities_analysed": 8
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `404` - Investigation not found
+- `401` - Unauthorized
+
+### Dismiss a Pivot Suggestion
+**POST** `/api/investigations/{investigation_id}/pivots/dismiss`
+
+Mark a suggestion as dismissed so it won't recur.
+
+**Request Body:**
+```json
+{
+    "entity_value": "185.220.101.47",
+    "pivot_type": "check_reputation"
+}
+```
+
+### Explain Pivot Scoring
+**GET** `/api/pivots/explain`
+
+Returns the scoring weight documentation.
+
+---
+
+## Threat Actor Dossiers
+
+Library of 26 nation-state and criminal actor dossiers with full MITRE ATT&CK mappings.
+
+### List Threat Actors
+**GET** `/api/threat-actors`
+
+**Query Parameters:**
+- `q` — Full-text search (name, alias, description)
+- `sector` — Filter by targeted sector (e.g. `financial`, `government`)
+- `technique` — Filter by MITRE ATT&CK technique ID (e.g. `T1566.001`)
+- `type` — Filter by actor type (`nation-state`, `criminal`, `hacktivist`)
+- `motivation` — Filter by motivation (`espionage`, `financial`, `disruption`)
+
+**Response:**
+```json
+{
+    "actors": [
+        {
+            "actor_id": "apt28",
+            "name": "APT28",
+            "actor_type": "nation-state",
+            "motivation": "espionage",
+            "aliases": ["Fancy Bear", "STRONTIUM", "Forest Blizzard"],
+            "origin_country": "RU",
+            "confidence": "high"
+        }
+    ],
+    "total": 26
+}
+```
+
+### Get Actor Dossier
+**GET** `/api/threat-actors/{actor_id}`
+
+Returns full dossier including MITRE techniques, tools, infrastructure patterns, and references.
+
+### Match Actors by TTPs
+**POST** `/api/threat-actors/match`
+
+Rank actors by TTP overlap with a provided technique list.
+
+**Request Body:**
+```json
+{
+    "techniques": ["T1566.001", "T1071.001", "T1027"],
+    "top_n": 5
+}
+```
+
+**Response:**
+```json
+{
+    "matches": [
+        {
+            "actor_id": "apt28",
+            "name": "APT28",
+            "match_score": 0.92,
+            "matched_techniques": ["T1566.001", "T1071.001"],
+            "total_actor_techniques": 13
+        }
+    ]
+}
+```
+
+### Fingerprint Investigation
+**POST** `/api/threat-actors/fingerprint`
+
+Auto-extract MITRE techniques from an investigation and return ranked actor candidates.
+
+**Request Body:**
+```json
+{
+    "investigation_id": "inv-001"
+}
+```
+
+---
+
+## Cross-Investigation Correlation
+
+Detect shared indicators (domains, IPs, emails, certificates, ASNs) across all investigations.
+
+### Full Platform Scan
+**GET** `/api/correlations`
+
+Scan all investigations for shared indicators.
+
+**Response:**
+```json
+{
+    "shared_indicators": [
+        {
+            "indicator_value": "185.220.101.47",
+            "indicator_type": "ip",
+            "investigation_ids": ["inv-001", "inv-003"],
+            "significance": "high",
+            "significance_reason": "IP shared directly across investigations"
+        }
+    ],
+    "investigation_links": [
+        {
+            "investigation_a": "inv-001",
+            "investigation_b": "inv-003",
+            "link_strength": 0.6,
+            "shared_indicators": [...]
+        }
+    ],
+    "shared_indicator_count": 3,
+    "investigation_link_count": 2
+}
+```
+
+### Links for Investigation
+**GET** `/api/investigations/{investigation_id}/correlations`
+
+Returns all cross-investigation links involving this investigation.
+
+### Indicator Lookup
+**GET** `/api/correlations/indicators/{indicator_value}`
+
+Find all investigations containing a specific indicator value.
+
+---
+
+## Investigation Templates
+
+6 analyst-ready templates with pre-seeded ACH hypotheses, watchlist seeds, and MITRE technique recommendations.
+
+### List Templates
+**GET** `/api/templates`
+
+**Query Parameters:**
+- `category` — Filter by category (`attribution`, `financial`, `infrastructure`, `hr`)
+
+**Response:**
+```json
+{
+    "templates": [
+        {
+            "template_id": "apt_attribution",
+            "name": "APT Attribution",
+            "description": "Full infrastructure and TTP analysis for nation-state attribution.",
+            "category": "attribution",
+            "ach_hypotheses_count": 4,
+            "watchlist_seeds_count": 2,
+            "recommended_techniques": ["T1566.001", "T1071.001", "T1027"]
+        }
+    ],
+    "total": 6
+}
+```
+
+**Available templates:** `apt_attribution`, `ransomware_profiling`, `phishing_infrastructure`, `ma_due_diligence`, `insider_threat`, `vulnerability_exposure`
+
+### Get Template Detail
+**GET** `/api/templates/{template_id}`
+
+Returns full template with watchlist seeds, ACH hypotheses, key questions, and analyst guidance.
+
+### List Categories
+**GET** `/api/templates/categories`
+
+### Apply Template
+**POST** `/api/templates/{template_id}/apply`
+
+Apply a template to a new investigation. Returns pre-populated scope, watchlist seeds, and ACH hypotheses with optional target resolution.
+
+**Request Body:**
+```json
+{
+    "target": "evil-domain.example.com",
+    "target_type": "domain",
+    "analyst_notes": "SOC ticket #1234 — suspected phishing infrastructure"
+}
+```
+
+**Response:**
+```json
+{
+    "template_id": "apt_attribution",
+    "name": "APT Attribution",
+    "scope": {
+        "include_infrastructure": true,
+        "include_threat_intelligence": true,
+        "historical_data_days": 180,
+        "max_threat_indicators": 1200,
+        "primary_target": "evil-domain.example.com"
+    },
+    "watchlist_seeds": [...],
+    "ach_hypotheses": [
+        {
+            "title": "Nation-state actor (known APT group)",
+            "description": "...",
+            "hypothesis_type": "primary"
+        }
+    ],
+    "recommended_techniques": ["T1566.001", "T1071.001", ...],
+    "key_questions": [...],
+    "analyst_guidance": "Start with infrastructure pivots..."
+}
+```
+
 
 ## Analytic Tradecraft
 

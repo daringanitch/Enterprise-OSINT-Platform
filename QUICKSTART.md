@@ -85,11 +85,28 @@ docker volume rm enterprise-osint-platform_demo_postgres_data
 ./start.sh demo
 ```
 
+## Seed the Demo Investigation
+
+Load the "Operation SHATTERED PANE" phishing infrastructure scenario:
+
+```bash
+APP_DATA_DIR=/tmp/osint_demo python simple-backend/demo_scenario.py
+```
+
+Then open http://localhost:5001 and you'll find a pre-populated investigation with:
+- 7 phishing domains and a C2 IP
+- 8 Admiralty-rated intelligence items
+- ACH matrix with 3 hypotheses
+- 3 watchlists and live alerts
+
+See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the full 10-minute walkthrough.
+
 ## Next Steps
 
 1. Create a new investigation from the dashboard
-2. Explore the pre-loaded sample investigations
-3. Generate a PDF report
-4. Check the API at http://localhost:5001/health
+2. Try the "Operation SHATTERED PANE" demo scenario above
+3. Apply an investigation template: `POST /api/templates/apt_attribution/apply`
+4. Generate a PDF report
+5. Check the API at http://localhost:5001/health
 
 For full documentation, see [README.md](README.md).

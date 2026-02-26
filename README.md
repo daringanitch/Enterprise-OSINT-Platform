@@ -44,6 +44,15 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Timeline Reconstruction**: Automated event correlation and sequencing
 - **Graph Intelligence**: Neo4j-based relationship analysis with PageRank, community detection, and blast radius analysis
 
+### Intelligence Operations
+- **Pivot Suggestions**: Composite-scored next-pivot recommendations (threat flag, corroboration, centrality, recency, unresolved)
+- **Threat Actor Dossiers**: 26-actor library with MITRE ATT&CK mappings, TTP overlap scoring, sector and technique filtering
+- **Cross-Investigation Correlation**: Shared indicator detection across all investigations (domains, IPs, emails, certs, ASNs)
+- **Investigation Templates**: 6 analyst-ready templates (APT attribution, ransomware, phishing, M&A due diligence, insider threat, vulnerability exposure)
+- **Analytic Tradecraft**: NATO Admiralty scale, ACH matrix, IC-standard confidence levels, devil's advocate workflow
+- **Credential Intelligence**: HIBP, Dehashed, Hudson Rock, paste monitoring with k-anonymity password checks
+- **Real-Time Monitoring**: Watchlist alerting with snapshot diffing, configurable check intervals
+
 ### Enterprise Features
 - **Professional PDF Reports**: Executive and technical summaries
 - **Compliance Framework**: GDPR/CCPA assessment
@@ -57,7 +66,7 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Layout Components**: Header, Sidebar, responsive Layout wrapper
 - **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, DataTable
 - **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
-- **350+ Component Tests**: Comprehensive test coverage
+- **484 Component Tests**: Comprehensive test coverage
 
 ## Deployment Options
 
@@ -86,9 +95,18 @@ docker compose -f docker-compose.demo.yml up -d
 Enterprise-OSINT-Platform/
 ├── simple-backend/              # Flask REST API
 │   ├── app.py                   # Main application (60+ endpoints)
-│   ├── blueprints/              # Flask Blueprint modules
-│   │   ├── auth.py              # Authentication routes
-│   │   └── health.py            # Health/monitoring endpoints
+│   ├── blueprints/              # 20 Flask Blueprint modules
+│   │   ├── auth.py, health.py, admin.py
+│   │   ├── investigations.py, reports.py, compliance.py
+│   │   ├── tradecraft.py, monitoring.py, credentials.py
+│   │   ├── pivots.py, correlations.py, threat_actors.py
+│   │   └── templates.py, graph.py, settings.py, ...
+│   ├── pivot_engine.py          # Next-pivot recommendation engine
+│   ├── threat_actor_library.py  # 26-actor MITRE ATT&CK dossier library
+│   ├── cross_investigation_correlator.py  # Shared indicator detection
+│   ├── investigation_templates.py # 6 analyst-ready templates
+│   ├── analytic_tradecraft.py   # Admiralty scale, ACH, IC confidence
+│   ├── credential_intel_service.py # HIBP, Dehashed, Hudson Rock
 │   ├── graph_intelligence/      # Palantir-style graph analytics
 │   │   ├── algorithms/          # Centrality, paths, community, etc.
 │   │   └── api.py               # Graph REST endpoints
@@ -104,14 +122,15 @@ Enterprise-OSINT-Platform/
 │   │   └── visualizations/      # Charts, graphs, heatmaps
 │   ├── src/hooks/               # Custom React hooks
 │   ├── src/utils/               # Theme, validation, a11y utilities
-│   └── src/__tests__/           # Frontend tests (350+ tests)
+│   └── src/__tests__/           # Frontend tests (484 tests)
 ├── simple-frontend/             # Legacy React SPA (index.html)
 ├── mcp-servers/                 # Intelligence microservices
 │   ├── infrastructure-advanced/ # Port 8021
 │   ├── threat-aggregator/       # Port 8020
 │   ├── social-media-enhanced/   # Port 8010
 │   ├── financial-enhanced/      # Port 8040
-│   └── ai-analyzer/             # Port 8050
+│   ├── ai-analyzer/             # Port 8050
+│   └── credential-intel/        # Port 8030
 ├── k8s/                         # Kubernetes manifests (54 files)
 ├── scripts/                     # Organized utility scripts
 ├── start.sh                     # One-command setup
@@ -139,6 +158,26 @@ curl http://localhost:5001/api/investigations/{id}/correlation \
 # Get Advanced Analysis
 curl http://localhost:5001/api/investigations/{id}/analysis/advanced \
   -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get Pivot Suggestions
+curl http://localhost:5001/api/investigations/{id}/pivots \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Cross-Investigation Correlations
+curl http://localhost:5001/api/correlations \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Match Threat Actors by TTPs
+curl -X POST http://localhost:5001/api/threat-actors/match \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"techniques": ["T1566.001", "T1071.001"]}'
+
+# Apply Investigation Template
+curl -X POST http://localhost:5001/api/templates/apt_attribution/apply \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target": "evil.example.com", "target_type": "domain"}'
 ```
 
 ## Adding API Keys (Optional)
@@ -163,13 +202,15 @@ Then restart with `./start.sh local`
 | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Production deployment |
 | [CONFIGURATION.md](CONFIGURATION.md) | Environment configuration |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and changes |
+| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | "Operation SHATTERED PANE" 10-minute demo walkthrough |
+| [docs/GRAPH_INTELLIGENCE_ARCHITECTURE.md](docs/GRAPH_INTELLIGENCE_ARCHITECTURE.md) | Graph engine design and algorithms |
 
 ## Technology Stack
 
 - **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis, Neo4j (optional)
 - **Frontend**: React 18, TypeScript, Material-UI
 - **Component Library**: Custom design system with 10+ reusable components
-- **Testing**: Jest, React Testing Library, pytest (570+ total tests)
+- **Testing**: Jest, React Testing Library, pytest (936 total tests — 871 passing, 5 require live infra)
 - **MCP Servers**: FastAPI, aiohttp
 - **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 
