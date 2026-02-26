@@ -62,11 +62,12 @@ The Enterprise OSINT Platform is a Kubernetes-native, microservices-based open-s
 ┌─────────────────────────────────────────────────┐
 │          Enhanced MCP Servers                    │
 ├─────────────────┬─────────────────┬─────────────┤
-│ Infrastructure  │ Social Media    │ Threat Intel│
-│     MCP        │     MCP         │     MCP     │
+│infrastructure-  │social-media-    │threat-      │
+│advanced :8021   │enhanced :8010   │aggregator   │
+│                 │                 │:8020        │
 ├─────────────────┼─────────────────┼─────────────┤
-│ Financial Intel │ Technical Intel │             │
-│     MCP        │     MCP         │             │
+│financial-       │ai-analyzer      │credential-  │
+│enhanced :8040   │:8050            │intel :8030  │
 └─────────────────┴─────────────────┴─────────────┘
 ```
 
@@ -86,12 +87,13 @@ The platform consists of the following microservices:
    - Investigation orchestration
    - Compliance validation
 
-3. **Enhanced MCP Servers** (FastAPI-based)
-   - `mcp-infrastructure-enhanced:8021` - DNS, WHOIS, SSL, Certificate Transparency
-   - `mcp-social-enhanced:8010` - Twitter/X, Reddit, LinkedIn intelligence
-   - `mcp-threat-enhanced:8020` - Multi-source threat aggregation (VirusTotal, Shodan, AbuseIPDB)
-   - `mcp-financial-enhanced:8040` - SEC filings, financial analysis
-   - `mcp-technical-enhanced:8050` - AI-powered analysis with GPT-4
+3. **MCP Intelligence Servers** (Flask/FastAPI-based)
+   - `infrastructure-advanced:8021` - DNS, WHOIS, SSL, Certificate Transparency, passive DNS
+   - `social-media-enhanced:8010` - Twitter/X, Reddit, LinkedIn intelligence
+   - `threat-aggregator:8020` - Multi-source threat aggregation (VirusTotal, Shodan, AbuseIPDB, OTX)
+   - `financial-enhanced:8040` - SEC filings, financial analysis
+   - `ai-analyzer:8050` - GPT-4 powered analysis and threat profiling
+   - `credential-intel:8030` - HIBP, Dehashed, Hudson Rock, paste site monitoring
 
 4. **Data Services**
    - PostgreSQL 15 - Audit trail and investigation storage
@@ -359,17 +361,19 @@ class JobQueueManager:
 
 Each MCP server implements the Model Context Protocol with specialized tools:
 
-#### Infrastructure MCP (`mcp-servers/infrastructure-enhanced/app.py`)
+#### Infrastructure MCP (`mcp-servers/infrastructure-advanced/app.py`)
 ```python
 TOOLS = {
-    'whois_lookup': whois_lookup,      # Domain registration data
-    'dns_records': dns_records,        # DNS A, MX, TXT, NS records
-    'ssl_certificate_info': ssl_info,  # SSL certificate analysis
-    'subdomain_enum': subdomain_enum   # Subdomain discovery
+    'whois_lookup': whois_lookup,                    # Domain registration data
+    'dns_records': dns_records,                      # DNS A, MX, TXT, NS records
+    'ssl_certificate_info': ssl_info,                # SSL certificate analysis
+    'subdomain_enum': subdomain_enum,                # Subdomain discovery
+    'infrastructure/passive_dns_multi': passive_dns, # CIRCL + SecurityTrails pDNS
+    'infrastructure/certificate_deep_analysis': cert_chain  # Live cert chain + SANs
 }
 ```
 
-#### Social Media MCP (`mcp-servers/social-enhanced/app.py`)
+#### Social Media MCP (`mcp-servers/social-media-enhanced/app.py`)
 ```python
 TOOLS = {
     'twitter_profile': twitter_profile,           # Twitter/X user data
@@ -501,7 +505,26 @@ class Services:
     # ... shared across blueprints
 ```
 
-**Current Status:** Phase 1 complete (auth, health blueprints). Phase 2 planned for remaining routes.
+**Current Status:** All 15 blueprints fully implemented and registered in `app.py`.
+
+| Blueprint | Prefix | Purpose |
+|-----------|--------|---------|
+| `auth.py` | `/api/auth/*` | JWT login, token refresh, /me |
+| `health.py` | `/health`, `/ready`, `/metrics` | K8s probes, Prometheus metrics |
+| `admin.py` | `/api/mcp/*`, `/api/stats`, `/api/jobs/*` | Admin, MCP status, job queue |
+| `investigations.py` | `/api/investigations/*` | CRUD, list, status |
+| `reports.py` | `/api/investigations/*/report`, `/api/reports/*` | Report generation |
+| `compliance.py` | `/api/compliance/*` | GDPR/CCPA/HIPAA/SOX frameworks |
+| `risk.py` | `/api/risk/*` | Risk assessment engine |
+| `intelligence.py` | `/api/intelligence/*`, `/api/correlation/*` | Entity correlation |
+| `analysis.py` | `/api/analysis/*`, `/api/mitre/*` | MITRE ATT&CK mapping |
+| `graph.py` | `/api/investigations/*/graph/*`, `/api/graph/*` | Graph intelligence |
+| `nlp.py` | `/api/nlp/*` | NLP pipeline (entity extraction, text analysis) |
+| `stix.py` | `/api/investigations/*/export/stix`, `/api/misp/*` | STIX/MISP export |
+| `credentials.py` | `/api/credentials/*`, `/api/investigations/*/credentials/*` | Credential intelligence |
+| `settings.py` | `/api/settings/*` | Service catalog, API key management |
+| `tradecraft.py` | `/api/tradecraft/*` | ACH, Admiralty scale, IC confidence |
+| `monitoring.py` | `/api/monitoring/watchlist/*`, `/api/monitoring/alerts/*` | Watchlist + alerts |
 
 ---
 
@@ -523,7 +546,7 @@ class Services:
 - **State Management**: Redux Toolkit
 - **HTTP Client**: Axios 1.5.0
 - **PDF Generation**: jsPDF 2.5.1
-- **Testing**: Jest, React Testing Library (350+ tests)
+- **Testing**: Jest, React Testing Library (484 tests)
 - **Accessibility**: WCAG 2.1 compliant components
 
 ### Infrastructure Technologies
@@ -897,11 +920,12 @@ VAULT_ADDR=http://vault:8200
 VAULT_TOKEN=dev-only-token
 
 # MCP Server URLs (Internal Kubernetes)
-MCP_INFRASTRUCTURE_URL=http://mcp-infrastructure-enhanced:8021
-MCP_SOCIAL_URL=http://mcp-social-enhanced:8010
-MCP_THREAT_URL=http://mcp-threat-enhanced:8020
+MCP_INFRASTRUCTURE_URL=http://mcp-infrastructure-advanced:8021
+MCP_SOCIAL_URL=http://mcp-social-media-enhanced:8010
+MCP_THREAT_URL=http://mcp-threat-aggregator:8020
 MCP_FINANCIAL_URL=http://mcp-financial-enhanced:8040
-MCP_TECHNICAL_URL=http://mcp-technical-enhanced:8050
+MCP_AI_URL=http://mcp-ai-analyzer:8050
+MCP_CREDENTIAL_URL=http://mcp-credential-intel:8030
 
 # External API Keys (Store in Vault for Production)
 OPENAI_API_KEY=your-openai-key
@@ -1015,20 +1039,19 @@ simple-backend/
 │   └── settings.py                     # Service configuration and API key management
 ├── utils/
 │   └── startup_validation.py           # Security validation at startup
-├── core_modules/                       # Standalone service modules
-│   ├── analytic_tradecraft.py          # NATO/Admiralty scale, ACH matrix, IC confidence
-│   ├── alert_engine.py                 # Watchlist entries, infrastructure snapshots
-│   ├── service_config.py               # 19-service catalog + API key manager
-│   ├── credential_intel_service.py     # HIBP, Dehashed, Hudson Rock integration
-│   ├── nlp_pipeline.py                 # spaCy NER, text classification
-│   ├── stix_export.py                  # STIX 2.1 bundle + MISP event export
-│   ├── monitoring_scheduler.py         # Background monitoring daemon
-│   ├── compliance_framework.py         # Regulatory compliance (GDPR/CCPA/HIPAA/SOX)
-│   ├── investigation_orchestrator.py   # 7-stage investigation workflow
-│   ├── intelligence_correlation.py     # Entity correlation engine
-│   ├── advanced_analysis.py            # MITRE ATT&CK mapping, risk scoring
-│   ├── risk_assessment_engine.py       # Threat scoring and confidence
-│   └── professional_report_generator.py # PDF report generation
+├── analytic_tradecraft.py              # NATO/Admiralty scale, ACH matrix, IC confidence
+├── alert_engine.py                     # Watchlist entries, infrastructure snapshots
+├── service_config.py                   # 19-service catalog + API key manager
+├── credential_intel_service.py         # HIBP, Dehashed, Hudson Rock integration
+├── nlp_pipeline.py                     # spaCy NER, CVE/IOC/actor extraction
+├── stix_export.py                      # STIX 2.1 bundle + MISP event export
+├── monitoring_scheduler.py             # Background monitoring daemon
+├── compliance_framework.py             # Regulatory compliance (GDPR/CCPA/HIPAA/SOX)
+├── investigation_orchestrator.py       # 7-stage investigation workflow
+├── intelligence_correlation.py         # Entity correlation engine
+├── advanced_analysis.py                # MITRE ATT&CK mapping, risk scoring
+├── risk_assessment_engine.py           # Threat scoring and confidence
+└── professional_report_generator.py    # PDF report generation
 ├── graph_intelligence/                 # Palantir-style graph analytics
 │   ├── models.py                       # 35+ entity types, 45+ relationships
 │   ├── neo4j_client.py                 # Graph database client + mock
@@ -1049,7 +1072,7 @@ simple-backend/
 ├── mode_manager.py                     # Demo/Live mode switching
 ├── vault_client.py                     # HashiCorp Vault integration
 ├── cache_service.py                    # Redis caching layer
-├── tests/                              # Test suite (220+ functions)
+├── tests/                              # Test suite (900+ functions)
 │   ├── unit/                           # Unit tests
 │   ├── integration/                    # Integration tests
 │   └── graph_intelligence/             # Graph module tests
@@ -1092,12 +1115,27 @@ frontend/
 │   │   │   ├── Header.tsx              # Search, notifications, user menu
 │   │   │   ├── Sidebar.tsx             # Collapsible navigation
 │   │   │   └── Layout.tsx              # Main wrapper with PageWrapper
-│   │   ├── visualizations/             # Chart and graph components
-│   │   │   ├── ThreatMatrix.tsx        # MITRE ATT&CK heatmap
+│   │   ├── dashboard/                  # Dashboard-specific components
+│   │   │   ├── MITREDashboard.tsx      # MITRE ATT&CK full dashboard panel
+│   │   │   ├── ExecutiveSummary.tsx    # Executive summary with key findings
+│   │   │   ├── AnomalyPanel.tsx        # Anomaly detection display
+│   │   │   └── RiskCommandCenter.tsx   # Risk command center overview
+│   │   ├── visualizations/             # Chart and graph components (15 components)
+│   │   │   ├── AreaChart.tsx           # Area/fill time-series chart
+│   │   │   ├── BarChart.tsx            # Horizontal/vertical bar chart
+│   │   │   ├── CommunityMap.tsx        # Graph community visualization
+│   │   │   ├── CorrelationMatrix.tsx   # Entity correlation matrix
+│   │   │   ├── DataTable.tsx           # Sortable/filterable data table
+│   │   │   ├── Heatmap.tsx             # Generic heatmap component
+│   │   │   ├── InvestigationGraph.tsx  # Investigation entity graph
+│   │   │   ├── InvestigationTimeline.tsx # Chronological timeline
+│   │   │   ├── LineChart.tsx           # Multi-series line chart
+│   │   │   ├── NetworkGraph.tsx        # Network topology graph
+│   │   │   ├── PieChart.tsx            # Pie/donut chart
 │   │   │   ├── RiskGauge.tsx           # Risk score gauge chart
-│   │   │   ├── TimelineChart.tsx       # Investigation timeline visualization
-│   │   │   ├── EntityGraph.tsx         # Interactive graph visualization
-│   │   │   └── ComplianceHeatmap.tsx   # Compliance framework coverage
+│   │   │   ├── StatCard.tsx            # KPI stat card with trend
+│   │   │   ├── ThreatMatrix.tsx        # MITRE ATT&CK heatmap
+│   │   │   └── TimelineChart.tsx       # Investigation timeline visualization
 │   │   └── a11y/                       # Accessibility components
 │   │       ├── SkipLinks.tsx           # Skip navigation for keyboard users
 │   │       ├── VisuallyHidden.tsx      # Screen reader only content
@@ -1115,7 +1153,7 @@ frontend/
 │   │   └── a11y.ts                     # Color contrast, focus helpers
 │   ├── types/                          # TypeScript definitions
 │   │   └── index.ts                    # 80+ interfaces
-│   └── __tests__/                      # Test suites (350+ tests)
+│   └── __tests__/                      # Test suites (484 tests)
 ├── package.json                        # Node dependencies
 └── tsconfig.json                       # TypeScript configuration
 ```
@@ -1149,12 +1187,19 @@ simple-frontend/
 ### MCP Server Structure (`mcp-servers/*/`)
 
 ```
-mcp-servers/infrastructure-enhanced/
-├── app.py                              # Flask MCP server
+mcp-servers/
+├── infrastructure-advanced/   :8021    # DNS, WHOIS, SSL, cert transparency, passive DNS
+├── social-media-enhanced/     :8010    # Social intelligence gathering
+├── threat-aggregator/         :8020    # VirusTotal, Shodan, AbuseIPDB, OTX
+├── financial-enhanced/        :8040    # SEC filings, financial intelligence
+├── ai-analyzer/               :8050    # GPT-4 analysis and threat profiling
+└── credential-intel/          :8030    # HIBP, Dehashed, Hudson Rock, paste monitoring
+
+# Each MCP server follows the same structure:
+mcp-servers/<server-name>/
+├── app.py                              # Flask/FastAPI MCP server
 ├── requirements.txt                    # Python dependencies
 └── Dockerfile                          # Container definition
-
-# Each MCP server follows the same structure with specialized tools
 ```
 
 ### Key Data Models
