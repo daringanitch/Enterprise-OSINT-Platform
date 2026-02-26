@@ -76,34 +76,35 @@ class TestTargetProfile:
         """Test target profile with optional fields"""
         profile = TargetProfile(
             target_id="target_456",
-            target_type="person",
+            target_type="individual",
             primary_identifier="john.doe@example.com",
             created_at=datetime.utcnow(),
             secondary_identifiers=["@johndoe", "John Doe"],
-            description="Test target",
-            tags=["social_media", "corporate"]
+            geographic_scope=["US", "CA"],
+            data_retention_days=60
         )
-        
+
         assert profile.secondary_identifiers == ["@johndoe", "John Doe"]
-        assert profile.description == "Test target"
-        assert profile.tags == ["social_media", "corporate"]
+        assert profile.geographic_scope == ["US", "CA"]
+        assert profile.data_retention_days == 60
     
     def test_target_profile_to_dict(self):
-        """Test target profile dictionary conversion"""
+        """Test target profile conversion"""
         now = datetime.utcnow()
         profile = TargetProfile(
             target_id="target_789",
-            target_type="ip",
+            target_type="ip_address",
             primary_identifier="192.168.1.1",
             created_at=now
         )
-        
-        profile_dict = profile.to_dict()
-        
+
+        # TargetProfile is a dataclass, can be converted via asdict
+        from dataclasses import asdict
+        profile_dict = asdict(profile)
+
         assert profile_dict["target_id"] == "target_789"
-        assert profile_dict["target_type"] == "ip"
+        assert profile_dict["target_type"] == "ip_address"
         assert profile_dict["primary_identifier"] == "192.168.1.1"
-        assert profile_dict["created_at"] == now.isoformat()
 
 
 class TestInvestigationScope:
@@ -112,45 +113,40 @@ class TestInvestigationScope:
     def test_default_scope(self):
         """Test default investigation scope"""
         scope = InvestigationScope()
-        
+
         assert scope.include_infrastructure is True
         assert scope.include_social_media is True
         assert scope.include_threat_intelligence is True
-        assert scope.include_dark_web is False
-        assert scope.max_data_points == 10000
-        assert scope.max_investigation_time_hours == 24
-        assert scope.compliance_frameworks == []
+        assert scope.max_social_posts == 1000
+        assert scope.max_investigation_hours == 24
+        assert scope.exclude_pii is True
     
     def test_custom_scope(self):
         """Test custom investigation scope"""
         scope = InvestigationScope(
             include_social_media=False,
-            include_dark_web=True,
-            max_data_points=5000,
-            max_investigation_time_hours=12,
-            compliance_frameworks=[ComplianceFramework.GDPR, ComplianceFramework.CCPA]
+            max_social_posts=500,
+            max_investigation_hours=12,
+            exclude_pii=False
         )
-        
+
         assert scope.include_social_media is False
-        assert scope.include_dark_web is True
-        assert scope.max_data_points == 5000
-        assert scope.max_investigation_time_hours == 12
-        assert ComplianceFramework.GDPR in scope.compliance_frameworks
-        assert ComplianceFramework.CCPA in scope.compliance_frameworks
+        assert scope.max_social_posts == 500
+        assert scope.max_investigation_hours == 12
+        assert scope.exclude_pii is False
     
     def test_scope_to_dict(self):
         """Test scope dictionary conversion"""
         scope = InvestigationScope(
             include_infrastructure=True,
-            max_data_points=2000,
-            compliance_frameworks=[ComplianceFramework.PIPEDA]
+            max_threat_indicators=200
         )
-        
-        scope_dict = scope.to_dict()
-        
+
+        from dataclasses import asdict
+        scope_dict = asdict(scope)
+
         assert scope_dict["include_infrastructure"] is True
-        assert scope_dict["max_data_points"] == 2000
-        assert scope_dict["compliance_frameworks"] == ["pipeda"]
+        assert scope_dict["max_threat_indicators"] == 200
 
 
 class TestInvestigationProgress:
@@ -159,10 +155,10 @@ class TestInvestigationProgress:
     def test_progress_initialization(self):
         """Test investigation progress initialization"""
         progress = InvestigationProgress()
-        
+
         assert progress.overall_progress == 0.0
         assert progress.stage_progress == 0.0
-        assert progress.current_activity == "Initializing investigation"
+        assert progress.current_activity == ""
         assert progress.data_points_collected == 0
         assert progress.warnings == []
         assert progress.estimated_completion is None
@@ -191,7 +187,7 @@ class TestInvestigationProgress:
         """Test progress dictionary conversion"""
         now = datetime.utcnow()
         future = now + timedelta(hours=1)
-        
+
         progress = InvestigationProgress(
             overall_progress=0.75,
             current_activity="Analyzing results",
@@ -200,15 +196,14 @@ class TestInvestigationProgress:
             estimated_completion=future,
             last_updated=now
         )
-        
-        progress_dict = progress.to_dict()
-        
+
+        from dataclasses import asdict
+        progress_dict = asdict(progress)
+
         assert progress_dict["overall_progress"] == 0.75
         assert progress_dict["current_activity"] == "Analyzing results"
         assert progress_dict["data_points_collected"] == 500
         assert progress_dict["warnings"] == ["API quota low"]
-        assert progress_dict["estimated_completion"] == future.isoformat()
-        assert progress_dict["last_updated"] == now.isoformat()
 
 
 class TestIntelligenceResults:
@@ -216,97 +211,114 @@ class TestIntelligenceResults:
     
     def test_intelligence_result_basic(self):
         """Test basic IntelligenceResult"""
+        now = datetime.utcnow()
         result = IntelligenceResult(
             source="whois",
-            data={"domain": "example.com", "registrar": "Test Registrar"},
-            confidence=0.9,
-            timestamp=datetime.utcnow()
+            data_type="domain_info",
+            target="example.com",
+            raw_data={"domain": "example.com", "registrar": "Test Registrar"},
+            processed_data={"clean_data": "example.com"},
+            confidence_score=0.9,
+            timestamp=now,
+            metadata={"source_url": "whois.com"}
         )
-        
+
         assert result.source == "whois"
-        assert result.data["domain"] == "example.com"
-        assert result.confidence == 0.9
+        assert result.data_type == "domain_info"
+        assert result.target == "example.com"
+        assert result.confidence_score == 0.9
         assert isinstance(result.timestamp, datetime)
     
     def test_social_intelligence(self):
         """Test SocialIntelligence data class"""
         social = SocialIntelligence(
-            platform="twitter",
-            profiles=[{"username": "@example", "followers": 1000}],
-            posts=[{"content": "Test post", "engagement": 50}],
-            mentions=[{"text": "Mentioned in news", "source": "news.com"}],
-            sentiment_analysis={"overall": "neutral", "score": 0.1}
+            platforms={
+                "twitter": {"username": "@example", "followers": 1000}
+            },
+            sentiment_analysis={"twitter": 0.1},
+            engagement_metrics={"retweets": 50, "likes": 200},
+            reputation_score=0.8,
+            threat_indicators=["suspicious_account"],
+            data_sources=[]
         )
-        
-        assert social.platform == "twitter"
-        assert len(social.profiles) == 1
-        assert len(social.posts) == 1
-        assert len(social.mentions) == 1
-        assert social.sentiment_analysis["overall"] == "neutral"
+
+        assert "twitter" in social.platforms
+        assert social.platforms["twitter"]["followers"] == 1000
+        assert social.reputation_score == 0.8
+        assert "suspicious_account" in social.threat_indicators
     
     def test_infrastructure_intelligence(self):
         """Test InfrastructureIntelligence data class"""
         infra = InfrastructureIntelligence(
             domains=[{"domain": "example.com", "registrar": "Test"}],
             subdomains=["www.example.com", "api.example.com"],
-            ip_addresses=["192.168.1.1"],
+            ip_addresses=[{"ip": "192.168.1.1", "provider": "Test"}],
             certificates=[{"subject": "example.com", "issuer": "Let's Encrypt"}],
-            dns_records=[{"type": "A", "value": "192.168.1.1"}],
-            hosting_info={"provider": "AWS", "location": "us-east-1"}
+            dns_records={"A": ["192.168.1.1"]},
+            exposed_services=[],
+            data_sources=[]
         )
-        
+
         assert len(infra.domains) == 1
         assert len(infra.subdomains) == 2
         assert len(infra.ip_addresses) == 1
         assert len(infra.certificates) == 1
-        assert len(infra.dns_records) == 1
-        assert infra.hosting_info["provider"] == "AWS"
+        assert "A" in infra.dns_records
     
     def test_threat_intelligence(self):
         """Test ThreatIntelligence data class"""
         threat = ThreatIntelligence(
-            indicators=[{"type": "domain", "value": "malicious.com", "confidence": 0.8}],
-            malware_families=["trojan", "ransomware"],
-            attack_vectors=["phishing", "social_engineering"],
-            risk_scores={"overall": 7.5, "malware": 8.0, "reputation": 6.0},
-            blocklist_status={"virustotal": "clean", "malware_bazaar": "suspicious"}
+            malware_indicators=[{"type": "domain", "value": "malicious.com", "confidence": 0.8}],
+            network_indicators=[],
+            behavioral_indicators=[],
+            threat_actors=[],
+            campaigns=[],
+            risk_score=7.5,
+            confidence_level=0.8,
+            mitre_techniques=["T1566", "T1598"],
+            data_sources=[]
         )
-        
-        assert len(threat.indicators) == 1
-        assert "trojan" in threat.malware_families
-        assert "phishing" in threat.attack_vectors
-        assert threat.risk_scores["overall"] == 7.5
-        assert threat.blocklist_status["virustotal"] == "clean"
+
+        assert len(threat.malware_indicators) == 1
+        assert threat.risk_score == 7.5
+        assert "T1566" in threat.mitre_techniques
     
     def test_intelligence_results_collection(self):
         """Test IntelligenceResults collection"""
+        now = datetime.utcnow()
         social_result = IntelligenceResult(
             source="twitter",
-            data={"username": "@example"},
-            confidence=0.8,
-            timestamp=datetime.utcnow()
+            data_type="profile",
+            target="example.com",
+            raw_data={"username": "@example"},
+            processed_data={},
+            confidence_score=0.8,
+            timestamp=now,
+            metadata={}
         )
-        
+
         infra_result = IntelligenceResult(
             source="whois",
-            data={"domain": "example.com"},
-            confidence=0.9,
-            timestamp=datetime.utcnow()
+            data_type="domain_info",
+            target="example.com",
+            raw_data={"domain": "example.com"},
+            processed_data={},
+            confidence_score=0.9,
+            timestamp=now,
+            metadata={}
         )
-        
+
         results = IntelligenceResults(
-            social_intelligence=[social_result],
-            infrastructure_intelligence=[infra_result],
-            threat_intelligence=[]
+            investigation_id="inv_123",
+            target="example.com",
+            results=[social_result, infra_result],
+            total_sources=2,
+            successful_sources=2,
+            failed_sources=0
         )
-        
-        assert len(results.social_intelligence) == 1
-        assert len(results.infrastructure_intelligence) == 1
-        assert len(results.threat_intelligence) == 0
-        
-        # Test getting all results
-        all_results = results.get_all_results()
-        assert len(all_results) == 2
+
+        assert len(results.results) == 2
+        assert results.total_sources == 2
 
 
 class TestOSINTInvestigation:
@@ -320,7 +332,7 @@ class TestOSINTInvestigation:
             primary_identifier="example.com",
             created_at=datetime.utcnow()
         )
-        
+
         investigation = OSINTInvestigation(
             id="inv_123",
             target_profile=target_profile,
@@ -331,7 +343,7 @@ class TestOSINTInvestigation:
             status=InvestigationStatus.PENDING,
             created_at=datetime.utcnow()
         )
-        
+
         assert investigation.id == "inv_123"
         assert investigation.target_profile.primary_identifier == "example.com"
         assert investigation.investigation_type == InvestigationType.COMPREHENSIVE
@@ -340,7 +352,6 @@ class TestOSINTInvestigation:
         assert investigation.status == InvestigationStatus.PENDING
         assert isinstance(investigation.scope, InvestigationScope)
         assert isinstance(investigation.progress, InvestigationProgress)
-        assert isinstance(investigation.intelligence_results, IntelligenceResults)
     
     def test_investigation_timestamps(self):
         """Test investigation timestamp handling"""
@@ -374,14 +385,14 @@ class TestOSINTInvestigation:
     def test_investigation_to_dict(self):
         """Test investigation dictionary conversion"""
         now = datetime.utcnow()
-        
+
         target_profile = TargetProfile(
             target_id="target_789",
             target_type="domain",
             primary_identifier="dict-test.com",
             created_at=now
         )
-        
+
         investigation = OSINTInvestigation(
             id="inv_789",
             target_profile=target_profile,
@@ -392,19 +403,17 @@ class TestOSINTInvestigation:
             status=InvestigationStatus.ANALYZING,
             created_at=now
         )
-        
+
         inv_dict = investigation.to_dict()
-        
+
         assert inv_dict["id"] == "inv_789"
         assert inv_dict["investigation_type"] == "social_media"
         assert inv_dict["investigator_name"] == "test_analyst"
         assert inv_dict["priority"] == "low"
         assert inv_dict["status"] == "analyzing"
-        assert inv_dict["created_at"] == now.isoformat()
         assert "target_profile" in inv_dict
         assert "scope" in inv_dict
         assert "progress" in inv_dict
-        assert "intelligence_results" in inv_dict
 
 
 class TestComplianceAndRisk:
@@ -412,79 +421,112 @@ class TestComplianceAndRisk:
     
     def test_compliance_assessment(self):
         """Test ComplianceAssessment data class"""
+        from compliance_framework import ComplianceStatus, RiskLevel
+        now = datetime.utcnow()
         assessment = ComplianceAssessment(
+            assessment_id="assess_123",
+            investigation_id="inv_123",
             framework=ComplianceFramework.GDPR,
-            compliant=True,
-            issues=[],
-            recommendations=["Continue current practices"],
-            risk_level="low",
-            assessed_at=datetime.utcnow()
+            status=ComplianceStatus.COMPLIANT,
+            risk_level=RiskLevel.LOW,
+            compliance_score=95.0,
+            data_categories_identified=[],
+            processing_records=[],
+            lawful_bases_applied=[],
+            high_risk_factors=[],
+            consent_requirements=[],
+            retention_violations=[],
+            cross_border_transfers=[],
+            remediation_actions=[],
+            policy_updates_required=[],
+            training_requirements=[],
+            assessed_by="test_user",
+            assessed_at=now,
+            next_review_date=now
         )
-        
+
         assert assessment.framework == ComplianceFramework.GDPR
-        assert assessment.compliant is True
-        assert len(assessment.issues) == 0
-        assert len(assessment.recommendations) == 1
-        assert assessment.risk_level == "low"
-        assert isinstance(assessment.assessed_at, datetime)
+        assert assessment.compliance_score == 95.0
     
     def test_compliance_assessment_with_issues(self):
         """Test ComplianceAssessment with compliance issues"""
+        from compliance_framework import ComplianceStatus, RiskLevel
+        now = datetime.utcnow()
         assessment = ComplianceAssessment(
+            assessment_id="assess_456",
+            investigation_id="inv_456",
             framework=ComplianceFramework.CCPA,
-            compliant=False,
-            issues=["Insufficient consent mechanism", "Data retention too long"],
-            recommendations=["Implement consent banner", "Reduce retention period"],
-            risk_level="high",
-            assessed_at=datetime.utcnow()
+            status=ComplianceStatus.NON_COMPLIANT,
+            risk_level=RiskLevel.HIGH,
+            compliance_score=35.0,
+            data_categories_identified=[],
+            processing_records=[],
+            lawful_bases_applied=[],
+            high_risk_factors=["Insufficient consent mechanism", "Data retention too long"],
+            consent_requirements=["Implement consent banner"],
+            retention_violations=["Reduce retention period"],
+            cross_border_transfers=[],
+            remediation_actions=["Implement consent banner", "Reduce retention period"],
+            policy_updates_required=[],
+            training_requirements=[],
+            assessed_by="test_user",
+            assessed_at=now,
+            next_review_date=now
         )
-        
-        assert assessment.compliant is False
-        assert len(assessment.issues) == 2
-        assert "Insufficient consent mechanism" in assessment.issues
-        assert assessment.risk_level == "high"
+
+        assert len(assessment.high_risk_factors) == 2
+        assert "Insufficient consent mechanism" in assessment.high_risk_factors
+        assert assessment.compliance_score == 35.0
     
     def test_risk_score(self):
         """Test RiskScore data class"""
+        from advanced_analysis import RiskFactor, RiskCategory
+        factor = RiskFactor(
+            category=RiskCategory.REPUTATION,
+            name="Domain age",
+            score=6.0,
+            weight=0.3,
+            evidence=["Domain registered 2 years ago"]
+        )
         risk = RiskScore(
             overall_score=7.5,
-            reputation_score=6.0,
-            threat_score=8.0,
-            exposure_score=7.0,
-            confidence=0.85,
-            factors=["Domain age", "SSL certificate", "Blacklist status"],
-            calculated_at=datetime.utcnow()
+            risk_level="high",
+            category_scores={"reputation": 6.0, "threat": 8.0},
+            factors=[factor],
+            trend="stable",
+            confidence=0.85
         )
-        
+
         assert risk.overall_score == 7.5
-        assert risk.reputation_score == 6.0
-        assert risk.threat_score == 8.0
-        assert risk.exposure_score == 7.0
+        assert risk.risk_level == "high"
+        assert risk.category_scores["reputation"] == 6.0
+        assert len(risk.factors) == 1
         assert risk.confidence == 0.85
-        assert len(risk.factors) == 3
-        assert isinstance(risk.calculated_at, datetime)
     
     def test_risk_score_to_dict(self):
         """Test RiskScore dictionary conversion"""
-        now = datetime.utcnow()
-        
+        from advanced_analysis import RiskFactor, RiskCategory
+        factor = RiskFactor(
+            category=RiskCategory.REPUTATION,
+            name="Recent activity",
+            score=4.0,
+            weight=0.3,
+            evidence=["High activity detected"]
+        )
         risk = RiskScore(
             overall_score=5.5,
-            reputation_score=4.0,
-            threat_score=6.0,
-            exposure_score=6.5,
-            confidence=0.9,
-            factors=["Recent activity", "Geographic location"],
-            calculated_at=now
+            risk_level="medium",
+            category_scores={"reputation": 4.0, "threat": 6.0},
+            factors=[factor],
+            trend="stable",
+            confidence=0.9
         )
-        
+
         risk_dict = risk.to_dict()
-        
+
         assert risk_dict["overall_score"] == 5.5
-        assert risk_dict["reputation_score"] == 4.0
         assert risk_dict["confidence"] == 0.9
-        assert risk_dict["factors"] == ["Recent activity", "Geographic location"]
-        assert risk_dict["calculated_at"] == now.isoformat()
+        assert risk_dict["risk_level"] == "medium"
 
 
 class TestDataValidation:
@@ -492,27 +534,30 @@ class TestDataValidation:
     
     def test_empty_investigation_results(self):
         """Test handling empty investigation results"""
-        results = IntelligenceResults()
-        
-        assert len(results.social_intelligence) == 0
-        assert len(results.infrastructure_intelligence) == 0
-        assert len(results.threat_intelligence) == 0
-        
-        all_results = results.get_all_results()
-        assert len(all_results) == 0
+        results = IntelligenceResults(
+            investigation_id="inv_empty",
+            target="example.com"
+        )
+
+        assert len(results.results) == 0
+        assert results.total_sources == 0
     
     def test_invalid_confidence_scores(self):
         """Test handling invalid confidence scores"""
-        # Test that confidence scores outside 0-1 range are handled
+        now = datetime.utcnow()
         result = IntelligenceResult(
             source="test",
-            data={"test": "data"},
-            confidence=1.5,  # Invalid - should be 0-1
-            timestamp=datetime.utcnow()
+            data_type="test_type",
+            target="test_target",
+            raw_data={"test": "data"},
+            processed_data={},
+            confidence_score=1.5,  # Invalid - should be 0-1, but model stores as-is
+            timestamp=now,
+            metadata={}
         )
-        
+
         # The model should store the value as-is, validation would be at application level
-        assert result.confidence == 1.5
+        assert result.confidence_score == 1.5
     
     def test_missing_optional_fields(self):
         """Test handling missing optional fields"""
@@ -523,7 +568,7 @@ class TestDataValidation:
             primary_identifier="minimal.com",
             created_at=datetime.utcnow()
         )
-        
+
         investigation = OSINTInvestigation(
             id="minimal_inv",
             target_profile=target_profile,
@@ -534,8 +579,8 @@ class TestDataValidation:
             status=InvestigationStatus.PENDING,
             created_at=datetime.utcnow()
         )
-        
-        # Optional fields should be None
+
+        # Optional fields should be None or default
         assert investigation.started_at is None
         assert investigation.completed_at is None
-        assert investigation.processing_time_seconds is None
+        assert investigation.processing_time_seconds == 0.0

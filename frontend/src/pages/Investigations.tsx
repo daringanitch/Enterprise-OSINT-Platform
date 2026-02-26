@@ -1,9 +1,15 @@
 /**
  * Investigations List Page
+ *
+ * Supports filtering by URL path:
+ * - /investigations - show all
+ * - /investigations/active - show only active/in-progress
+ * - /investigations/history - show completed/cancelled
+ * - /investigations/saved - show all (placeholder for bookmarked investigations)
  */
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -75,14 +81,59 @@ const StatusChip = styled(Chip)<{ status: string }>(({ status }) => {
 });
 
 // Mock data
-const investigations = [
+const allInvestigations = [
   { id: '1', target: 'suspicious-domain.com', status: 'active', created: '2024-01-15', findings: 24 },
   { id: '2', target: '192.168.1.100', status: 'completed', created: '2024-01-14', findings: 18 },
   { id: '3', target: 'threat-actor@example.com', status: 'pending', created: '2024-01-13', findings: 0 },
+  { id: '4', target: 'malware-c2.net', status: 'active', created: '2024-01-12', findings: 42 },
+  { id: '5', target: 'compromised-host.org', status: 'completed', created: '2024-01-11', findings: 31 },
 ];
 
 const InvestigationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine filter from current path
+  const getFilter = (): string => {
+    const pathSegments = location.pathname.split('/');
+    return pathSegments[2] || 'all'; // all, active, history, saved
+  };
+
+  const filter = getFilter();
+
+  // Filter investigations based on path
+  const filteredInvestigations = useMemo(() => {
+    switch (filter) {
+      case 'active':
+        return allInvestigations.filter(inv =>
+          inv.status === 'active' || inv.status === 'pending'
+        );
+      case 'history':
+        return allInvestigations.filter(inv =>
+          inv.status === 'completed' || inv.status === 'failed'
+        );
+      case 'saved':
+        // For now, show all investigations (placeholder for bookmarked concept)
+        return allInvestigations;
+      case 'all':
+      default:
+        return allInvestigations;
+    }
+  }, [filter]);
+
+  // Get title based on filter
+  const getTitle = (): string => {
+    switch (filter) {
+      case 'active':
+        return 'Active Investigations';
+      case 'history':
+        return 'Investigation History';
+      case 'saved':
+        return 'Saved Investigations';
+      default:
+        return 'Investigations';
+    }
+  };
 
   return (
     <PageContainer
@@ -92,7 +143,7 @@ const InvestigationsPage: React.FC = () => {
       exit="exit"
     >
       <Header>
-        <Title>Investigations</Title>
+        <Title>{getTitle()}</Title>
         <NewButton
           variant="contained"
           startIcon={<AddIcon />}
@@ -102,7 +153,7 @@ const InvestigationsPage: React.FC = () => {
         </NewButton>
       </Header>
 
-      {investigations.map((inv, index) => (
+      {filteredInvestigations.map((inv, index) => (
         <InvestigationCard
           key={inv.id}
           initial={{ opacity: 0, y: 20 }}
@@ -132,10 +183,10 @@ const InvestigationsPage: React.FC = () => {
         </InvestigationCard>
       ))}
 
-      {investigations.length === 0 && (
+      {filteredInvestigations.length === 0 && (
         <Card variant="glass">
           <Typography color="text.secondary" textAlign="center">
-            No investigations yet. Create one to get started.
+            No {filter !== 'all' ? filter : ''} investigations yet. Create one to get started.
           </Typography>
         </Card>
       )}

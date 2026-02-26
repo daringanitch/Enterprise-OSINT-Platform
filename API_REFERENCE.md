@@ -5,11 +5,17 @@ Complete API documentation for the Enterprise OSINT Platform REST API and MCP se
 ## Table of Contents
 1. [Authentication](#authentication)
 2. [Investigation Management](#investigation-management)
-3. [System Status](#system-status)
-4. [Graph Intelligence](#graph-intelligence)
-5. [MCP Server APIs](#mcp-server-apis)
-6. [Error Handling](#error-handling)
-7. [Rate Limiting](#rate-limiting)
+3. [Analytic Tradecraft](#analytic-tradecraft)
+4. [Real-Time Monitoring](#real-time-monitoring)
+5. [Credential Intelligence](#credential-intelligence)
+6. [NLP Intelligence](#nlp-intelligence)
+7. [Service Settings](#service-settings)
+8. [STIX/MISP Export](#stixmisp-export)
+9. [System Status](#system-status)
+10. [Graph Intelligence](#graph-intelligence)
+11. [MCP Server APIs](#mcp-server-apis)
+12. [Error Handling](#error-handling)
+13. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -313,6 +319,810 @@ Authorization: Bearer <jwt_token>
 {
     "message": "Investigation deleted successfully",
     "deleted_id": "605ba974-9a88-4921-855e-c9dbedc2b3d8"
+}
+```
+
+---
+
+## Analytic Tradecraft
+
+Intelligence Community structured analytic techniques endpoints.
+
+### Get Reference Scales
+**GET** `/api/tradecraft/scales`
+
+Retrieve NATO/Admiralty source reliability and information credibility scales.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+    "source_reliability": {
+        "A": "Completely Reliable",
+        "B": "Usually Reliable",
+        "C": "Fairly Reliable",
+        "D": "Not Usually Reliable",
+        "E": "Unreliable",
+        "F": "Cannot Be Judged"
+    },
+    "information_credibility": {
+        "1": "Confirmed",
+        "2": "Probably True",
+        "3": "Possibly True",
+        "4": "Doubtful",
+        "5": "Improbable",
+        "6": "Cannot Be Judged"
+    },
+    "confidence_levels": ["High", "Moderate", "Low"],
+    "wep_scale": ["Almost Certain", "Likely", "Possible", "Unlikely", "Remote"]
+}
+```
+
+### Create Intel Item
+**POST** `/api/tradecraft/investigations/{id}/items`
+
+Add a rated intelligence item to investigation.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "source": "HUMINT - Field Agent",
+    "source_reliability": "B",
+    "information": "Target registered domain 6 months ago",
+    "credibility": "2",
+    "collection_date": "2025-02-20T10:30:00Z"
+}
+```
+
+**Response:**
+```json
+{
+    "item_id": "item-uuid",
+    "investigation_id": "inv-uuid",
+    "rating": "B/2",
+    "status": "collected",
+    "timestamp": "2025-02-26T16:45:30Z"
+}
+```
+
+### Create Hypothesis
+**POST** `/api/tradecraft/investigations/{id}/hypotheses`
+
+Add a hypothesis for analysis.
+
+**Request Body:**
+```json
+{
+    "hypothesis": "Target is conducting credential phishing campaign",
+    "description": "Evidence suggests malicious intent based on infrastructure patterns",
+    "confidence_initial": "Possible"
+}
+```
+
+**Response:**
+```json
+{
+    "hypothesis_id": "hyp-uuid",
+    "hypothesis": "Target is conducting credential phishing campaign",
+    "ach_evidence_count": 0,
+    "status": "active",
+    "created_at": "2025-02-26T16:45:30Z"
+}
+```
+
+### ACH Matrix Operations
+**POST** `/api/tradecraft/investigations/{id}/ach/link`
+
+Link evidence to hypothesis for ACH analysis.
+
+**Request Body:**
+```json
+{
+    "item_id": "item-uuid",
+    "hypothesis_id": "hyp-uuid",
+    "relationship": "supports",
+    "diagnostic_value": "disconfirming"
+}
+```
+
+**GET** `/api/tradecraft/investigations/{id}/ach/matrix`
+
+Retrieve ACH matrix with Heuer diagnostic scoring.
+
+**Response:**
+```json
+{
+    "hypotheses": [
+        {
+        "hypothesis_id": "hyp-uuid",
+        "hypothesis": "Phishing campaign",
+        "total_evidence": 5,
+        "supporting": 2,
+        "disconfirming": 3,
+        "heuer_score": 0.72,
+        "inconsistency_index": 0.85
+        }
+    ],
+    "strongest_hypothesis": "hyp-uuid",
+    "analysis_timestamp": "2025-02-26T16:45:30Z"
+}
+```
+
+### Alternative Explanations
+**POST** `/api/tradecraft/investigations/{id}/alternatives`
+
+Record rejected alternative explanations.
+
+**Request Body:**
+```json
+{
+    "alternative": "Target is conducting legitimate security research",
+    "reason_rejected": "No evidence of legitimate research agenda; infrastructure inconsistent with security firm practices",
+    "confidence_in_rejection": "High"
+}
+```
+
+**GET** `/api/tradecraft/investigations/{id}/alternatives`
+
+List all documented alternatives and rejection justifications.
+
+### Devil's Advocacy
+**POST** `/api/tradecraft/investigations/{id}/devils-advocacy`
+
+Capture designated dissent opinion.
+
+**Request Body:**
+```json
+{
+    "advocate_name": "Senior Analyst Smith",
+    "contrary_view": "Despite B-source evidence, alternative interpretation is that this is testing our defenses",
+    "confidence": "Moderate",
+    "key_assumption": "Assumes attacker logic favors operational security"
+}
+```
+
+### Conclusions
+**POST** `/api/tradecraft/investigations/{id}/conclusions`
+
+Record final analytic conclusion.
+
+**Request Body:**
+```json
+{
+    "conclusion": "Target is actively conducting phishing operations against financial sector",
+    "confidence": "High",
+    "key_evidence": ["item-1", "item-2", "item-3"],
+    "key_assumptions": ["No OPSEC deception"],
+    "caveats": ["Limited visibility into backend infrastructure"],
+    "alternative_views_considered": ["alt-1", "alt-2"]
+}
+```
+
+**Response:**
+```json
+{
+    "conclusion_id": "conc-uuid",
+    "ic_statement": "We assess with high confidence that the target is conducting phishing operations targeting the financial sector, based on domain registration patterns, certificate transparency data, and infrastructure overlap with known threat actor TTPs.",
+    "confidence": "High",
+    "created_at": "2025-02-26T16:45:30Z"
+}
+```
+
+---
+
+## Real-Time Monitoring
+
+Continuous infrastructure surveillance and watchlist management.
+
+### Create Watchlist Entry
+**POST** `/api/monitoring/watchlist`
+
+Add a target to continuous monitoring.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "name": "Corporate Main Domain",
+    "entry_type": "domain",
+    "value": "example.com",
+    "enabled": true,
+    "check_interval_hours": 24,
+    "tags": ["corporate", "critical"]
+}
+```
+
+**Response:**
+```json
+{
+    "entry_id": "watch-uuid",
+    "name": "Corporate Main Domain",
+    "entry_type": "domain",
+    "value": "example.com",
+    "enabled": true,
+    "check_interval_hours": 24,
+    "last_check": null,
+    "created_at": "2025-02-26T16:45:30Z"
+}
+```
+
+### List Watchlist
+**GET** `/api/monitoring/watchlist`
+
+Retrieve all watchlist entries.
+
+**Query Parameters:**
+- `enabled` (optional): Filter by enabled status (true/false)
+- `entry_type` (optional): Filter by type (domain, ip, email, keyword, etc)
+- `limit` (optional): Results per page (default: 20)
+- `offset` (optional): Pagination offset
+
+**Response:**
+```json
+{
+    "entries": [
+        {
+            "entry_id": "watch-uuid",
+            "name": "Corporate Main Domain",
+            "entry_type": "domain",
+            "value": "example.com",
+            "enabled": true,
+            "check_interval_hours": 24,
+            "last_check": "2025-02-26T10:00:00Z",
+            "created_at": "2025-02-26T16:45:30Z"
+        }
+    ],
+    "total": 5,
+    "has_more": false
+}
+```
+
+### Trigger Watchlist Check
+**POST** `/api/monitoring/watchlist/{entry_id}/check`
+
+Manually trigger an immediate check for a watchlist entry.
+
+**Response:**
+```json
+{
+    "entry_id": "watch-uuid",
+    "check_timestamp": "2025-02-26T16:45:30Z",
+    "new_alerts": 2,
+    "snapshot": {
+        "dns_records": [...],
+        "certificates": [...],
+        "open_ports": [22, 80, 443],
+        "reputation": {"VirusTotal": 0, "AbuseIPDB": 0}
+    }
+}
+```
+
+### List Alerts
+**GET** `/api/monitoring/alerts`
+
+Retrieve alert feed with filtering.
+
+**Query Parameters:**
+- `status` (optional): new, acknowledged, in_progress, resolved, dismissed
+- `severity` (optional): info, low, medium, high, critical
+- `entry_id` (optional): Filter by watchlist entry
+- `limit` (optional): Results per page (default: 50)
+- `offset` (optional): Pagination offset
+
+**Response:**
+```json
+{
+    "alerts": [
+        {
+            "alert_id": "alert-uuid",
+            "entry_id": "watch-uuid",
+            "alert_type": "new_certificate",
+            "severity": "medium",
+            "status": "new",
+            "message": "New SSL certificate issued for example.com",
+            "details": {
+                "subject": "CN=example.com",
+                "issuer": "Let's Encrypt",
+                "valid_from": "2025-02-20T00:00:00Z",
+                "valid_to": "2025-05-21T00:00:00Z"
+            },
+            "created_at": "2025-02-26T14:30:00Z"
+        }
+    ],
+    "total": 15,
+    "has_more": true
+}
+```
+
+### Update Alert Status
+**PATCH** `/api/monitoring/alerts/{alert_id}`
+
+Update alert status and add notes.
+
+**Request Body:**
+```json
+{
+    "status": "acknowledged",
+    "notes": "Reviewed by security team. Valid certificate renewal."
+}
+```
+
+**Response:**
+```json
+{
+    "alert_id": "alert-uuid",
+    "status": "acknowledged",
+    "updated_at": "2025-02-26T16:45:30Z"
+}
+```
+
+---
+
+## Credential Intelligence
+
+Multi-source credential breach detection and password analysis.
+
+### Check Email Exposure
+**POST** `/api/credentials/check/email`
+
+Check if email has been exposed in breaches.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+    "email": "user@example.com",
+    "exposure_status": "exposed",
+    "risk_score": 72,
+    "risk_level": "high",
+    "breach_count": 3,
+    "paste_count": 1,
+    "breaches": [
+        {
+            "name": "LinkedIn Leak",
+            "breach_date": "2023-06-15",
+            "affected_fields": ["email", "password_hash", "name"]
+        }
+    ],
+    "dehashed_results": [
+        {
+            "source": "dehashed",
+            "email": "user@example.com",
+            "password_hash": "5d41402abc4b2a76b9719d911017c592",
+            "hash_type": "MD5"
+        }
+    ]
+}
+```
+
+### Check Domain Exposure
+**POST** `/api/credentials/check/domain`
+
+Check if domain has exposed employee credentials.
+
+**Request Body:**
+```json
+{
+    "domain": "example.com"
+}
+```
+
+**Response:**
+```json
+{
+    "domain": "example.com",
+    "total_exposed_accounts": 42,
+    "risk_score": 65,
+    "risk_level": "high",
+    "exposed_employees": [
+        {
+            "email": "admin@example.com",
+            "breach_sources": ["HIBP", "Dehashed"],
+            "breach_count": 2
+        }
+    ]
+}
+```
+
+### Check Password Security
+**POST** `/api/credentials/check/password`
+
+Check if password has been exposed using k-anonymity (SHA-1 prefix only).
+
+**Request Body:**
+```json
+{
+    "password": "p@ssw0rd123"
+}
+```
+
+**Response:**
+```json
+{
+    "exposed": true,
+    "exposure_count": 523,
+    "risk_level": "critical",
+    "message": "This password appears in breached credential databases. Choose a unique password."
+}
+```
+
+### Analyze Passwords from Investigation
+**POST** `/api/credentials/analyze-passwords`
+
+Batch analyze multiple exposed passwords linked to investigation.
+
+**Request Body:**
+```json
+{
+    "investigation_id": "inv-uuid",
+    "emails": ["user1@example.com", "user2@example.com"]
+}
+```
+
+**Response:**
+```json
+{
+    "analysis_id": "analysis-uuid",
+    "investigation_id": "inv-uuid",
+    "emails_analyzed": 2,
+    "critical_exposures": 1,
+    "high_risk_exposures": 1,
+    "recommendations": [
+        "Force password reset for all critical exposure accounts",
+        "Enable MFA for high-risk accounts",
+        "Monitor for lateral movement from compromised accounts"
+    ]
+}
+```
+
+---
+
+## NLP Intelligence
+
+Natural language processing for entity extraction and text analysis.
+
+### Extract Entities
+**POST** `/api/nlp/extract-entities`
+
+Extract persons, organizations, locations, and technical indicators from text.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "text": "John Smith from Acme Corporation in New York was connected to IP 192.0.2.1 and domain malicious.com",
+    "include_technical": true
+}
+```
+
+**Response:**
+```json
+{
+    "entities": {
+        "PERSON": [
+            {"text": "John Smith", "confidence": 0.98}
+        ],
+        "ORG": [
+            {"text": "Acme Corporation", "confidence": 0.95}
+        ],
+        "GPE": [
+            {"text": "New York", "confidence": 0.99}
+        ],
+        "IP_ADDRESS": [
+            {"text": "192.0.2.1", "confidence": 1.0}
+        ],
+        "DOMAIN": [
+            {"text": "malicious.com", "confidence": 0.99}
+        ]
+    },
+    "text_length": 95,
+    "processing_time_ms": 45
+}
+```
+
+### Classify Text
+**POST** `/api/nlp/classify`
+
+Classify text by threat category and sentiment.
+
+**Request Body:**
+```json
+{
+    "text": "We have identified a critical ransomware campaign targeting healthcare organizations",
+    "classification_type": "threat_intelligence"
+}
+```
+
+**Response:**
+```json
+{
+    "classifications": {
+        "threat_type": {
+            "category": "ransomware",
+            "confidence": 0.96,
+            "related_categories": ["extortion", "data_encryption"]
+        },
+        "sentiment": {
+            "label": "negative",
+            "confidence": 0.88
+        }
+    },
+    "processing_time_ms": 32
+}
+```
+
+### Extract Report Intelligence
+**POST** `/api/nlp/extract-report`
+
+Full intelligence extraction from investigation summary or report.
+
+**Request Body:**
+```json
+{
+    "report_text": "Investigation summary text...",
+    "investigation_id": "inv-uuid"
+}
+```
+
+**Response:**
+```json
+{
+    "entities_extracted": 15,
+    "relationships_inferred": 8,
+    "keywords": ["phishing", "credential_theft", "domain_registration"],
+    "threat_indicators": ["IP", "domain", "email"],
+    "confidence_summary": "High confidence in entity extraction, moderate in relationship inference"
+}
+```
+
+---
+
+## Service Settings
+
+API key management and service configuration.
+
+### List Services
+**GET** `/api/settings/services`
+
+Retrieve all available services with configuration status.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+    "services": [
+        {
+            "id": "virustotal",
+            "name": "VirusTotal",
+            "category": "threat_intelligence",
+            "tier": "freemium",
+            "tier_note": "40 API requests per minute (free tier)",
+            "has_key": true,
+            "enabled": true,
+            "works_without_key": true,
+            "docs_url": "https://virustotal.com/docs",
+            "signup_url": "https://virustotal.com/sign-up"
+        }
+    ],
+    "total": 19
+}
+```
+
+### Save API Key
+**POST** `/api/settings/services/{service_id}/key`
+
+Save or update API key for a service.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "api_key": "your-api-key-here"
+}
+```
+
+**Response:**
+```json
+{
+    "service_id": "virustotal",
+    "key_saved": true,
+    "key_hash": "sha256_hash_of_key",
+    "last_updated": "2025-02-26T16:45:30Z"
+}
+```
+
+### Test Service Connection
+**POST** `/api/settings/services/{service_id}/test`
+
+Test API connection for a service.
+
+**Response:**
+```json
+{
+    "service_id": "virustotal",
+    "status": "connected",
+    "response_time_ms": 245,
+    "quota_remaining": 3998
+}
+```
+
+### Delete API Key
+**DELETE** `/api/settings/services/{service_id}/key`
+
+Remove API key for a service (falls back to free tier).
+
+**Response:**
+```json
+{
+    "service_id": "virustotal",
+    "key_deleted": true,
+    "fallback_mode": "free_tier"
+}
+```
+
+### Get/Switch Mode
+**GET** `/api/settings/mode`
+
+Get current Demo/Live mode.
+
+**Response:**
+```json
+{
+    "mode": "demo",
+    "demo_until": "2025-02-27T00:00:00Z",
+    "services_affected": ["all"]
+}
+```
+
+**POST** `/api/settings/mode`
+
+Switch between Demo and Live mode.
+
+**Request Body:**
+```json
+{
+    "mode": "live"
+}
+```
+
+---
+
+## STIX/MISP Export
+
+Standards-compliant threat intelligence export.
+
+### Export as STIX Bundle
+**GET** `/api/investigations/{id}/export/stix`
+
+Export investigation as STIX 2.1 bundle.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters:**
+- `include_relationships` (optional): Include relationship objects (default: true)
+- `tlp_marking` (optional): TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:RED (default: TLP:AMBER)
+
+**Response:**
+- Content-Type: `application/json`
+- Body: STIX 2.1 Bundle JSON
+
+**Example Response:**
+```json
+{
+    "type": "bundle",
+    "id": "bundle--uuid",
+    "objects": [
+        {
+            "type": "indicator",
+            "id": "indicator--uuid",
+            "created": "2025-02-26T16:45:30Z",
+            "pattern": "[domain-name:value = 'malicious.com']",
+            "labels": ["malicious-activity"],
+            "kill_chain_phases": [
+                {
+                    "kill_chain_name": "mitre-attack",
+                    "phase_name": "resource-development"
+                }
+            ]
+        }
+    ]
+}
+```
+
+### Export as MISP Event
+**GET** `/api/investigations/{id}/export/misp`
+
+Export investigation as MISP event format.
+
+**Query Parameters:**
+- `event_info` (optional): Event description (default: investigation target)
+- `threat_level_id` (optional): 1-4 (high to low severity)
+- `analysis` (optional): 0-2 (ongoing to completed)
+
+**Response:**
+```json
+{
+    "Event": {
+        "id": 1,
+        "info": "example.com investigation",
+        "Attribute": [
+            {
+                "type": "domain",
+                "value": "example.com",
+                "comment": "Extracted from investigation"
+            }
+        ]
+    }
+}
+```
+
+### Push to MISP Instance
+**POST** `/api/investigations/{id}/export/misp/push`
+
+Export and push investigation to MISP instance.
+
+**Request Body:**
+```json
+{
+    "misp_url": "https://misp.example.com",
+    "api_key": "misp-api-key",
+    "threat_level_id": 2,
+    "analysis": 1
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "event_id": 12345,
+    "misp_url": "https://misp.example.com/events/12345",
+    "attributes_pushed": 23,
+    "relationships_pushed": 8
 }
 ```
 
@@ -1055,6 +1865,36 @@ X-RateLimit-Reset: 1692195600
 | `POST /api/investigations` | Yes | Analyst+ |
 | `GET /api/investigations/{id}` | Yes | Any |
 | `DELETE /api/investigations/{id}` | Yes | Admin |
+| `GET /api/tradecraft/scales` | Yes | Any |
+| `POST /api/tradecraft/investigations/{id}/items` | Yes | Analyst+ |
+| `POST /api/tradecraft/investigations/{id}/hypotheses` | Yes | Analyst+ |
+| `POST /api/tradecraft/investigations/{id}/ach/link` | Yes | Analyst+ |
+| `GET /api/tradecraft/investigations/{id}/ach/matrix` | Yes | Any |
+| `POST /api/tradecraft/investigations/{id}/alternatives` | Yes | Analyst+ |
+| `GET /api/tradecraft/investigations/{id}/alternatives` | Yes | Any |
+| `POST /api/tradecraft/investigations/{id}/devils-advocacy` | Yes | Analyst+ |
+| `POST /api/tradecraft/investigations/{id}/conclusions` | Yes | Analyst+ |
+| `POST /api/monitoring/watchlist` | Yes | Analyst+ |
+| `GET /api/monitoring/watchlist` | Yes | Any |
+| `POST /api/monitoring/watchlist/{entry_id}/check` | Yes | Analyst+ |
+| `GET /api/monitoring/alerts` | Yes | Any |
+| `PATCH /api/monitoring/alerts/{alert_id}` | Yes | Analyst+ |
+| `POST /api/credentials/check/email` | Yes | Any |
+| `POST /api/credentials/check/domain` | Yes | Any |
+| `POST /api/credentials/check/password` | Yes | Any |
+| `POST /api/credentials/analyze-passwords` | Yes | Analyst+ |
+| `POST /api/nlp/extract-entities` | Yes | Any |
+| `POST /api/nlp/classify` | Yes | Any |
+| `POST /api/nlp/extract-report` | Yes | Any |
+| `GET /api/settings/services` | Yes | Any |
+| `POST /api/settings/services/{service_id}/key` | Yes | Admin |
+| `POST /api/settings/services/{service_id}/test` | Yes | Analyst+ |
+| `DELETE /api/settings/services/{service_id}/key` | Yes | Admin |
+| `GET /api/settings/mode` | Yes | Any |
+| `POST /api/settings/mode` | Yes | Admin |
+| `GET /api/investigations/{id}/export/stix` | Yes | Any |
+| `GET /api/investigations/{id}/export/misp` | Yes | Any |
+| `POST /api/investigations/{id}/export/misp/push` | Yes | Analyst+ |
 | `GET /api/system/status` | No | None |
 | `GET /api/mcp/servers` | Yes | Any |
 | `GET /api/graph/status` | No | None |

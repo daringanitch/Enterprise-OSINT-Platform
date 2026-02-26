@@ -108,6 +108,181 @@ The platform consists of the following microservices:
 
 ## Core Components
 
+### 0. Analytic Tradecraft Engine (`analytic_tradecraft.py`)
+
+Implements intelligence community (IC) structured analytic techniques for rigorous analysis:
+
+**NATO/Admiralty Scale:**
+- Source Reliability: A-F grades (Completely Reliable to Cannot Be Judged)
+- Information Credibility: 1-6 grades (Confirmed to Cannot Be Judged)
+- Double-matrix ratings: Combines both dimensions for confidence assessment
+
+**Intelligence Community Standards:**
+- IC Confidence Levels: High/Moderate/Low with ICD 203 vocabulary
+- Sherman Kent "Words of Estimative Probability" (WEP) scale
+- Structured confidence justification with controlling factors
+
+**Analysis of Competing Hypotheses (ACH):**
+- Evidence × Hypothesis matrix with Heuer diagnostic scoring
+- Identifies disconfirming vs. supporting evidence
+- Calculates diagnostic consistency for each hypothesis
+
+**Anti-Confirmation Bias Mechanisms:**
+- `AlternativeExplanation` model enforces documenting rejected alternatives
+- `DevilsAdvocacy` model captures designated dissent
+- `AnalyticConclusion` with mandatory caveats and limitations
+
+**Intelligence Statement Generator:**
+- Auto-generates IC-standard conclusion statements
+- Format: "We assess with [confidence] that [statement] because [key evidence]"
+- Includes key assumptions, alternative views, and confidence justification
+
+**Persistence:**
+- JSON-based storage in APP_DATA_DIR (no database changes needed)
+- Survives container restarts
+- Full audit trail of analytic decisions
+
+### 1. Real-Time Monitoring Engine (`alert_engine.py`, `monitoring_scheduler.py`)
+
+Continuous infrastructure surveillance with automated alerting:
+
+**Watchlist Management:**
+- 9 target types: domain, IP, email, keyword, registrant, certificate_subject, threat_actor, CIDR, ASN
+- Per-entry enabled/disabled toggle
+- Configurable check intervals (hourly to weekly)
+- Custom descriptions and tags for organization
+
+**Infrastructure Snapshots:**
+- Point-in-time records: DNS A/MX/TXT/NS records, SSL certificates (crt.sh), open ports (Shodan), WHOIS data, IP reputation
+- Diff detection: Compares current snapshot vs. previous baseline
+- Change tracking: Detailed before/after records for forensics
+
+**14 Alert Types:**
+- DNS changes: new_record, removed, changed
+- Certificates: new_certificate, expiry_warning
+- Port/Service: shodan_port_change, new_service
+- Registrant: registrant_match, new_subdomain
+- Reputation: ip_reputation_change, threat_actor_active
+- Domain: whois_change, domain_expiry_warning
+
+**MonitoringScheduler Daemon:**
+- Background thread with 60s tick interval
+- Per-watchlist check scheduling (1h-7d intervals with drift prevention)
+- On-demand trigger capability
+- Alert status tracking: new → acknowledged → in_progress → resolved/dismissed
+
+**AlertStore Persistence:**
+- JSON-based with filtering by watchlist/status/severity
+- Full alert history with creation/modification timestamps
+- Severity levels: info, low, medium, high, critical
+
+### 2. Service Configuration Manager (`service_config.py`)
+
+Centralized 19-service catalog with in-app API key management:
+
+**Service Tiers:**
+- Free (9 services): DNS, WHOIS, crt.sh, URLScan, HIBP password check, spaCy NLP, etc.
+- Freemium (6 services): VirusTotal, Shodan, AbuseIPDB, OTX, etc.
+- Paid (4 services): Dehashed, Hudson Rock Cavalier, Mandiant Advantage, etc.
+
+**Zero-Configuration Services:**
+- 9 services work without API keys using free/public endpoints
+- Intelligent fallback: Full functionality even if paid keys missing
+- Mock mode for demo/testing environments
+
+**Dynamic Configuration:**
+- In-app key management via `/api/settings/services` endpoints
+- Keys persisted in service_config.json
+- Auto-loaded into os.environ on startup
+- Service enable/disable toggles
+- Demo/Live mode switching (affects service endpoints)
+
+**Service Metadata:**
+- 19-service catalog with category, tier, docs_url, signup_url
+- Rate limit notes (e.g., "4 req/min on free plan")
+- Tier notes (e.g., "500 req/day free")
+- enabled_by_default boolean for each service
+
+### 3. Credential Intelligence Service (`credential_intel_service.py` + `blueprints/credentials.py`)
+
+Multi-source credential breach detection and password security analysis:
+
+**Breach Database APIs:**
+- HIBP (Have I Been Pwned): Breach and paste exposure searches (free tier)
+- Dehashed: Leaked credential search via email/domain (API key required)
+- Hudson Rock Cavalier: Infostealer victim database and compromised email lookups
+- Paste Site Monitoring: Continuous monitoring of paste dumps for credential exposure
+
+**Password Security:**
+- k-Anonymity check: Only SHA-1 prefix (first 5 chars) sent to HIBP
+- Full password never leaves client or server
+- Exposed count with severity scoring
+- Hash type detection (MD5, SHA-1, SHA-256, bcrypt)
+
+**Risk Scoring:**
+- Per-email exposure severity: 0-100 score
+- Categories: none (0-20), low (21-40), medium (41-60), high (61-80), critical (81-100)
+- Breach age weighting: Recent breaches score higher
+- Compromise context: Malware vs. password manager vs. public leak
+
+**Investigation Integration:**
+- Link credential exposure to investigation targets
+- Export exposure list in reports
+- Automated follow-up suggestions
+
+**MCP Server:**
+- Dedicated `mcp-servers/credential-intel/` FastAPI service
+- Async batch processing for multiple email/domain checks
+- Caching of HIBP results (24h TTL)
+
+### 4. NLP Pipeline (`nlp_pipeline.py`)
+
+Natural language processing for intelligence enrichment:
+
+**Entity Extraction:**
+- spaCy-based NER: Persons, Organizations, Locations, GPEs
+- Custom patterns: IP addresses, domains, file hashes, URLs, email addresses
+- Confidence scoring per entity
+
+**Text Classification:**
+- Threat intelligence report classification: malware, phishing, C2, data theft, etc.
+- Sentiment analysis: Positive, negative, neutral
+- Language detection
+- OCR text processing from documents
+
+**Entity Relationship Inference:**
+- Co-occurrence relationships from extracted entities
+- Context-aware linking (e.g., "person works at organization")
+- Relationship confidence scoring
+
+**Processing Pipeline:**
+- Batch processing of investigation summaries
+- Report text extraction and analysis
+- Automated keyword tagging
+- Feed enrichment with entity metadata
+
+### 5. STIX/MISP Export (`stix_export.py`)
+
+Standards-compliant threat intelligence export:
+
+**STIX 2.1 Bundle Generation:**
+- Converts investigation entities to STIX objects
+- Supported types: Indicator, Malware, AttackPattern, ThreatActor, Campaign, Infrastructure
+- Relationship export with STIX SROs (Relationship objects)
+- Bundle metadata: created timestamp, created_by_ref, labels, external_references
+
+**MISP Event Export:**
+- Converts investigation to MISP event format
+- Attribute types: domain, ip-dst, hostname, email-src, file|md5, url, etc.
+- Event tagging with MITRE ATT&CK, malware families, threat actors
+- Push-to-MISP integration (HTTP POST to MISP instance)
+
+**Enterprise Compliance:**
+- TLP marking levels (TLP:AMBER, TLP:GREEN, etc.)
+- Confidence score mapping to STIX pattern
+- Audit trail: who created, when, why
+- Version control for indicator updates
+
 ### 1. Investigation Orchestrator (`investigation_orchestrator.py`)
 
 The brain of the system that manages the investigation lifecycle:
@@ -824,9 +999,36 @@ simple-backend/
 │   ├── __init__.py                     # Blueprint package
 │   ├── auth.py                         # Authentication routes (JWT)
 │   ├── health.py                       # Health checks, K8s probes
-│   └── admin.py                        # Admin routes
+│   ├── admin.py                        # Admin routes
+│   ├── investigations.py                # Investigation CRUD + orchestration
+│   ├── reports.py                      # Report generation and export
+│   ├── analysis.py                     # Intelligence analysis endpoints
+│   ├── intelligence.py                 # Intelligence correlation endpoints
+│   ├── risk.py                         # Risk assessment endpoints
+│   ├── compliance.py                   # Compliance framework assessment
+│   ├── graph.py                        # Graph intelligence endpoints
+│   ├── tradecraft.py                   # Analytic tradecraft (NATO/ACH/Devil's Advocacy)
+│   ├── monitoring.py                   # Watchlist and alert management
+│   ├── credentials.py                  # Credential intelligence endpoints (HIBP, Dehashed, etc)
+│   ├── nlp.py                          # NLP entity extraction and classification
+│   ├── stix.py                         # STIX/MISP export endpoints
+│   └── settings.py                     # Service configuration and API key management
 ├── utils/
 │   └── startup_validation.py           # Security validation at startup
+├── core_modules/                       # Standalone service modules
+│   ├── analytic_tradecraft.py          # NATO/Admiralty scale, ACH matrix, IC confidence
+│   ├── alert_engine.py                 # Watchlist entries, infrastructure snapshots
+│   ├── service_config.py               # 19-service catalog + API key manager
+│   ├── credential_intel_service.py     # HIBP, Dehashed, Hudson Rock integration
+│   ├── nlp_pipeline.py                 # spaCy NER, text classification
+│   ├── stix_export.py                  # STIX 2.1 bundle + MISP event export
+│   ├── monitoring_scheduler.py         # Background monitoring daemon
+│   ├── compliance_framework.py         # Regulatory compliance (GDPR/CCPA/HIPAA/SOX)
+│   ├── investigation_orchestrator.py   # 7-stage investigation workflow
+│   ├── intelligence_correlation.py     # Entity correlation engine
+│   ├── advanced_analysis.py            # MITRE ATT&CK mapping, risk scoring
+│   ├── risk_assessment_engine.py       # Threat scoring and confidence
+│   └── professional_report_generator.py # PDF report generation
 ├── graph_intelligence/                 # Palantir-style graph analytics
 │   ├── models.py                       # 35+ entity types, 45+ relationships
 │   ├── neo4j_client.py                 # Graph database client + mock
@@ -839,16 +1041,14 @@ simple-backend/
 │       ├── similarity.py               # Jaccard, Adamic-Adar, SimRank
 │       ├── anomaly.py                  # Anomaly detection patterns
 │       └── influence.py                # Cascade, epidemic, blast radius
-├── investigation_orchestrator.py       # 7-stage investigation workflow
 ├── mcp_clients.py                      # MCP server communication
-├── intelligence_correlation.py         # Entity correlation engine
-├── advanced_analysis.py                # MITRE ATT&CK mapping, risk scoring
-├── compliance_framework.py             # Regulatory compliance
-├── professional_report_generator.py    # PDF report generation
 ├── observability.py                    # OpenTelemetry, tracing
 ├── problem_json.py                     # RFC 7807 error handling
 ├── expanded_data_sources.py            # 6 intelligence source collectors
 ├── demo_data.py                        # Demo mode data provider
+├── mode_manager.py                     # Demo/Live mode switching
+├── vault_client.py                     # HashiCorp Vault integration
+├── cache_service.py                    # Redis caching layer
 ├── tests/                              # Test suite (220+ functions)
 │   ├── unit/                           # Unit tests
 │   ├── integration/                    # Integration tests
@@ -862,6 +1062,23 @@ simple-backend/
 ```
 frontend/
 ├── src/
+│   ├── pages/                          # Application pages (16 total)
+│   │   ├── Dashboard.tsx               # Main dashboard with investigation overview
+│   │   ├── Investigations.tsx           # Investigation list with filtering
+│   │   ├── NewInvestigation.tsx         # Guided investigation creation
+│   │   ├── InvestigationDetail.tsx      # Full investigation details + tabs
+│   │   ├── Reports.tsx                  # Report history and generation
+│   │   ├── AnalyticWorkbench.tsx        # 4-tab: Intel Items, Hypotheses, ACH Matrix, Conclusions
+│   │   ├── Monitoring.tsx               # Watchlist management + alert feed (30s refresh)
+│   │   ├── CredentialIntelligence.tsx   # Email/domain/password exposure checks
+│   │   ├── ThreatIntelligence.tsx       # IOC feed + actor profiles overview
+│   │   ├── ThreatAnalysis.tsx           # Detailed threat analysis with MITRE mapping
+│   │   ├── GraphIntelligence.tsx        # Graph visualization + centrality/community analysis
+│   │   ├── CompliancePage.tsx           # GDPR/CCPA/HIPAA/SOX assessment cards
+│   │   ├── TeamPage.tsx                 # Team management (placeholder)
+│   │   ├── DataSourcesPage.tsx          # Source category browser + Settings link
+│   │   ├── Settings.tsx                 # Global settings + API key management
+│   │   └── Login.tsx                    # JWT authentication
 │   ├── components/
 │   │   ├── common/                     # Reusable UI components
 │   │   │   ├── Button.tsx              # Button with 6 variants, 3 sizes
@@ -875,6 +1092,12 @@ frontend/
 │   │   │   ├── Header.tsx              # Search, notifications, user menu
 │   │   │   ├── Sidebar.tsx             # Collapsible navigation
 │   │   │   └── Layout.tsx              # Main wrapper with PageWrapper
+│   │   ├── visualizations/             # Chart and graph components
+│   │   │   ├── ThreatMatrix.tsx        # MITRE ATT&CK heatmap
+│   │   │   ├── RiskGauge.tsx           # Risk score gauge chart
+│   │   │   ├── TimelineChart.tsx       # Investigation timeline visualization
+│   │   │   ├── EntityGraph.tsx         # Interactive graph visualization
+│   │   │   └── ComplianceHeatmap.tsx   # Compliance framework coverage
 │   │   └── a11y/                       # Accessibility components
 │   │       ├── SkipLinks.tsx           # Skip navigation for keyboard users
 │   │       ├── VisuallyHidden.tsx      # Screen reader only content
@@ -884,7 +1107,8 @@ frontend/
 │   │   ├── useKeyboardNavigation.ts    # Arrow key navigation
 │   │   ├── useFocusTrap.ts             # Modal focus trapping
 │   │   ├── useAnnounce.ts              # ARIA live announcements
-│   │   └── useMediaQuery.ts            # Responsive breakpoints
+│   │   ├── useMediaQuery.ts            # Responsive breakpoints
+│   │   └── useInvestigationPolling.ts  # Real-time investigation status updates
 │   ├── utils/                          # Utilities
 │   │   ├── theme.ts                    # Design system tokens
 │   │   ├── validation.ts               # Form validators (15+)
@@ -895,6 +1119,15 @@ frontend/
 ├── package.json                        # Node dependencies
 └── tsconfig.json                       # TypeScript configuration
 ```
+
+**Frontend Capabilities (Updated):**
+- 16 pages supporting all new backend modules
+- AnalyticWorkbench: NATO/Admiralty scale ratings, ACH matrix, hypothesis tracking
+- Monitoring dashboard: Real-time watchlist feed with 30s auto-refresh, alert management
+- Credential intelligence: Multi-source breach checking with severity scoring
+- Tradecraft visualization: Confidence statements, alternative explanations, devil's advocacy
+- STIX/MISP export: One-click threat intelligence standard export
+- Service settings: In-app API key management for 19-service catalog
 
 ### Legacy Frontend Structure (`simple-frontend/`)
 

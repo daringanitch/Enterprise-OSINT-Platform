@@ -24,6 +24,10 @@ import ThreatAnalysisPage from './pages/ThreatAnalysis';
 import AnalyticWorkbenchPage from './pages/AnalyticWorkbench';
 import MonitoringPage from './pages/Monitoring';
 import CredentialIntelligencePage from './pages/CredentialIntelligence';
+import ThreatIntelligencePage from './pages/ThreatIntelligence';
+import CompliancePage from './pages/CompliancePage';
+import TeamPage from './pages/TeamPage';
+import DataSourcesPage from './pages/DataSourcesPage';
 
 // Components
 import Layout from './components/Layout';
@@ -79,6 +83,9 @@ function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="investigations">
                       <Route index element={<InvestigationsPage />} />
+                      <Route path="active" element={<InvestigationsPage />} />
+                      <Route path="history" element={<InvestigationsPage />} />
+                      <Route path="saved" element={<InvestigationsPage />} />
                       <Route path="new" element={<NewInvestigationPage />} />
                       <Route path=":id" element={<InvestigationDetailPage />} />
                       <Route path=":id/graph" element={<GraphIntelligencePage />} />
@@ -86,6 +93,10 @@ function App() {
                       <Route path=":id/workbench" element={<AnalyticWorkbenchPage />} />
                     </Route>
                     <Route path="reports" element={<ReportsPage />} />
+                    <Route path="threat-intelligence" element={<ThreatIntelligencePage />} />
+                    <Route path="compliance" element={<CompliancePage />} />
+                    <Route path="team" element={<TeamPage />} />
+                    <Route path="data-sources" element={<DataSourcesPage />} />
                     <Route path="monitoring" element={<MonitoringPage />} />
                     <Route path="credentials" element={<CredentialIntelligencePage />} />
                     <Route path="settings" element={<SettingsPage />} />
