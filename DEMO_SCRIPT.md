@@ -1,6 +1,9 @@
 # Enterprise OSINT Platform — Demo Script
 ## "Operation SHATTERED PANE" (~10 minutes)
 
+> 🎬 **Video walkthrough**: [`Operation_Shattered_Pane.mp4`](./Operation_Shattered_Pane.mp4)
+> A recorded run-through of this demo is included in the repo for async review or onboarding.
+
 > **Audience**: Security leadership, SOC teams, threat intelligence buyers, investors
 > **Tone**: You're walking through a real investigation, not a feature checklist
 > **Goal**: By the end, the audience understands that this platform does in 10 minutes what a skilled analyst would take 4–8 hours to do manually — and produces audit-quality output
