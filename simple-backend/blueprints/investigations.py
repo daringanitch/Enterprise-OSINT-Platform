@@ -10,6 +10,7 @@ import uuid
 from blueprints.auth import require_auth
 
 from models import InvestigationType, Priority, InvestigationStatus, InvestigationScope
+from api_connection_monitor import APIType
 from problem_json import InvestigationNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -162,7 +163,7 @@ def create_investigation():
         available_social_apis = ['mcp-social-enhanced']  # Enhanced MCP always available
         available_infra_apis = ['mcp-infrastructure-enhanced']  # Enhanced MCP always available
         available_threat_apis = ['mcp-threat-enhanced']  # Enhanced MCP always available
-        available_ai_apis = services.api_monitor.get_available_apis(services.api_monitor.APIType.AI_ML)
+        available_ai_apis = services.api_monitor.get_available_apis(APIType.AI_ML)
 
         # Create investigation scope based on type and API availability
         scope = InvestigationScope()

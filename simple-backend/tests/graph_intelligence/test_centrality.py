@@ -267,19 +267,29 @@ class TestClosenessCentrality:
         assert len(result.scores) == 3
 
     def test_closeness_star(self, star_graph):
-        """Test closeness on star graph."""
+        """Test closeness on directed star graph (hub → spokes).
+
+        NetworkX closeness_centrality on a DiGraph measures *in-closeness*:
+        how easily a node can be *reached* by others.  In a directed star where
+        all edges flow hub → spoke:
+          - Spokes: reachable from hub (1 hop)  → non-zero closeness
+          - Hub:    no incoming edges            → closeness = 0.0
+        """
         nodes, edges = star_graph
         engine = CentralityEngine()
         engine.build_graph(nodes, edges)
 
         result = engine.closeness_centrality()
 
-        # Hub should have highest closeness (can reach all spokes in 1 hop)
         hub_id = nodes[0].entity_id
         hub_closeness = result.scores[hub_id]
 
+        # Hub has no incoming paths → closeness must be 0.0
+        assert hub_closeness == 0.0
+
+        # Each spoke is reachable from the hub → closeness > 0
         for spoke in nodes[1:]:
-            assert hub_closeness >= result.scores[spoke.entity_id]
+            assert result.scores[spoke.entity_id] > hub_closeness
 
 
 class TestEigenvectorCentrality:
