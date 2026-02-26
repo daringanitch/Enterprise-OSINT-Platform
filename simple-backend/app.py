@@ -349,6 +349,10 @@ from blueprints.credentials import bp as credentials_bp
 from blueprints.settings import bp as settings_bp
 from blueprints.tradecraft import bp as tradecraft_bp
 from blueprints.monitoring import bp as monitoring_bp
+from blueprints.pivots import bp as pivots_bp
+from blueprints.correlations import bp as correlations_bp
+from blueprints.threat_actors import bp as threat_actors_bp
+from blueprints.templates import bp as templates_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(auth_bp)
@@ -366,6 +370,10 @@ app.register_blueprint(credentials_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(tradecraft_bp)
 app.register_blueprint(monitoring_bp)
+app.register_blueprint(pivots_bp)
+app.register_blueprint(correlations_bp)
+app.register_blueprint(threat_actors_bp)
+app.register_blueprint(templates_bp)
 
 logger.info("All blueprints registered successfully")
 
