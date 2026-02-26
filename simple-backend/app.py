@@ -10,6 +10,8 @@
 Enterprise OSINT Platform Backend
 Full Intelligence Gathering and Analysis System
 """
+
+__version__ = "1.0.0"
 import os
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS

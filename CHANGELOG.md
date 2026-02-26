@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] - 2026-02-26
+
 ### Added
+
+#### Pivot Suggestions Engine
+- **`pivot_engine.py`** — Stateless pivot recommendation engine with composite scoring across 5 weighted signals: threat_flag (0.35), corroboration (0.25), centrality (0.20), recency (0.10), unresolved edges (0.10). Supports 7 pivot types: expand_infrastructure, check_reputation, check_credentials, lookup_registration, enumerate_subdomains, cert_transparency, social_footprint.
+- **`blueprints/pivots.py`** — `GET /api/investigations/<id>/pivots` (ranked suggestions with `max` param), `POST /api/investigations/<id>/pivots/dismiss`, `GET /api/pivots/explain` (scoring documentation endpoint).
+
+#### Threat Actor Dossier Library
+- **`threat_actor_library.py`** — 26 nation-state and criminal actor dossiers (APT28, APT29, APT41, Lazarus Group, FIN7, Scattered Spider, and more) with full MITRE ATT&CK technique and tactic mappings, `match_ttps()` overlap scoring, full-text search, sector filtering, and technique filtering.
+- **`blueprints/threat_actors.py`** — `GET /api/threat-actors` (filtered list: q, sector, technique, type, motivation), `GET /api/threat-actors/<id>`, `POST /api/threat-actors/match` (technique-to-actor ranking), `POST /api/threat-actors/fingerprint` (auto-extracts TTPs from an investigation and returns ranked actor candidates).
+
+#### Cross-Investigation Correlation
+- **`cross_investigation_correlator.py`** — Inverted-index correlation engine detects shared domains, IPs, emails, ASNs, and certificate thumbprints across all investigations with significance classification (critical for shared certs, high for shared IPs/domains/emails, medium for shared ASNs) and composite link-strength scoring.
+- **`blueprints/correlations.py`** — `GET /api/correlations` (full platform-wide scan), `GET /api/investigations/<id>/correlations` (links for a specific investigation), `GET /api/correlations/indicators/<value>` (find all investigations containing an indicator).
+
+#### Investigation Templates
+- **`investigation_templates.py`** — 6 analyst-ready investigation templates:
+  - `apt_attribution` — 8h depth, 180-day history, 4 ACH hypotheses, 11 MITRE techniques, GDPR-compliant
+  - `ransomware_profiling` — 6h depth, 365-day history, 3 ACH hypotheses, 9 MITRE techniques
+  - `phishing_infrastructure` — 3h depth, 60-day history, 3 ACH hypotheses, 5 MITRE techniques
+  - `ma_due_diligence` — 12h depth, corporate records enabled, 3 ACH hypotheses
+  - `insider_threat` — GDPR/CCPA compliance, PII handling guidance, 3 ACH hypotheses
+  - `vulnerability_exposure` — 5h depth, 30-day history, infrastructure focus
+  - Each template includes watchlist seeds with placeholder resolution, ACH hypothesis seeds, recommended MITRE techniques, analyst key questions, and step-by-step analyst guidance.
+- **`blueprints/templates.py`** — `GET /api/templates` (with `?category=` filter), `GET /api/templates/categories`, `GET /api/templates/<id>`, `POST /api/templates/<id>/apply` (returns pre-populated scope, watchlist seeds, and ACH hypotheses with optional target resolution).
+
+#### Demo Scenario & Walkthrough
+- **`demo_scenario.py`** — Deterministic seeder for "Operation SHATTERED PANE" phishing infrastructure investigation with 7 phishing domains, C2 IP, 8 Admiralty-rated intel items, 3 ACH hypotheses, 24-cell ACH matrix, IC-standard conclusion, devil's advocate challenge, 3 watchlists, and 3 alerts. Supports `--reset` flag.
+- **`DEMO_SCRIPT.md`** — 10-minute walkthrough script across 7 scenes: Dashboard → Investigation → Graph → Monitoring → Tradecraft → Credential Intel → Export. Includes objection-handling for competitor comparisons and a 3-minute elevator variant.
+- **`Operation_Shattered_Pane.mp4`** — Recorded demo walkthrough video.
 
 #### Credential Intelligence & Exposure Monitoring
 - **`mcp-servers/credential-intel/`** — FastAPI MCP server with four independent source clients:
@@ -202,7 +234,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secure API communication
 - Kubernetes secrets management
 
-[Unreleased]: https://github.com/yourusername/enterprise-osint-flask/compare/v2.0.1...HEAD
-[2.0.1]: https://github.com/yourusername/enterprise-osint-flask/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/yourusername/enterprise-osint-flask/compare/v1.0.0...v2.0.0
+[Unreleased]: https://github.com/yourusername/enterprise-osint-flask/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/yourusername/enterprise-osint-flask/releases/tag/v1.0.0
