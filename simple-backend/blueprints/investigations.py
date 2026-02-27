@@ -195,24 +195,18 @@ def create_investigation():
                 scope.include_threat_intelligence = False
                 api_warnings.append("Threat intelligence disabled - no APIs available")
 
-        # Create investigation record (but don't execute yet)
-        investigation_id = services.orchestrator.create_investigation(
+        # Start investigation — creates record AND submits to ThreadPoolExecutor
+        # so it executes immediately in the background within this process.
+        # (The two-step create+enqueue pattern relied on MockJobQueueManager
+        # which was a no-op; start_investigation is the reliable path.)
+        investigation_id = services.orchestrator.start_investigation(
             target=target,
             investigation_type=inv_type,
             investigator_name=investigator_name,
             priority=inv_priority,
             scope=scope
         )
-
-        # Queue investigation for background processing
-        job_id = services.job_queue_manager.enqueue_investigation(
-            investigation_id=investigation_id,
-            target=target,
-            investigation_type=investigation_type,
-            priority=priority,
-            investigator_name=investigator_name,
-            scope=scope.to_dict() if hasattr(scope, 'to_dict') else {}
-        )
+        job_id = investigation_id  # thread future is tracked internally
 
         # Get investigation details
         investigation = services.orchestrator.get_investigation(investigation_id)
@@ -220,8 +214,7 @@ def create_investigation():
             return jsonify({'error': 'Failed to create investigation'}), 500
 
         # Store job ID for progress tracking
-        if job_id:
-            investigation.job_id = job_id
+        investigation.job_id = job_id
 
         # Ensure the investigation object has the correct investigator_id
         investigation.investigator_id = investigator_id
@@ -480,7 +473,7 @@ def investigation_advanced_analysis(investigation_id):
         return jsonify({'error': 'Investigation not found'}), 404
 
     # Check active investigations
-    investigation = services.orchestrator.get_investigation_status(investigation_id)
+    investigation = services.orchestrator.get_investigation(investigation_id)
     if not investigation:
         return jsonify({'error': 'Investigation not found'}), 404
 

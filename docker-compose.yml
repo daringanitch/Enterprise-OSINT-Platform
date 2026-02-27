@@ -76,7 +76,7 @@ services:
     volumes:
       - ./simple-backend:/app:ro          # source code read-only
       - backend_data:/data                # writable runtime data/config at /data
-    command: gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 120 app:app
+    command: gunicorn --bind 0.0.0.0:5001 --workers 1 --threads 4 --timeout 300 --access-logfile - --error-logfile - app:app
 
   # RQ Worker — processes investigation jobs queued by the backend
   worker:
