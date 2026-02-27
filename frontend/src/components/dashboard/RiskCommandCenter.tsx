@@ -22,7 +22,6 @@ import {
   Grid,
   alpha,
   styled,
-  Divider,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import ShieldIcon from '@mui/icons-material/Shield';
@@ -38,7 +37,6 @@ import PolicyIcon from '@mui/icons-material/Policy';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { cyberColors, designTokens, glassmorphism } from '../../utils/theme';
-import { gaugeNeedleVariants } from '../../utils/animations';
 
 // =============================================================================
 // Types

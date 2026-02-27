@@ -17,7 +17,6 @@ import {
   Typography,
   Chip,
   Divider,
-  LinearProgress,
   alpha,
   styled,
 } from '@mui/material';

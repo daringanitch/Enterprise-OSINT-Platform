@@ -22,7 +22,6 @@ import {
   Collapse,
   alpha,
   styled,
-  Divider,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -32,7 +31,6 @@ import DeviceHubIcon from '@mui/icons-material/DeviceHub';
 import StarIcon from '@mui/icons-material/Star';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { cyberColors, designTokens, glassmorphism } from '../../utils/theme';
 import { staggerContainer, staggerItem } from '../../utils/animations';

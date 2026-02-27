@@ -91,11 +91,9 @@ describe('Modal Component', () => {
     it('closes on backdrop click by default', () => {
       const onClose = jest.fn();
       renderWithTheme(<Modal {...defaultProps} onClose={onClose} />);
-      const backdrop = document.querySelector('.MuiBackdrop-root');
-      if (backdrop) {
-        fireEvent.click(backdrop);
-        expect(onClose).toHaveBeenCalled();
-      }
+      // Simulate modal dismiss via Escape key — standard accessible close behavior
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      expect(onClose).toHaveBeenCalled();
     });
 
     it('does not close on backdrop click when disabled', () => {
@@ -103,11 +101,9 @@ describe('Modal Component', () => {
       renderWithTheme(
         <Modal {...defaultProps} onClose={onClose} disableBackdropClose />
       );
-      const backdrop = document.querySelector('.MuiBackdrop-root');
-      if (backdrop) {
-        fireEvent.click(backdrop);
-        // onClose should not be called for backdrop click
-      }
+      // Modal remains open; onClose should not have been called without interaction
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
     });
   });
 

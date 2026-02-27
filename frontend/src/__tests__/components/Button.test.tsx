@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/common/Button';
@@ -71,7 +71,7 @@ describe('Button Component', () => {
     it('shows spinner when loading', () => {
       renderWithTheme(<Button loading testId="loading-btn">Loading</Button>);
       const button = screen.getByTestId('loading-btn');
-      expect(button.querySelector('.MuiCircularProgress-root')).toBeInTheDocument();
+      expect(within(button).getByRole('progressbar')).toBeInTheDocument();
     });
   });
 

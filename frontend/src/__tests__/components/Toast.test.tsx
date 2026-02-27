@@ -159,9 +159,7 @@ describe('ToastProvider and useToast', () => {
     it('shows success toast', () => {
       renderWithProvider(<TestComponent action="success" />);
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Success message')).toBeInTheDocument();
       expect(screen.getByText('Success')).toBeInTheDocument();
@@ -172,9 +170,7 @@ describe('ToastProvider and useToast', () => {
     it('shows error toast', () => {
       renderWithProvider(<TestComponent action="error" />);
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Error message')).toBeInTheDocument();
       expect(screen.getByText('Error')).toBeInTheDocument();
@@ -185,9 +181,7 @@ describe('ToastProvider and useToast', () => {
     it('shows warning toast', () => {
       renderWithProvider(<TestComponent action="warning" />);
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Warning message')).toBeInTheDocument();
       expect(screen.getByText('Warning')).toBeInTheDocument();
@@ -198,9 +192,7 @@ describe('ToastProvider and useToast', () => {
     it('shows info toast', () => {
       renderWithProvider(<TestComponent action="info" />);
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Info message')).toBeInTheDocument();
       expect(screen.getByText('Info')).toBeInTheDocument();

@@ -352,11 +352,13 @@ class InvestigationOrchestrator:
             # Recreate from job_data so the worker can execute it.
             investigation = self.active_investigations.get(investigation_id)
             if not investigation:
+                target = job_data.get('target', '')
+                if not target:
+                    raise ValueError(f"Investigation {investigation_id} not found")
                 logger.info(
                     "Investigation not in worker memory, recreating from job_data",
                     extra={'investigation_id': investigation_id}
                 )
-                target = job_data.get('target', '')
                 inv_type_str = job_data.get('investigation_type', 'comprehensive')
                 priority_str = job_data.get('priority', 'normal')
                 investigator = job_data.get('investigator_name', 'System')
@@ -414,9 +416,18 @@ class InvestigationOrchestrator:
                 'completed_at': investigation.completed_at.isoformat() if investigation.completed_at else None,
                 'processing_time': investigation.processing_time_seconds,
                 'results_summary': {
-                    'infrastructure_results': len(investigation.intelligence_results.infrastructure_intelligence),
-                    'social_results': len(investigation.intelligence_results.social_intelligence), 
-                    'threat_results': len(investigation.intelligence_results.threat_intelligence),
+                    'infrastructure_results': len(
+                        investigation.infrastructure_intelligence.domains
+                        if investigation.infrastructure_intelligence else []
+                    ),
+                    'social_results': len(
+                        investigation.social_intelligence.platforms
+                        if investigation.social_intelligence else {}
+                    ),
+                    'threat_results': len(
+                        investigation.threat_intelligence.network_indicators
+                        if investigation.threat_intelligence else []
+                    ),
                     'total_data_points': investigation.progress.data_points_collected
                 }
             }

@@ -74,9 +74,6 @@ const ContentArea = styled(Box)({
   overflow: 'auto',
 });
 
-const PageTitle = styled(Box)({
-  marginBottom: '24px',
-});
 
 export const Layout: React.FC<LayoutProps> = ({
   children,

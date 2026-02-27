@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import {
   Drawer,
   List,
-  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -34,7 +33,6 @@ import StorageIcon from '@mui/icons-material/Storage';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import PsychologyIcon from '@mui/icons-material/Psychology';
 import { designTokens } from '../../utils/theme';
 
 export interface NavItem {
