@@ -57,6 +57,7 @@ services:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: dev-only-token
       FLASK_ENV: production
+      APP_DATA_DIR: /data                 # writable dir outside the :ro source mount
       # Add your API keys here or use .env file
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
       # TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
@@ -72,7 +73,7 @@ services:
       - osint-network
     volumes:
       - ./simple-backend:/app:ro          # source code read-only
-      - backend_data:/app/data            # writable overlay for runtime data/config
+      - backend_data:/data                # writable runtime data/config at /data
     command: gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 120 app:app
 
   # OSINT Frontend
