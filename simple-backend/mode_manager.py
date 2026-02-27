@@ -56,8 +56,12 @@ class ModeManager:
         
     def _load_config(self) -> ModeConfiguration:
         """Load mode configuration from file"""
+        # Allow OPERATION_MODE env var to override the default so docker-compose
+        # can set 'production' without needing a pre-existing config file.
+        env_mode = os.environ.get('OPERATION_MODE', '').lower()
+        default_mode = env_mode if env_mode in ('demo', 'production') else 'demo'
         default_config = ModeConfiguration(
-            current_mode="demo",  # Start in demo mode by default
+            current_mode=default_mode,  # Overridable via OPERATION_MODE env var
             auto_fallback_enabled=True,
             required_api_keys=[
                 # No keys are truly required - all features should work in demo mode

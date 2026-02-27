@@ -58,6 +58,7 @@ services:
       VAULT_TOKEN: dev-only-token
       FLASK_ENV: production
       APP_DATA_DIR: /data                 # writable dir outside the :ro source mount
+      OPERATION_MODE: production          # serve real investigations, not demo data
       # Add your API keys here or use .env file
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
       # TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
@@ -92,6 +93,7 @@ services:
       VAULT_TOKEN: dev-only-token
       FLASK_ENV: production
       APP_DATA_DIR: /data
+      OPERATION_MODE: production          # must match backend mode
     depends_on:
       postgresql:
         condition: service_healthy

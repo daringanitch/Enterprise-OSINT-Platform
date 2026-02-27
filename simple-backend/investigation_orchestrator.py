@@ -347,10 +347,50 @@ class InvestigationOrchestrator:
                 'target': job_data.get('target')
             })
             
-            # Get investigation
+            # Get investigation — may not exist if running in the RQ worker
+            # process (separate memory space from the Flask backend).
+            # Recreate from job_data so the worker can execute it.
             investigation = self.active_investigations.get(investigation_id)
             if not investigation:
-                raise ValueError(f"Investigation {investigation_id} not found")
+                logger.info(
+                    "Investigation not in worker memory, recreating from job_data",
+                    extra={'investigation_id': investigation_id}
+                )
+                target = job_data.get('target', '')
+                inv_type_str = job_data.get('investigation_type', 'comprehensive')
+                priority_str = job_data.get('priority', 'normal')
+                investigator = job_data.get('investigator_name', 'System')
+
+                _type_map = {
+                    'comprehensive': InvestigationType.COMPREHENSIVE,
+                    'infrastructure': InvestigationType.INFRASTRUCTURE,
+                    'social_media': InvestigationType.SOCIAL_MEDIA,
+                    'threat_assessment': InvestigationType.THREAT_ASSESSMENT,
+                    'corporate': InvestigationType.CORPORATE,
+                }
+                _priority_map = {
+                    'low': Priority.LOW,
+                    'normal': Priority.NORMAL,
+                    'high': Priority.HIGH,
+                    'urgent': Priority.URGENT,
+                    'critical': Priority.CRITICAL,
+                }
+                inv_type = _type_map.get(inv_type_str, InvestigationType.COMPREHENSIVE)
+                inv_priority = _priority_map.get(priority_str, Priority.NORMAL)
+
+                recreated_id = self.create_investigation(
+                    target=target,
+                    investigation_type=inv_type,
+                    investigator_name=investigator,
+                    priority=inv_priority,
+                )
+                # Move it under the original ID so all downstream code uses it
+                investigation = self.active_investigations.pop(recreated_id, None)
+                if investigation:
+                    investigation.id = investigation_id
+                    self.active_investigations[investigation_id] = investigation
+                else:
+                    raise ValueError(f"Failed to recreate investigation {investigation_id}")
             
             # Update status to running
             investigation.status = InvestigationStatus.PLANNING
