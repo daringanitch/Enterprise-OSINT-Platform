@@ -82,7 +82,7 @@ services:
     container_name: osint-frontend
     volumes:
       - ./simple-frontend:/usr/share/nginx/html:ro
-      - ./simple-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./simple-frontend/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "8080:80"
     depends_on:
