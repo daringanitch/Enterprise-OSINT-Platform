@@ -1793,6 +1793,34 @@ Investigation completed by {investigation.investigator_name} on {datetime.utcnow
         investigation.threat_intelligence.network_indicators = [
             {"type": "domain", "value": investigation.target_profile.primary_identifier, "risk": "low"}
         ]
-        
+
         investigation.api_calls_made += 6
         investigation.add_finding("No significant threat indicators identified (simulated data)", "threat_intel")
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton + RQ-callable wrapper
+# ---------------------------------------------------------------------------
+# RQ resolves job functions as 'module.attribute' — it imports this module
+# and looks up the attribute directly on it.  Because execute_investigation_async
+# is an instance method the worker would get AttributeError and silently fail
+# every job.  This wrapper exposes a plain module-level function that RQ can
+# find and call, delegating to a lazily-created orchestrator singleton.
+
+_orchestrator: 'InvestigationOrchestrator | None' = None
+
+
+def _get_orchestrator() -> 'InvestigationOrchestrator':
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = InvestigationOrchestrator()
+    return _orchestrator
+
+
+def execute_investigation_async(investigation_id: str, job_data: dict) -> dict:
+    """Module-level entry point called by the RQ worker.
+
+    Delegates to InvestigationOrchestrator.execute_investigation_async so
+    that RQ can resolve it as 'investigation_orchestrator.execute_investigation_async'.
+    """
+    return _get_orchestrator().execute_investigation_async(investigation_id, job_data)
