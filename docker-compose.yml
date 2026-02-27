@@ -71,7 +71,8 @@ services:
     networks:
       - osint-network
     volumes:
-      - ./simple-backend:/app:ro
+      - ./simple-backend:/app:ro          # source code read-only
+      - backend_data:/app/data            # writable overlay for runtime data/config
     command: gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 120 app:app
 
   # OSINT Frontend
@@ -109,4 +110,6 @@ volumes:
   redis_data:
     driver: local
   vault_data:
+    driver: local
+  backend_data:
     driver: local
