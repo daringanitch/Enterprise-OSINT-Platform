@@ -226,6 +226,88 @@ Then restart with `./start.sh local`
 ./start.sh logs         # View logs
 ```
 
+## Troubleshooting
+
+### Container name conflict when switching modes
+
+**Symptom:** `Error response from daemon: Conflict. The container name "/osint-backend" is already in use`
+
+This happens when you switch between Demo mode and Local mode (or vice versa) without stopping the previous stack first. Both compose files create containers with the same names.
+
+**Fix:** Remove the orphaned containers, then re-run `./start.sh`:
+
+```bash
+docker rm -f osint-backend osint-frontend
+./start.sh
+```
+
+Or cleanly tear down the previous stack before switching:
+
+```bash
+# If coming from demo mode
+docker compose -f docker-compose.demo.yml down
+
+# If coming from local mode
+docker compose down
+```
+
+### Backend container fails to start (`ModuleNotFoundError: No module named 'blueprints'`)
+
+**Symptom:** `osint-backend` exits immediately; logs show `ModuleNotFoundError: No module named 'blueprints'`
+
+Docker is running a stale image built before the `blueprints/` directory was added to the Dockerfile. Force a clean rebuild:
+
+```bash
+docker compose -f docker-compose.demo.yml build --no-cache osint-backend
+docker compose -f docker-compose.demo.yml up -d --force-recreate osint-backend
+```
+
+### Vault authentication warnings on startup
+
+**Symptom:** `ERROR:vault_client:Vault authentication failed: No Vault token available`
+
+This is expected in demo and local development modes — Vault is not required and the backend falls back to environment variable secrets automatically. You can safely ignore this warning.
+
+### No external API data (VirusTotal, Shodan, etc.)
+
+**Symptom:** Intelligence gathering returns empty or mock results
+
+API integrations require keys. Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env   # if example exists, otherwise create manually
+# Then add your keys:
+OPENAI_API_KEY=your-key
+VIRUSTOTAL_API_KEY=your-key
+SHODAN_API_KEY=your-key
+```
+
+Then restart: `./start.sh local`
+
+### Port already in use
+
+**Symptom:** `bind: address already in use` on port 5001 or 8080
+
+```bash
+# Find what's using the port
+lsof -i :5001
+lsof -i :8080
+
+# Stop the offending process, then restart
+./start.sh stop && ./start.sh
+```
+
+### View logs for any service
+
+```bash
+docker compose logs -f osint-backend    # Backend API
+docker compose logs -f osint-frontend   # Frontend
+docker compose logs -f osint-postgresql # Database
+docker compose logs -f osint-redis      # Cache
+```
+
+---
+
 ## Contributing
 
 1. Fork the repository
