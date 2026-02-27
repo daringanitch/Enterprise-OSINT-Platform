@@ -101,11 +101,14 @@ services:
         condition: service_healthy
       vault:
         condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - osint-network
     volumes:
       - ./simple-backend:/app:ro
       - backend_data:/data
+    restart: unless-stopped
     command: >
       rq worker investigations reports mcp_operations compliance default
       --url redis://redis:6379/0
@@ -135,6 +138,11 @@ services:
       - osint-network
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 networks:
   osint-network:
