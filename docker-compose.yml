@@ -5,7 +5,7 @@ services:
     container_name: osint-postgresql
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: osint-local-dev-2026
       POSTGRES_DB: osint_audit
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -52,11 +52,12 @@ services:
       POSTGRES_HOST: postgresql
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: osint-local-dev-2026
       POSTGRES_DB: osint_audit
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: dev-only-token
       FLASK_ENV: production
+      JWT_SECRET_KEY: osint-platform-local-dev-jwt-2026
       APP_DATA_DIR: /data                 # writable dir outside the :ro source mount
       OPERATION_MODE: production          # serve real investigations, not demo data
       # Add your API keys here or use .env file
@@ -87,11 +88,12 @@ services:
       POSTGRES_HOST: postgresql
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: osint-local-dev-2026
       POSTGRES_DB: osint_audit
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: dev-only-token
       FLASK_ENV: production
+      JWT_SECRET_KEY: osint-platform-local-dev-jwt-2026
       APP_DATA_DIR: /data
       OPERATION_MODE: production          # must match backend mode
     depends_on:
