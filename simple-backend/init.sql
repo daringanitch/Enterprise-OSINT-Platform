@@ -61,6 +61,53 @@ CREATE INDEX IF NOT EXISTS idx_investigations_status          ON investigations(
 CREATE INDEX IF NOT EXISTS idx_investigations_user_id         ON investigations(user_id);
 CREATE INDEX IF NOT EXISTS idx_investigations_created_at      ON investigations(created_at);
 
+-- ─── Users ─────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS users (
+    id                      SERIAL PRIMARY KEY,
+    user_id                 VARCHAR(255)  UNIQUE NOT NULL,
+    username                VARCHAR(100)  UNIQUE NOT NULL,
+    email                   VARCHAR(255)  UNIQUE NOT NULL,
+    password_hash           VARCHAR(255)  NOT NULL,
+    full_name               VARCHAR(255),
+    role                    VARCHAR(50)   NOT NULL DEFAULT 'analyst',
+    clearance_level         VARCHAR(50)   DEFAULT 'internal',
+    is_active               BOOLEAN       NOT NULL DEFAULT TRUE,
+    failed_login_attempts   INTEGER       DEFAULT 0,
+    last_login              TIMESTAMP WITH TIME ZONE,
+    created_at              TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username  ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email     ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_user_id   ON users(user_id);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+
+-- Default admin user  (password: admin123)
+INSERT INTO users (user_id, username, email, password_hash, full_name, role, clearance_level)
+VALUES (
+    'admin-001',
+    'admin',
+    'admin@osint.local',
+    '$2b$12$TIf4S/AlD6rWlqtGaJgtDeVuIS0AQSi8WzAVtMfeZOyi0pP5eg21q',
+    'Platform Administrator',
+    'admin',
+    'top_secret'
+) ON CONFLICT (username) DO NOTHING;
+
+-- Default analyst user  (password: analyst123)
+INSERT INTO users (user_id, username, email, password_hash, full_name, role, clearance_level)
+VALUES (
+    'analyst-001',
+    'analyst',
+    'analyst@osint.local',
+    '$2b$12$pZ52FY9tRg2PYHDSQU8piO/RrOUQTs4VU/l89tLfGsCY.RW2tsUD.',
+    'Senior Analyst',
+    'senior_analyst',
+    'confidential'
+) ON CONFLICT (username) DO NOTHING;
+
 -- ─── Audit Log ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS audit_log (
