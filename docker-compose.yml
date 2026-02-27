@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgresql:
@@ -11,7 +9,7 @@ services:
       POSTGRES_DB: osint_audit
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./k8s/postgresql-deployment.yaml:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./simple-backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     networks:
