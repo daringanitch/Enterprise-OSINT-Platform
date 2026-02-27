@@ -76,6 +76,37 @@ services:
       - backend_data:/data                # writable runtime data/config at /data
     command: gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 120 app:app
 
+  # RQ Worker — processes investigation jobs queued by the backend
+  worker:
+    build:
+      context: ./simple-backend
+      dockerfile: Dockerfile
+    container_name: osint-worker
+    environment:
+      POSTGRES_HOST: postgresql
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: osint_audit
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-only-token
+      FLASK_ENV: production
+      APP_DATA_DIR: /data
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      vault:
+        condition: service_started
+    networks:
+      - osint-network
+    volumes:
+      - ./simple-backend:/app:ro
+      - backend_data:/data
+    command: >
+      rq worker investigations reports mcp_operations compliance default
+      --url redis://redis:6379/0
+      --with-scheduler
+
   # OSINT Frontend
   frontend:
     image: nginx:alpine
