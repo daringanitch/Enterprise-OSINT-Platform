@@ -1,3 +1,5 @@
+# ⚠️  DEPRECATED — HashiCorp Vault minimal deployment (this file)
+# Superseded by k8s/password-vault-deployment.yaml. Do NOT apply.
 ---
 # Minimal Vault Deployment for Development
 apiVersion: apps/v1

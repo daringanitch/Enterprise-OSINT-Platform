@@ -1,3 +1,12 @@
+# ⚠️  DEPRECATED — HashiCorp Vault (this file)
+# This manifest deployed HashiCorp Vault 1.15 for secrets management.
+# It has been superseded by daringanitch/password-vault, a lightweight
+# AES-256-GCM encrypted secret store with no Consul/Raft dependency.
+#
+# Active replacement: k8s/password-vault-deployment.yaml
+# Do NOT apply this file to any environment.
+# Kept for historical reference only — will be removed in a future release.
+#
 ---
 # Vault ConfigMap for configuration
 apiVersion: v1

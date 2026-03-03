@@ -1,3 +1,5 @@
+# ⚠️  DEPRECATED — HashiCorp Vault dev/in-memory deployment (this file)
+# Superseded by k8s/password-vault-deployment.yaml. Do NOT apply.
 ---
 # Vault Development Deployment (In-memory storage)
 apiVersion: apps/v1

@@ -23,19 +23,19 @@ class _Services:
     Set once during app startup in app.py; imported read-only by blueprints.
     """
     # Core services
-    orchestrator = None           # InvestigationOrchestrator
-    compliance_engine = None      # ComplianceEngine
-    report_generator = None       # InvestigationReportGenerator
-    vault_client = None           # VaultClient
-    config_manager = None         # ConfigurationManager
-    professional_report_generator = None  # ProfessionalReportGenerator
-    audit_report_generator = None  # ComprehensiveAuditReportGenerator
-    api_monitor = None            # APIConnectionMonitor
-    graph_sync = None             # CorrelationSync (or None if unavailable)
-    audit_client = None           # PostgreSQL audit client (or None)
-    mode_manager = None           # ModeManager
-    job_queue_manager = None      # Job queue manager
-    demo_provider = None          # Demo data provider
+    orchestrator = None                     # InvestigationOrchestrator
+    compliance_engine = None               # ComplianceEngine
+    report_generator = None                # InvestigationReportGenerator
+    password_vault = None                  # PasswordVaultClient (daringanitch/password-vault)
+    config_manager = None                  # ConfigurationManager
+    professional_report_generator = None   # ProfessionalReportGenerator
+    audit_report_generator = None          # ComprehensiveAuditReportGenerator
+    api_monitor = None                     # APIConnectionMonitor
+    graph_sync = None                      # CorrelationSync (or None if unavailable)
+    audit_client = None                    # PostgreSQL audit client (or None)
+    mode_manager = None                    # ModeManager
+    job_queue_manager = None               # Job queue manager
+    demo_provider = None                   # Demo data provider
 
     # In-memory storage (for backward compatibility)
     legacy_investigations: dict = {}

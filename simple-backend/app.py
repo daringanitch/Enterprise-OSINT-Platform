@@ -292,13 +292,16 @@ else:
 # Initialize core services
 orchestrator = InvestigationOrchestrator()
 compliance_engine = ComplianceEngine()
-vault_client = VaultClient(config=VaultConfig())
-config_manager = ConfigurationManager(vault_client=vault_client)
+# VaultClient (HashiCorp/hvac) is no longer used — secrets are managed by
+# PasswordVaultClient (daringanitch/password-vault), which already called
+# load_secrets_to_env() above to populate os.environ before any service starts.
+# ConfigurationManager is kept for its API-key registration utilities (non-vault).
+config_manager = ConfigurationManager(vault_client=None)
 report_generator = InvestigationReportGenerator(investigation_orchestrator=orchestrator)
 professional_report_generator = ProfessionalReportGenerator()
 audit_report_generator = ComprehensiveAuditReportGenerator(
     investigation_orchestrator=orchestrator,
-    vault_client=vault_client,
+    vault_client=None,
     config_manager=config_manager
 )
 api_monitor = APIConnectionMonitor()
@@ -314,7 +317,6 @@ reports_audit_history = {}  # keyed by report_id
 services.orchestrator = orchestrator
 services.compliance_engine = compliance_engine
 services.report_generator = report_generator
-services.vault_client = vault_client
 services.config_manager = config_manager
 services.professional_report_generator = professional_report_generator
 services.audit_report_generator = audit_report_generator

@@ -53,7 +53,7 @@ The Enterprise OSINT Platform is a Kubernetes-native, microservices-based open-s
            ├────────────────────────┬─────────────────────┬─────────────────────┐
            ▼                        ▼                     ▼                     ▼
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│   Monitoring Stack  │  │   Health Monitor    │  │   HashiCorp Vault   │  │   Job Queue         │
+│   Monitoring Stack  │  │   Health Monitor    │  │   Password Vault    │  │   Job Queue         │
 │ (Prometheus/Grafana)│  │  (5-min checks)     │  │  (Secret Management)│  │  (Background Tasks) │
 └─────────────────────┘  └─────────────────────┘  └─────────────────────┘  └─────────────────────┘
            │
@@ -98,7 +98,7 @@ The platform consists of the following microservices:
 4. **Data Services**
    - PostgreSQL 15 - Audit trail and investigation storage
    - Redis Cluster - Session management and caching
-   - HashiCorp Vault - Secrets management
+   - Password Vault (daringanitch/password-vault) - AES-256-GCM encrypted secrets, bearer-token access
 
 5. **Monitoring & Observability Stack**
    - Prometheus - Metrics collection with 15-day retention
@@ -589,7 +589,7 @@ class Services:
 - **Package Manager**: Helm 3.12+
 - **Database**: PostgreSQL 15.5
 - **Caching**: Redis 7.2
-- **Secrets**: HashiCorp Vault 1.15
+- **Secrets**: Password Vault (daringanitch/password-vault) — lightweight AES-256-GCM store
 
 ### Intelligence Collection Libraries
 - **WHOIS**: python-whois 0.8.0
@@ -730,7 +730,7 @@ ROLES = {
 
 - **Encryption at Rest**: PostgreSQL with encrypted volumes
 - **Encryption in Transit**: TLS 1.3 for all communications
-- **Secrets Management**: HashiCorp Vault integration
+- **Secrets Management**: Password Vault (daringanitch/password-vault) — API keys encrypted at rest, injected into process environment at startup via `PasswordVaultClient.load_secrets_to_env()`
 - **Audit Logging**: Complete audit trail in PostgreSQL
 
 ```sql
@@ -950,8 +950,10 @@ POSTGRES_DB=osint_audit
 
 # Security Configuration
 JWT_SECRET_KEY=your-secret-key-change-in-production
-VAULT_ADDR=http://vault:8200
-VAULT_TOKEN=dev-only-token
+# Password Vault — set both to load API keys from the vault at startup
+# VAULT_ADDR/VAULT_MOUNT_PATH are obsolete (were used by the removed HashiCorp integration)
+VAULT_URL=http://password-vault:8080
+VAULT_TOKEN=your-vault-token
 
 # MCP Server URLs (Internal Kubernetes)
 MCP_INFRASTRUCTURE_URL=http://mcp-infrastructure-advanced:8021
@@ -961,7 +963,7 @@ MCP_FINANCIAL_URL=http://mcp-financial-enhanced:8040
 MCP_AI_URL=http://mcp-ai-analyzer:8050
 MCP_CREDENTIAL_URL=http://mcp-credential-intel:8030
 
-# External API Keys (Store in Vault for Production)
+# External API Keys — store in password-vault (recommended) or set directly here
 OPENAI_API_KEY=your-openai-key
 TWITTER_BEARER_TOKEN=your-twitter-token
 SHODAN_API_KEY=your-shodan-key
@@ -1104,7 +1106,7 @@ simple-backend/
 ├── expanded_data_sources.py            # 6 intelligence source collectors
 ├── demo_data.py                        # Demo mode data provider
 ├── mode_manager.py                     # Demo/Live mode switching
-├── vault_client.py                     # HashiCorp Vault integration
+├── vault_client.py                     # PasswordVaultClient — daringanitch/password-vault integration
 ├── cache_service.py                    # Redis caching layer
 ├── tests/                              # Test suite (871 unit/integration passing, 5 require live infra)
 │   ├── unit/                           # Unit tests
@@ -1276,7 +1278,7 @@ class IntelligenceResult:
 
 ### Pre-Deployment
 - [ ] Generate secure JWT secret key
-- [ ] Configure HashiCorp Vault with production policies
+- [ ] Initialize password-vault: `docker compose run --rm vault-cli init`, save VAULT_MASTER_KEY
 - [ ] Obtain API keys for all external services
 - [ ] Set up PostgreSQL with encrypted storage
 - [ ] Configure TLS certificates for all services
@@ -1287,7 +1289,7 @@ class IntelligenceResult:
 1. Create Kubernetes namespace
 2. Deploy PostgreSQL with persistent storage
 3. Deploy Redis for session management
-4. Deploy Vault and configure secrets
+4. Deploy password-vault and load API keys via `vault-cli secret add`
 5. Deploy enhanced MCP servers
 6. Deploy backend API service
 7. Deploy frontend service

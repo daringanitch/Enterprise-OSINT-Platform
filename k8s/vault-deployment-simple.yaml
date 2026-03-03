@@ -1,3 +1,5 @@
+# ⚠️  DEPRECATED — HashiCorp Vault simplified deployment (this file)
+# Superseded by k8s/password-vault-deployment.yaml. Do NOT apply.
 ---
 # Simple Vault Development Deployment
 apiVersion: v1

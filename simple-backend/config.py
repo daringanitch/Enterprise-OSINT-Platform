@@ -67,8 +67,12 @@ class Config:
     INCLUDE_EXAMPLE_DATA = os.environ.get('INCLUDE_EXAMPLE_DATA', 'false').lower() == 'true'
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     
-    # Vault Configuration
-    VAULT_URL = os.environ.get('VAULT_URL', 'http://vault:8200')
+    # Password Vault (daringanitch/password-vault)
+    # Secrets are loaded into os.environ at startup by PasswordVaultClient.load_secrets_to_env().
+    # VAULT_URL  — internal address of the password-vault service (default port 8080)
+    # VAULT_TOKEN — bearer token issued by `vault-cli token create`
+    # See .env.template for one-time setup instructions.
+    VAULT_URL = os.environ.get('VAULT_URL', 'http://password-vault:8080')
     VAULT_TOKEN = os.environ.get('VAULT_TOKEN')
 
 

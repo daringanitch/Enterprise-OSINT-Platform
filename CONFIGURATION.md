@@ -107,7 +107,7 @@ Keys saved via the UI are stored in `$APP_DATA_DIR/service_config.json` (default
 }
 ```
 
-> **Security note:** The config file contains plaintext API keys. Ensure `$APP_DATA_DIR` is on a volume with appropriate filesystem permissions (readable only by the app process). For production Kubernetes deployments, prefer environment variables or Vault integration instead.
+> **Security note:** The config file contains plaintext API keys. Ensure `$APP_DATA_DIR` is on a volume with appropriate filesystem permissions (readable only by the app process). For production deployments, prefer storing API keys in the password-vault service (`VAULT_URL` + `VAULT_TOKEN`) — keys are encrypted at rest and injected into the process at startup without touching the filesystem.
 
 ---
 
@@ -155,10 +155,13 @@ MCP_MAX_RETRIES=3
 
 #### **Optional Variables**
 ```bash
-# Vault Integration (optional)
-VAULT_ADDR=http://vault:8200
-VAULT_TOKEN=dev-only-token
-VAULT_MOUNT_PATH=secret
+# Password Vault (daringanitch/password-vault) — optional, recommended for production
+# Stores API keys encrypted at rest and loads them into the process environment at startup.
+# Set both variables to enable vault integration; omit to use direct env var API keys instead.
+VAULT_URL=http://password-vault:8080    # internal Docker/K8s service address
+VAULT_TOKEN=                            # bearer token from: vault-cli token create --name osint-backend
+# See .env.template for full one-time vault setup walkthrough.
+# (VAULT_ADDR and VAULT_MOUNT_PATH were used by the old HashiCorp Vault integration — no longer applicable)
 
 # Application Settings
 APP_NAME=Enterprise OSINT Platform
