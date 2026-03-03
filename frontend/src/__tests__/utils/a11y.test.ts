@@ -2,7 +2,19 @@
  * Accessibility Utilities Tests
  */
 
-// Mock matchMedia for tests
+import {
+  getLuminance,
+  getContrastRatio,
+  meetsWCAG_AA,
+  meetsWCAG_AAA,
+  hexToRgb,
+  getAccessibleTextColor,
+  generateId,
+  prefersReducedMotion,
+  getAnimationDuration,
+} from '../../utils/a11y';
+
+// Mock matchMedia for tests (must be after imports; JSDOM doesn't call it at module load time)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
@@ -16,18 +28,6 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
-
-import {
-  getLuminance,
-  getContrastRatio,
-  meetsWCAG_AA,
-  meetsWCAG_AAA,
-  hexToRgb,
-  getAccessibleTextColor,
-  generateId,
-  prefersReducedMotion,
-  getAnimationDuration,
-} from '../../utils/a11y';
 
 describe('Accessibility Utilities', () => {
   describe('hexToRgb', () => {
@@ -112,10 +112,9 @@ describe('Accessibility Utilities', () => {
       const color = '#757575';
       const aaResult = meetsWCAG_AA(color, '#ffffff');
       const aaaResult = meetsWCAG_AAA(color, '#ffffff');
-      // If AA fails, AAA should also fail
-      if (!aaResult) {
-        expect(aaaResult).toBe(false);
-      }
+      // AAA requires a higher contrast ratio than AA.
+      // Either AA passes, or AAA must also fail (AAA can't pass when AA fails).
+      expect(aaResult || !aaaResult).toBe(true);
     });
   });
 

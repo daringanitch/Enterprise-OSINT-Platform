@@ -1,7 +1,7 @@
 Flask==2.3.3
-flask-cors==4.0.0
+flask-cors>=6.0.0  # 4.0.0 had CVE-2024-1681, CVE-2024-6844, CVE-2024-6866, CVE-2024-6839 (fixed in 6.0.0)
 flask-session==0.5.0
-gunicorn==21.2.0
+gunicorn>=22.0.0  # 21.2.0 had CVE-2024-1135, CVE-2024-6827 (HTTP request smuggling)
 aiohttp>=3.10.11  # 3.9.0 had CVE-2024-23334, CVE-2024-27306 (HIGH)
 asyncio
 numpy>=1.26.4  # 1.24.3 had known vulnerabilities; 1.26.x is last 1.x LTS

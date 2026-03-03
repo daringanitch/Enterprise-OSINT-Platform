@@ -203,9 +203,7 @@ describe('ToastProvider and useToast', () => {
     it('auto-dismisses toast after duration', async () => {
       renderWithProvider(<TestComponent action="custom" />, { defaultDuration: 1000 });
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Custom toast')).toBeInTheDocument();
 
@@ -240,9 +238,7 @@ describe('ToastProvider and useToast', () => {
     it('limits number of visible toasts', () => {
       renderWithProvider(<MultiToastComponent />, { maxToasts: 3 });
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('multi-trigger'));
-      });
+      fireEvent.click(screen.getByTestId('multi-trigger'));;
 
       // Should only show the last 3 toasts due to maxToasts limit
       expect(screen.queryByText('Toast 1')).not.toBeInTheDocument();
@@ -273,16 +269,12 @@ describe('ToastProvider and useToast', () => {
     it('dismisses toast when close button is clicked', async () => {
       renderWithProvider(<HideToastComponent />);
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('show-button'));
-      });
+      fireEvent.click(screen.getByTestId('show-button'));
 
       expect(screen.getByText('Dismissible toast')).toBeInTheDocument();
 
       const closeButton = screen.getByRole('button', { name: /close/i });
-      act(() => {
-        fireEvent.click(closeButton);
-      });
+      fireEvent.click(closeButton);
 
       await waitFor(() => {
         expect(screen.queryByText('Dismissible toast')).not.toBeInTheDocument();
@@ -296,9 +288,7 @@ describe('ToastProvider and useToast', () => {
         position: { vertical: 'bottom', horizontal: 'left' },
       });
 
-      act(() => {
-        fireEvent.click(screen.getByTestId('trigger-button'));
-      });
+      fireEvent.click(screen.getByTestId('trigger-button'));
 
       expect(screen.getByText('Success message')).toBeInTheDocument();
     });

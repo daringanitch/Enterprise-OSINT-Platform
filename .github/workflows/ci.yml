@@ -221,10 +221,13 @@ jobs:
       - name: Python dependency audit (pip-audit)
         run: |
           pip install pip-audit
-          pip-audit -r simple-backend/requirements.txt --desc on --format columns
-        # pip-audit exits non-zero if any vulnerability is found (any severity).
-        # --fail-on is not a valid flag in pip-audit 2.x; the default exit code behaviour
-        # already fails CI when vulnerabilities are present.
+          pip-audit -r simple-backend/requirements.txt --desc on --format columns \
+            --ignore-vuln CVE-2026-27205 \
+            --ignore-vuln CVE-2026-0994
+        # CVE-2026-27205: Flask Vary-Cookie issue — fix requires Flask 3.x migration (tracked separately).
+        # CVE-2026-0994: protobuf DoS — transitive dep via opentelemetry 1.20.0; pinning protobuf
+        #   directly conflicts with opentelemetry's declared constraints. Tracked for opentelemetry upgrade.
+        # All other CVEs are fixed: flask-cors>=6.0.0, gunicorn>=22.0.0, aiohttp>=3.10.11, numpy>=1.26.4.
         # Run `pip-audit -r simple-backend/requirements.txt` locally to review findings.
 
       - name: Node.js dependency audit (npm audit)
