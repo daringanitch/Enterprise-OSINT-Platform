@@ -1319,26 +1319,26 @@ class GraphClient:
         if props.get("first_seen"):
             try:
                 node.first_seen = datetime.fromisoformat(props["first_seen"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse first_seen date '{props['first_seen']}': {e}")
 
         if props.get("last_seen"):
             try:
                 node.last_seen = datetime.fromisoformat(props["last_seen"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse last_seen date '{props['last_seen']}': {e}")
 
         if props.get("created_at"):
             try:
                 node.created_at = datetime.fromisoformat(props["created_at"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse created_at date '{props['created_at']}': {e}")
 
         if props.get("updated_at"):
             try:
                 node.updated_at = datetime.fromisoformat(props["updated_at"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse updated_at date '{props['updated_at']}': {e}")
 
         return node
 
@@ -1375,14 +1375,14 @@ class GraphClient:
         if props.get("first_observed"):
             try:
                 edge.first_observed = datetime.fromisoformat(props["first_observed"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse first_observed date '{props['first_observed']}': {e}")
 
         if props.get("last_observed"):
             try:
                 edge.last_observed = datetime.fromisoformat(props["last_observed"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse last_observed date '{props['last_observed']}': {e}")
 
         return edge
 

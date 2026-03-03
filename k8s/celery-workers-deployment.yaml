@@ -24,10 +24,20 @@ spec:
         component: worker
         type: celery
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: worker
         image: osint-platform/fastapi-backend:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         command: ["celery"]
         args: 
           - "-A"
@@ -123,10 +133,20 @@ spec:
         component: scheduler
         type: celery
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: beat
         image: osint-platform/fastapi-backend:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         command: ["celery"]
         args: 
           - "-A"
@@ -181,10 +201,20 @@ spec:
         component: monitoring
         type: celery
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: flower
         image: osint-platform/fastapi-backend:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         command: ["celery"]
         args: 
           - "-A"

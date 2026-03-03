@@ -15,10 +15,20 @@ spec:
       labels:
         app: mcp-social-media
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: social-media
         image: osint-platform/mcp-social-media:v1.0.0-auth
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8010
         resources:
@@ -46,10 +56,20 @@ spec:
       labels:
         app: mcp-infrastructure
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: infrastructure
         image: osint-platform/mcp-infrastructure:v1.0.0-auth
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8020
         resources:
@@ -77,10 +97,20 @@ spec:
       labels:
         app: mcp-threat-intel
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: threat-intel
         image: osint-platform/mcp-threat-intel:v1.0.0-auth
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8030
         resources:

@@ -17,10 +17,20 @@ spec:
         app: osint-backend
         component: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: backend
         image: osint-platform/simple-backend:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 5001
           name: http
@@ -60,10 +70,14 @@ spec:
           value: "true"
         - name: DEPLOYMENT_ENV
           value: "kubernetes"
-        - name: VAULT_ADDR
-          value: "http://vault:8200"
+        - name: VAULT_URL
+          value: "http://password-vault:8080"
         - name: VAULT_TOKEN
-          value: "dev-only-token"
+          valueFrom:
+            secretKeyRef:
+              name: osint-secrets
+              key: vault-token
+              optional: true
         - name: JWT_SECRET_KEY
           valueFrom:
             secretKeyRef:

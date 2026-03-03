@@ -453,17 +453,19 @@ class SocialMediaMCPClient(MCPClientBase):
                 headers = {'Authorization': f'Bearer {self.twitter_creds.bearer_token}'}
                 async with self.session.get('https://api.twitter.com/2/users/me', headers=headers) as response:
                     status['apis']['twitter'] = 'online' if response.status == 200 else 'error'
-            except:
+            except Exception as e:
+                logger.debug(f"Twitter health check failed: {e}")
                 status['apis']['twitter'] = 'offline'
         else:
             status['apis']['twitter'] = 'not_configured'
         
         # Reddit health check (public API)
         try:
-            async with self.session.get('https://www.reddit.com/.json', 
+            async with self.session.get('https://www.reddit.com/.json',
                                       headers={'User-Agent': 'OSINT-Platform/1.0'}) as response:
                 status['apis']['reddit'] = 'online' if response.status == 200 else 'error'
-        except:
+        except Exception as e:
+            logger.debug(f"Reddit health check failed: {e}")
             status['apis']['reddit'] = 'offline'
         
         status['apis']['linkedin'] = 'limited_access'
@@ -750,7 +752,8 @@ class InfrastructureMCPClient(MCPClientBase):
         try:
             import socket
             return socket.gethostbyaddr(ip)[0]
-        except:
+        except Exception as e:
+            logger.debug(f"Reverse DNS lookup failed for {ip}: {e}")
             return None
     
     async def health_check(self) -> Dict[str, Any]:
@@ -766,7 +769,8 @@ class InfrastructureMCPClient(MCPClientBase):
             import socket
             socket.gethostbyname('google.com')
             status['tools']['dns'] = 'online'
-        except:
+        except Exception as e:
+            logger.debug(f"DNS health check failed: {e}")
             status['tools']['dns'] = 'offline'
         
         # Test WHOIS availability
@@ -774,7 +778,8 @@ class InfrastructureMCPClient(MCPClientBase):
             import subprocess
             result = subprocess.run(['which', 'whois'], capture_output=True)
             status['tools']['whois'] = 'available' if result.returncode == 0 else 'unavailable'
-        except:
+        except Exception as e:
+            logger.debug(f"WHOIS availability check failed: {e}")
             status['tools']['whois'] = 'unavailable'
         
         # Test Shodan API
@@ -783,7 +788,8 @@ class InfrastructureMCPClient(MCPClientBase):
                 params = {'key': self.shodan_creds.api_key}
                 async with self.session.get('https://api.shodan.io/api-info', params=params) as response:
                     status['tools']['shodan'] = 'online' if response.status == 200 else 'error'
-            except:
+            except Exception as e:
+                logger.debug(f"Shodan health check failed: {e}")
                 status['tools']['shodan'] = 'offline'
         else:
             status['tools']['shodan'] = 'not_configured'
@@ -975,10 +981,11 @@ class ThreatIntelligenceMCPClient(MCPClientBase):
         if self.virustotal_creds and self.virustotal_creds.api_key:
             try:
                 headers = {'x-apikey': self.virustotal_creds.api_key}
-                async with self.session.get('https://www.virustotal.com/api/v3/domains/google.com', 
+                async with self.session.get('https://www.virustotal.com/api/v3/domains/google.com',
                                           headers=headers) as response:
                     status['apis']['virustotal'] = 'online' if response.status == 200 else 'error'
-            except:
+            except Exception as e:
+                logger.debug(f"VirusTotal health check failed: {e}")
                 status['apis']['virustotal'] = 'offline'
         else:
             status['apis']['virustotal'] = 'not_configured'
@@ -987,10 +994,11 @@ class ThreatIntelligenceMCPClient(MCPClientBase):
         if self.otx_creds and self.otx_creds.api_key:
             try:
                 headers = {'X-OTX-API-KEY': self.otx_creds.api_key}
-                async with self.session.get('https://otx.alienvault.com/api/v1/user/me', 
+                async with self.session.get('https://otx.alienvault.com/api/v1/user/me',
                                           headers=headers) as response:
                     status['apis']['otx'] = 'online' if response.status == 200 else 'error'
-            except:
+            except Exception as e:
+                logger.debug(f"OTX health check failed: {e}")
                 status['apis']['otx'] = 'offline'
         else:
             status['apis']['otx'] = 'not_configured'

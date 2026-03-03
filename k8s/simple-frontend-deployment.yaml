@@ -17,10 +17,20 @@ spec:
         app: osint-simple-frontend
         component: frontend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: frontend
         image: osint-platform/simple-frontend:v2.0.1
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 80
           name: http

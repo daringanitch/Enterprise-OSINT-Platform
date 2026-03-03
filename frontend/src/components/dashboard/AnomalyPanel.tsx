@@ -383,6 +383,15 @@ export const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
                       '--severity-color': severityConfig[anomaly.severity]?.color,
                     } as React.CSSProperties}
                     onClick={() => onEntityClick?.(anomaly)}
+                    onKeyDown={(e: React.KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onEntityClick?.(anomaly);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Anomaly: ${anomaly.type} — ${anomaly.severity} severity`}
                     whileHover={{ scale: 1.01, x: 4 }}
                     whileTap={{ scale: 0.99 }}
                   >

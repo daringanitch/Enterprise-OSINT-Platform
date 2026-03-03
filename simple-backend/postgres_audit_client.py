@@ -127,7 +127,9 @@ class PostgreSQLAuditClient:
         self.port = port or int(os.getenv('POSTGRES_PORT', 5432))
         self.database = database or os.getenv('POSTGRES_DB', 'osint_audit')
         self.username = username or os.getenv('POSTGRES_USER', 'postgres')
-        self.password = password or os.getenv('POSTGRES_PASSWORD', 'password123')
+        self.password = password or os.getenv('POSTGRES_PASSWORD')
+        if not self.password:
+            raise RuntimeError("POSTGRES_PASSWORD must be set via constructor argument or environment variable")
         
         self.connection_string = f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
         self.sync_connection_params = {

@@ -68,6 +68,7 @@ jobs:
             --tb=short \
             --override-ini="addopts=-ra --strict-markers -q" \
             --override-ini="filterwarnings=ignore" \
+            --cov --cov-report=term-missing --cov-fail-under=80 \
             -v
         # All unit test files now included (no whole-file ignores).
         # Individual tests deselected only when they require live infrastructure:
@@ -134,13 +135,9 @@ jobs:
 
       - name: TypeScript type check
         run: npx tsc --noEmit
-        continue-on-error: true
-        # Type check in advisory mode — report errors without blocking
 
       - name: ESLint
         run: npm run lint
-        continue-on-error: true
-        # Lint in advisory mode — report issues without blocking
 
       - name: Run tests with coverage
         run: npm test -- --coverage --watchAll=false --passWithNoTests
@@ -199,6 +196,41 @@ jobs:
             --ignore-glob="*integration*"
         continue-on-error: true
         # Smoke tests run without real API keys — tests reject missing inputs
+
+  # ──────────────────────────────────────────────────────────────────
+  # Dependency Security Audit
+  # ──────────────────────────────────────────────────────────────────
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Python dependency audit (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r simple-backend/requirements.txt --desc on --format columns --fail-on high
+        # Fails CI on HIGH or CRITICAL severity CVEs. Lower severities are logged only.
+        # Run `pip-audit -r simple-backend/requirements.txt` locally to review findings.
+
+      - name: Node.js dependency audit (npm audit)
+        working-directory: frontend
+        run: |
+          npm ci --legacy-peer-deps
+          npm audit --omit=dev --audit-level=high
+        # Fails CI on HIGH or CRITICAL severity vulnerabilities in production dependencies.
 
   # ──────────────────────────────────────────────────────────────────
   # Security Startup Validation

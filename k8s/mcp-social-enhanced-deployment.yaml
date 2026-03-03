@@ -19,10 +19,20 @@ spec:
         component: mcp-server
         intelligence-type: social-media
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: social-enhanced
         image: mcp-social-enhanced:latest
         imagePullPolicy: Never  # For local development
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8010
           name: http

@@ -15,10 +15,20 @@ spec:
       labels:
         app: osint-frontend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: frontend
         image: osint-platform/simple-frontend:v1.0.0-demo-final
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 80
         resources:

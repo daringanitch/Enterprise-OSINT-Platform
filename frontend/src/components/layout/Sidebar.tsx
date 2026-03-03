@@ -271,7 +271,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {hasChildren && !collapsed && (
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <List component="div" disablePadding>
-              {item.children!.map((child) => renderNavItem(child, true))}
+              {item.children!.map((child) => (
+                <React.Fragment key={child.path}>
+                  {renderNavItem(child, true)}
+                </React.Fragment>
+              ))}
             </List>
           </Collapse>
         )}

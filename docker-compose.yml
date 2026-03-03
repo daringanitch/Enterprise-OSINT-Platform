@@ -5,7 +5,7 @@ services:
     container_name: osint-postgresql
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: osint-local-dev-2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: osint_audit
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,27 +20,55 @@ services:
       timeout: 5s
       retries: 5
 
-  # HashiCorp Vault
-  vault:
-    image: hashicorp/vault:1.15.4
-    container_name: osint-vault
-    cap_add:
-      - IPC_LOCK
+  # Password Vault (daringanitch/password-vault)
+  # AES-256-GCM encrypted secret store — replaces HashiCorp Vault for local dev.
+  #
+  # One-time setup:
+  #   1. docker compose run --rm vault-cli init          # prints VAULT_MASTER_KEY
+  #   2. export VAULT_MASTER_KEY=<key>; echo "VAULT_MASTER_KEY=<key>" >> .env
+  #   3. docker compose up password-vault -d             # start the vault
+  #   4. docker compose run --rm vault-cli secret add --key shodan_api_key --value <val>
+  #      (repeat for each API key — see .env.template for full list)
+  #   5. docker compose run --rm vault-cli token create --name osint-backend
+  #      # prints VAULT_TOKEN — add to .env
+  #   6. docker compose up -d                            # start everything
+  password-vault:
+    image: ghcr.io/daringanitch/password-vault:latest
+    container_name: osint-password-vault
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: dev-only-token
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-      VAULT_ADDR: http://127.0.0.1:8200
-    ports:
-      - "8200:8200"
+      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY}
+      VAULT_DB_PATH: /vault/data/vault.db
+      VAULT_PORT: "8080"
+    volumes:
+      - vault_data:/vault/data
     networks:
       - osint-network
-    command: server -dev
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "VAULT_ADDR=http://127.0.0.1:8200 vault status"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
+
+  # Vault CLI — for admin operations only (not started by default)
+  # Usage: docker compose run --rm vault-cli <command>
+  # Examples:
+  #   docker compose run --rm vault-cli secret add --key openai_api_key --value sk-...
+  #   docker compose run --rm vault-cli token create --name osint-backend
+  #   docker compose run --rm vault-cli token list
+  vault-cli:
+    image: ghcr.io/daringanitch/password-vault:latest
+    entrypoint: ["/bin/vault-cli"]
+    environment:
+      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY}
+      VAULT_DB_PATH: /vault/data/vault.db
+    volumes:
+      - vault_data:/vault/data
+    networks:
+      - osint-network
+    profiles:
+      - tools
 
   # OSINT Backend
   backend:
@@ -52,30 +80,27 @@ services:
       POSTGRES_HOST: postgresql
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: osint-local-dev-2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: osint_audit
-      VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: dev-only-token
+      VAULT_URL: http://password-vault:8080
+      VAULT_TOKEN: ${VAULT_TOKEN}
       FLASK_ENV: production
-      JWT_SECRET_KEY: osint-platform-local-dev-jwt-2026
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       APP_DATA_DIR: /data                 # writable dir outside the :ro source mount
       OPERATION_MODE: production          # serve real investigations, not demo data
-      # Add your API keys here or use .env file
-      # OPENAI_API_KEY: ${OPENAI_API_KEY}
-      # TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
-      # SHODAN_API_KEY: ${SHODAN_API_KEY}
     ports:
       - "5001:5001"
     depends_on:
       postgresql:
         condition: service_healthy
-      vault:
-        condition: service_started
+      password-vault:
+        condition: service_healthy
     networks:
       - osint-network
     volumes:
       - ./simple-backend:/app:ro          # source code read-only
       - backend_data:/data                # writable runtime data/config at /data
+    restart: unless-stopped
     command: gunicorn --bind 0.0.0.0:5001 --workers 1 --threads 4 --timeout 300 --access-logfile - --error-logfile - app:app
 
   # RQ Worker — processes investigation jobs queued by the backend
@@ -88,19 +113,19 @@ services:
       POSTGRES_HOST: postgresql
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: osint-local-dev-2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: osint_audit
-      VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: dev-only-token
+      VAULT_URL: http://password-vault:8080
+      VAULT_TOKEN: ${VAULT_TOKEN}
       FLASK_ENV: production
-      JWT_SECRET_KEY: osint-platform-local-dev-jwt-2026
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       APP_DATA_DIR: /data
       OPERATION_MODE: production          # must match backend mode
     depends_on:
       postgresql:
         condition: service_healthy
-      vault:
-        condition: service_started
+      password-vault:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:

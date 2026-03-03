@@ -1065,8 +1065,8 @@ class TrendAnalyzer:
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     month_key = dt.strftime('%Y-%m')
                     monthly_counts[month_key] += 1
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to parse timestamp '{timestamp}': {e}")
 
         # Determine trend direction
         trend_direction = self._calculate_trend_direction(monthly_counts)
@@ -1136,8 +1136,8 @@ class TrendAnalyzer:
                 try:
                     dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                     timestamps.append(dt)
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to parse timestamp '{ts}': {e}")
 
         if timestamps:
             return {
@@ -1208,8 +1208,8 @@ class ChartDataGenerator:
                     dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                     month_key = dt.strftime('%Y-%m')
                     monthly_data[month_key][severity] += 1
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to parse timestamp '{ts}' for chart data: {e}")
 
         return {
             'chart_type': 'stacked_bar',

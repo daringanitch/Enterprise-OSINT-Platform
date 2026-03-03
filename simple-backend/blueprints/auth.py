@@ -15,6 +15,7 @@ import bcrypt
 import jwt
 from functools import wraps
 from datetime import datetime, timedelta
+from collections import defaultdict
 from flask import Blueprint, request, jsonify
 
 # Import shared services
@@ -34,16 +35,41 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('auth', __name__)
 
+# ── Rate limiting for login endpoint ─────────────────────────────────────
+# Tracks failed attempts per IP. In production, use Redis for distributed state.
+_login_attempts = defaultdict(list)  # ip -> [timestamp, ...]
+LOGIN_RATE_LIMIT = int(os.environ.get('LOGIN_RATE_LIMIT', '5'))        # max attempts
+LOGIN_RATE_WINDOW = int(os.environ.get('LOGIN_RATE_WINDOW', '300'))    # seconds
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is rate-limited."""
+    now = datetime.utcnow()
+    cutoff = now - timedelta(seconds=LOGIN_RATE_WINDOW)
+    # Prune old entries
+    _login_attempts[ip] = [ts for ts in _login_attempts[ip] if ts > cutoff]
+    return len(_login_attempts[ip]) >= LOGIN_RATE_LIMIT
+
+
+def _record_failed_attempt(ip: str):
+    """Record a failed login attempt for rate-limiting."""
+    _login_attempts[ip].append(datetime.utcnow())
+
 
 def get_db_connection():
     """Get PostgreSQL database connection"""
     try:
+        pg_password = os.environ.get('POSTGRES_PASSWORD')
+        if not pg_password:
+            logger.error("POSTGRES_PASSWORD environment variable is not set")
+            return None
         conn = psycopg2.connect(
             host=os.environ.get('POSTGRES_HOST', 'osint-platform-postgresql'),
             port=os.environ.get('POSTGRES_PORT', '5432'),
             database=os.environ.get('POSTGRES_DB', 'osint_audit'),
             user=os.environ.get('POSTGRES_USER', 'postgres'),
-            password=os.environ.get('POSTGRES_PASSWORD', 'password123')
+            password=pg_password,
+            connect_timeout=10
         )
         return conn
     except Exception as e:
@@ -148,12 +174,20 @@ def authenticate_user(username, password):
 
     except Exception as e:
         logger.error(f"Authentication error: {e}", exc_info=True)
-        # Fallback to demo users on error
-        if username in DEMO_USERS and DEMO_USERS[username]['password'] == password:
-            logger.warning(f"Database error, using demo fallback for user {username}")
-            user_data = DEMO_USERS[username].copy()
-            del user_data['password']
-            return user_data
+        # Only fall back to demo credentials when explicitly in demo mode.
+        # In live/production mode, a DB error must deny access — never silently
+        # authenticate via hardcoded demo credentials (audit finding: auth bypass).
+        if mode_manager.is_demo_mode():
+            if username in DEMO_USERS and DEMO_USERS[username]['password'] == password:
+                logger.warning(f"Database error in demo mode, using demo fallback for user {username}")
+                user_data = DEMO_USERS[username].copy()
+                del user_data['password']
+                return user_data
+        else:
+            logger.critical(
+                "Database error during authentication in live mode — denying access. "
+                "Check database connectivity immediately."
+            )
         return None
     finally:
         conn.close()
@@ -171,7 +205,10 @@ def create_jwt_token(user_info):
         'iat': datetime.utcnow()
     }
 
-    return jwt.encode(payload, os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production'), algorithm='HS256')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY')
+    if not jwt_secret:
+        raise RuntimeError("JWT_SECRET_KEY environment variable is not set")
+    return jwt.encode(payload, jwt_secret, algorithm='HS256')
 
 
 def require_auth(f):
@@ -186,7 +223,10 @@ def require_auth(f):
         token = auth_header.split(' ')[1]
 
         try:
-            payload = jwt.decode(token, os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production'), algorithms=['HS256'])
+            jwt_secret = os.environ.get('JWT_SECRET_KEY')
+            if not jwt_secret:
+                return jsonify({'error': 'Server configuration error'}), 500
+            payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             request.current_user = payload
             return f(*args, **kwargs)
         except jwt.ExpiredSignatureError:
@@ -219,6 +259,12 @@ def require_role(required_role):
 @bp.route('/api/auth/login', methods=['POST'])
 def login():
     """User authentication endpoint"""
+    # Rate limiting check
+    client_ip = request.remote_addr or '0.0.0.0'
+    if _check_rate_limit(client_ip):
+        logger.warning(f"Rate limit exceeded for IP {client_ip}")
+        return jsonify({'error': 'Too many login attempts. Please try again later.'}), 429
+
     data = request.json or {}
 
     # Validate and sanitize login input
@@ -255,6 +301,7 @@ def login():
             'access_token': access_token
         })
 
+    _record_failed_attempt(client_ip)
     return jsonify({'error': 'Invalid credentials'}), 401
 
 

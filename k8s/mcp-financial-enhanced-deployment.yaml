@@ -19,10 +19,20 @@ spec:
         component: mcp-server
         intelligence-type: financial-intel
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: financial-enhanced
         image: mcp-financial-enhanced:latest
         imagePullPolicy: Never  # For local development
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8040
           name: http

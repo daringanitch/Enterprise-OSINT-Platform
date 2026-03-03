@@ -17,9 +17,19 @@ spec:
         app: osint-job-workers
         component: background-workers
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: job-worker
         image: osint-simple-backend:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         command:
           - python
           - worker.py

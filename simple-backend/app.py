@@ -46,7 +46,7 @@ from demo_data import demo_provider
 from investigation_orchestrator import InvestigationOrchestrator
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from investigation_reporting import InvestigationReportGenerator, ReportFormat, TimeRange
-from vault_client import VaultClient, VaultConfig, APIKeyConfig, ConfigurationManager
+from vault_client import VaultClient, VaultConfig, APIKeyConfig, ConfigurationManager, PasswordVaultClient
 from professional_report_generator import ProfessionalReportGenerator, ReportType, ReportFormat as ProfReportFormat, ClassificationLevel
 from audit_report_generator import ComprehensiveAuditReportGenerator, AuditScope
 from postgres_audit_client import (
@@ -246,8 +246,26 @@ def service_unavailable_handler(error):
 # Initialize OpenTelemetry instrumentation (commented for Docker compatibility)
 # observability_manager.initialize(app)
 
+# ── Security headers middleware ────────────────────────────────────────────
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to every response."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), camera=(), microphone=()'
+    # Enable HSTS only when running behind TLS termination (check via X-Forwarded-Proto)
+    if request.headers.get('X-Forwarded-Proto') == 'https':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 # Session configuration
-app.config['SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
+jwt_secret = os.environ.get('JWT_SECRET_KEY')
+if not jwt_secret:
+    logger.warning("JWT_SECRET_KEY not set — using insecure default (demo mode only)")
+    jwt_secret = 'dev-secret-key-change-in-production'
+app.config['SECRET_KEY'] = jwt_secret
 
 # ============================================================================
 # SHARED SERVICES SETUP
@@ -261,6 +279,15 @@ from utils.startup_validation import validate_secrets, SecurityStartupError
 # ============================================================================
 # SERVICE INITIALIZATION
 # ============================================================================
+
+# Initialize password-vault client and load API keys into os.environ FIRST
+# so that downstream services pick them up from the environment.
+password_vault = PasswordVaultClient()
+if password_vault._available:
+    logger.info("Password vault configured — loading API keys into environment")
+    password_vault.load_secrets_to_env()
+else:
+    logger.info("Password vault not configured (VAULT_TOKEN unset) — using env vars only")
 
 # Initialize core services
 orchestrator = InvestigationOrchestrator()
@@ -297,6 +324,7 @@ services.audit_client = audit_client
 services.mode_manager = mode_manager
 services.job_queue_manager = job_queue_manager
 services.demo_provider = demo_provider
+services.password_vault = password_vault
 
 # In-memory storage (shared by reference — mutations in blueprints are reflected here)
 services.legacy_investigations = legacy_investigations

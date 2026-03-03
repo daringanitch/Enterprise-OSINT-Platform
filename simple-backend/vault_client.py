@@ -461,7 +461,8 @@ class VaultClient:
             # Check if we can read health status
             health = self.vault_client.sys.read_health_status()
             return self.authenticated and not health.get('sealed', True)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Vault health check failed: {e}")
             return False
     
     def create_policy(self, policy_name: str, policy_rules: str) -> bool:
@@ -638,6 +639,100 @@ class ConfigurationManager:
                     results[service_name] = False
         
         return results
+
+
+class PasswordVaultClient:
+    """
+    Client for daringanitch/password-vault — a lightweight AES-256-GCM secret store.
+
+    API: GET /secret/{key_name}  Authorization: Bearer <token>
+    Returns {"value": "..."} on success; identical 404 {"error": "not found"} for
+    missing key OR bad token (oracle-attack prevention).
+
+    Configure via env vars:
+        VAULT_URL   — default http://localhost:8080
+        VAULT_TOKEN — access token created by: vault-cli token create --name osint-backend
+    """
+
+    def __init__(self, url: str = None, token: str = None):
+        self.url = (url or os.environ.get('VAULT_URL', 'http://localhost:8080')).rstrip('/')
+        self.token = token or os.environ.get('VAULT_TOKEN', '')
+        self._available = bool(self.token)
+
+    def get_secret(self, key_name: str) -> Optional[str]:
+        """Fetch a single secret by name. Returns None if missing, unavailable, or token invalid."""
+        if not self._available:
+            return None
+        import urllib.request
+        import urllib.error
+        try:
+            req = urllib.request.Request(
+                f"{self.url}/secret/{key_name}",
+                headers={'Authorization': f'Bearer {self.token}'}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                body = json.loads(resp.read().decode())
+                return body.get('value')
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None  # Missing key or bad token — intentionally indistinguishable
+            logger.warning(f"PasswordVault HTTP {e.code} fetching '{key_name}'")
+            return None
+        except Exception as e:
+            logger.debug(f"PasswordVault unavailable fetching '{key_name}': {e}")
+            return None
+
+    def is_available(self) -> bool:
+        """Return True if the vault health endpoint is reachable."""
+        import urllib.request
+        try:
+            with urllib.request.urlopen(f"{self.url}/health", timeout=3) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
+
+    def load_secrets_to_env(self) -> Dict[str, bool]:
+        """
+        Fetch API keys from the vault and populate os.environ.
+
+        Keys already set in os.environ are not overwritten (env takes precedence).
+        Returns a dict mapping env var name -> True if loaded/already-set, False if missing.
+        """
+        vault_key_to_env_var: Dict[str, str] = {
+            'openai_api_key':         'OPENAI_API_KEY',
+            'shodan_api_key':         'SHODAN_API_KEY',
+            'virustotal_api_key':     'VIRUSTOTAL_API_KEY',
+            'abuseipdb_api_key':      'ABUSEIPDB_API_KEY',
+            'twitter_bearer_token':   'TWITTER_BEARER_TOKEN',
+            'reddit_api_key':         'REDDIT_API_KEY',
+            'alienvault_otx_api_key': 'ALIENVAULT_OTX_API_KEY',
+            'hibp_api_key':           'HIBP_API_KEY',
+            'dehashed_api_key':       'DEHASHED_API_KEY',
+        }
+        results: Dict[str, bool] = {}
+        for vault_key, env_var in vault_key_to_env_var.items():
+            if os.environ.get(env_var):
+                results[env_var] = True  # Already set — env takes precedence over vault
+                continue
+            value = self.get_secret(vault_key)
+            if value:
+                os.environ[env_var] = value
+                results[env_var] = True
+                logger.info(f"Loaded {env_var} from password vault")
+            else:
+                results[env_var] = False
+        loaded = sum(1 for v in results.values() if v)
+        logger.info(f"Password vault: {loaded}/{len(results)} API keys available")
+        return results
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return vault availability and configuration status."""
+        return {
+            'type': 'password-vault',
+            'url': self.url,
+            'token_configured': bool(self.token),
+            'available': self.is_available(),
+        }
 
 
 # Default Vault policies for OSINT application

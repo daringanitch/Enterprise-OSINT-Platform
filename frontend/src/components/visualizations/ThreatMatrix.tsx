@@ -285,11 +285,22 @@ const TechniqueItem: React.FC<TechniqueItemProps> = ({
       <Tooltip title={technique.description || ''} placement="right">
         <Paper
           elevation={0}
+          role="button"
+          tabIndex={0}
+          aria-expanded={hasSubtechniques ? expanded : undefined}
+          aria-label={`${technique.id}: ${technique.name || ''}`}
           onClick={() => {
             if (hasSubtechniques) {
               setExpanded(!expanded);
             }
             onTechniqueClick?.(technique, tactic);
+          }}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (hasSubtechniques) setExpanded(!expanded);
+              onTechniqueClick?.(technique, tactic);
+            }
           }}
           sx={{
             p: 1,

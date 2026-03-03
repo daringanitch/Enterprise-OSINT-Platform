@@ -1,13 +1,23 @@
 ---
 # PostgreSQL Secret for credentials
+# ⚠️  WARNING: This file contains PLACEHOLDER credentials for local/dev use ONLY.
+#     For production, replace this Secret with an ExternalSecret that pulls
+#     credentials from HashiCorp Vault, AWS Secrets Manager, or similar.
+#     See: external-secrets-setup.yaml for the ExternalSecret pattern.
+#
+# To generate a secure password:
+#   openssl rand -base64 32 | base64  →  use as POSTGRES_PASSWORD value below
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgresql-secret
   namespace: osint-platform
+  labels:
+    app: postgresql
+    security.osint-platform/rotation-required: "true"
 type: Opaque
 data:
-  # postgres / password123 (base64 encoded)
+  # PLACEHOLDER VALUES — replace before any non-local deployment
   POSTGRES_USER: cG9zdGdyZXM=
   POSTGRES_PASSWORD: cGFzc3dvcmQxMjM=
   POSTGRES_DB: b3NpbnRfYXVkaXQ=

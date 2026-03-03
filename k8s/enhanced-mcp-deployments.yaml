@@ -20,10 +20,20 @@ spec:
         app: mcp-financial-intel
         component: mcp-server
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: financial-intel
         image: osint-platform/mcp-financial-intel:v2.0.0
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8040
           name: http
@@ -107,10 +117,20 @@ spec:
         app: mcp-technical-intel
         component: mcp-server
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: technical-intel
         image: osint-platform/mcp-technical-intel:v2.0.0
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8050
           name: http
@@ -196,10 +216,20 @@ spec:
         component: mcp-server
         intelligence-type: "real"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
       - name: infrastructure-enhanced
         image: osint-platform/infrastructure-advanced:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 8021
           name: http

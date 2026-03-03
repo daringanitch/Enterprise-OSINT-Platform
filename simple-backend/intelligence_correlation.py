@@ -772,8 +772,8 @@ class IntelligenceCorrelator:
                         if record.get('first_seen'):
                             try:
                                 first_seen = datetime.strptime(record['first_seen'], '%Y-%m-%d')
-                            except:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Failed to parse first_seen date '{record['first_seen']}': {e}")
 
                         entity = Entity(
                             id=entity_id,
@@ -824,7 +824,8 @@ class IntelligenceCorrelator:
                     if breach_date:
                         try:
                             event_date = datetime.strptime(breach_date, '%Y-%m-%d')
-                        except:
+                        except Exception as e:
+                            logger.debug(f"Failed to parse breach_date '{breach_date}', using utcnow: {e}")
                             event_date = datetime.utcnow()
 
                         self._add_timeline_event(
@@ -936,7 +937,8 @@ class IntelligenceCorrelator:
                     if published:
                         try:
                             event_date = datetime.strptime(published[:10], '%Y-%m-%d')
-                        except:
+                        except Exception as e:
+                            logger.debug(f"Failed to parse published_at '{published}', using utcnow: {e}")
                             event_date = datetime.utcnow()
 
                         sentiment = article.get('sentiment', 'neutral')

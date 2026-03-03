@@ -6,8 +6,11 @@ Load synthetic OSINT data from the Amazon mock bundle
 import csv
 import json
 import os
+import logging
 from typing import Dict, List, Any
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class SyntheticDataLoader:
     """Load and manage synthetic OSINT data for demos"""
@@ -50,8 +53,8 @@ class SyntheticDataLoader:
                 reader = csv.DictReader(f)
                 for row in reader:
                     data.append(row)
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to load CSV from {filepath}: {e}")
         return data
     
     def _use_fallback_data(self):
