@@ -541,15 +541,29 @@ def get_audit_client() -> PostgreSQLAuditClient:
         postgres_audit_client = PostgreSQLAuditClient()
     return postgres_audit_client
 
-def init_audit_client(host: str = None, 
+def init_audit_client(host: str = None,
                      port: int = 5432,
                      database: str = None,
                      username: str = None,
-                     password: str = None) -> PostgreSQLAuditClient:
-    """Initialize global audit client"""
+                     password: str = None):
+    """Initialize global audit client.
+
+    Returns None (instead of raising) when POSTGRES_PASSWORD is not configured,
+    so the rest of the application can start in demo/dev mode without a database.
+    All callers guard with `if audit_client:` before use.
+    """
     global postgres_audit_client
-    postgres_audit_client = PostgreSQLAuditClient(host, port, database, username, password)
-    return postgres_audit_client
+    try:
+        postgres_audit_client = PostgreSQLAuditClient(host, port, database, username, password)
+        return postgres_audit_client
+    except RuntimeError as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Audit client not initialized — {e}. "
+            "Audit logging disabled until POSTGRES_PASSWORD is set."
+        )
+        postgres_audit_client = None
+        return None
 
 # Convenience functions for common operations
 def log_investigation_start(investigation_id: str, investigator_name: str, target: str, investigation_type: str, priority: str) -> bool:

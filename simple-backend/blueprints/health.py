@@ -91,12 +91,12 @@ def readiness():
         }
         all_healthy = False
 
-    # Check Vault connectivity
+    # Check password-vault connectivity
     try:
-        if services.vault_client and services.vault_client.is_healthy():
+        if services.password_vault and services.password_vault.is_available():
             checks['checks']['vault'] = {
                 'status': 'healthy',
-                'message': 'Vault connection successful'
+                'message': 'Password vault connection successful'
             }
         else:
             checks['checks']['vault'] = {
@@ -204,11 +204,12 @@ def system_status():
         if services.audit_client:
             postgres_status['connected'] = services.audit_client.test_connection()
 
-        # Check Vault connectivity
+        # Check password-vault connectivity
+        pv = services.password_vault
         vault_status = {
-            'connected': services.vault_client.is_healthy(),
-            'url': services.vault_client.vault_config.url if hasattr(services.vault_client, 'vault_config') else 'unknown',
-            'mount_point': services.vault_client.vault_config.mount_point if hasattr(services.vault_client, 'vault_config') else 'unknown'
+            'connected': bool(pv and pv.is_available()),
+            'url': pv.url if pv else 'not configured',
+            'type': 'password-vault (daringanitch/password-vault)'
         }
 
         # Get API monitoring status
@@ -236,7 +237,7 @@ def system_status():
             'active_investigations': len(services.orchestrator.active_investigations),
             'total_reports': len(services.reports),
             'audit_logging': 'postgresql' if services.audit_client else 'memory',
-            'configuration_storage': 'vault' if services.vault_client.is_healthy() else 'environment',
+            'configuration_storage': 'password-vault' if (services.password_vault and services.password_vault.is_available()) else 'environment',
             'fallback_mode': api_system_status['fallback_mode'],
             'api_availability': f"{api_system_status['online_apis']}/{api_system_status['total_apis']}"
         }

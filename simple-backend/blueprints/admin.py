@@ -303,12 +303,16 @@ def get_mcp_status():
 
 @bp.route('/api/admin/vault/status', methods=['GET'])
 def get_vault_status():
-    """Get HashiCorp Vault status"""
+    """Get password-vault status"""
     try:
-        status = services.vault_client.get_vault_status()
+        pv = services.password_vault
+        if pv:
+            status = pv.get_status()
+        else:
+            status = {'available': False, 'message': 'Password vault not configured (VAULT_TOKEN not set)'}
         return jsonify(status), 200
     except Exception as e:
-        logger.error(f"Failed to get Vault status: {str(e)}", exc_info=True)
+        logger.error(f"Failed to get vault status: {str(e)}", exc_info=True)
         return jsonify({'error': 'An internal error occurred. Check server logs.'}), 500
 
 
@@ -413,7 +417,10 @@ def test_service_api_key(service_name):
 def remove_service_api_key(service_name):
     """Remove API key for a service"""
     try:
-        success = services.vault_client.delete_api_key(service_name)
+        pv = services.password_vault
+        if not pv:
+            return jsonify({'error': 'Password vault not configured'}), 503
+        success = pv.delete_secret(service_name)
 
         if success:
             return jsonify({'success': True, 'message': f'API key removed for {service_name}'}), 200
@@ -439,8 +446,11 @@ def rotate_service_api_key(service_name):
         if not services.config_manager.validate_api_key(service_name, new_api_key):
             return jsonify({'error': 'Invalid API key format'}), 400
 
-        # Rotate the key
-        success = services.vault_client.rotate_api_key(service_name, new_api_key)
+        # Rotate the key via password-vault
+        pv = services.password_vault
+        if not pv:
+            return jsonify({'error': 'Password vault not configured'}), 503
+        success = pv.store_secret(service_name, new_api_key)
 
         if success:
             return jsonify({'success': True, 'message': f'API key rotated for {service_name}'}), 200
