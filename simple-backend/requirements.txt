@@ -8,7 +8,7 @@ numpy>=1.26.4  # 1.24.3 had known vulnerabilities; 1.26.x is last 1.x LTS
 pydantic==2.5.0
 networkx>=3.0
 scipy>=1.11.0
-hvac==1.2.1
+# hvac==1.2.1  # REMOVED — HashiCorp Vault Python client (no longer used; replaced by PasswordVaultClient)
 reportlab==4.0.4
 psycopg2-binary==2.9.7
 asyncpg==0.29.0

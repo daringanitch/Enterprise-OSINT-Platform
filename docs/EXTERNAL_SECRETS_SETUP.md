@@ -1,5 +1,17 @@
 # External Secrets Operator Setup Guide
 
+> ⚠️ **DEPRECATED** — This guide describes the old HashiCorp Vault + External Secrets Operator
+> integration, which has been replaced by **Password Vault** (`daringanitch/password-vault`).
+>
+> **Active secrets management:** see [`CONFIGURATION.md`](../CONFIGURATION.md) — secrets are now
+> stored in the `password-vault` service (AES-256-GCM encrypted, bearer-token access on port 8080)
+> and injected into the process at startup via `PasswordVaultClient.load_secrets_to_env()`.
+>
+> This file is retained for historical reference only. Do **not** follow these instructions
+> for new deployments.
+
+---
+
 This guide walks through setting up External Secrets Operator (ESO) with HashiCorp Vault for secure secrets management in the OSINT Platform.
 
 ## Overview

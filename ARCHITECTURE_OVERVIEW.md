@@ -531,7 +531,7 @@ def health_check(): ...
 class Services:
     orchestrator: InvestigationOrchestrator
     compliance_engine: ComplianceFramework
-    vault_client: VaultClient
+    password_vault: PasswordVaultClient  # daringanitch/password-vault
     # ... shared across blueprints
 ```
 
