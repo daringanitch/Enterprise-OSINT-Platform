@@ -391,7 +391,7 @@ export const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
                     }}
                     tabIndex={0}
                     role="button"
-                    aria-label={`Anomaly: ${anomaly.type} — ${anomaly.severity} severity`}
+                    aria-label={`Anomaly: ${anomaly.entityType} — ${anomaly.severity} severity`}
                     whileHover={{ scale: 1.01, x: 4 }}
                     whileTap={{ scale: 0.99 }}
                   >
