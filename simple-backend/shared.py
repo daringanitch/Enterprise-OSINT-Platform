@@ -42,6 +42,11 @@ class _Services:
     reports: dict = {}
     reports_audit_history: dict = {}
 
+    # Saved searches — in-memory store keyed by search UUID
+    # { "<uuid>": { "id", "name", "description", "query_params", "created_at",
+    #               "last_run_at", "match_count" } }
+    saved_searches: dict = {}
+
     # Feature availability flags (set during app startup)
     VALIDATION_ENABLED: bool = False
     CACHING_ENABLED: bool = False

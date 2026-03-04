@@ -385,6 +385,8 @@ from blueprints.pivots import bp as pivots_bp
 from blueprints.correlations import bp as correlations_bp
 from blueprints.threat_actors import bp as threat_actors_bp
 from blueprints.templates import bp as templates_bp
+from blueprints.entities import bp as entities_bp
+from blueprints.searches import bp as searches_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(auth_bp)
@@ -406,6 +408,8 @@ app.register_blueprint(pivots_bp)
 app.register_blueprint(correlations_bp)
 app.register_blueprint(threat_actors_bp)
 app.register_blueprint(templates_bp)
+app.register_blueprint(entities_bp)
+app.register_blueprint(searches_bp)
 
 logger.info("All blueprints registered successfully")
 
