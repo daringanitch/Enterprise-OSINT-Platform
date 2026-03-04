@@ -42,6 +42,11 @@ stix2>=3.0.1
 
 # Testing dependencies
 pytest==7.4.0
+# Real-time collaboration
+flask-socketio>=5.3.6
+python-socketio>=5.10.0
+eventlet>=0.35.2
+
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-flask==1.2.0

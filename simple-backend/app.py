@@ -173,11 +173,29 @@ def trace_investigation(func):
     return func
 
 app = Flask(__name__)
-CORS(app, 
+CORS(app,
      origins=['http://localhost:8080', 'http://localhost:*', 'http://127.0.0.1:*', 'http://localhost:5001'],
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+
+# ── Flask-SocketIO (real-time collaboration) ───────────────────────────────────
+try:
+    from flask_socketio import SocketIO
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins='*',
+        async_mode='eventlet',
+        logger=False,
+        engineio_logger=False,
+        ping_timeout=60,
+        ping_interval=25,
+    )
+    _SOCKETIO_AVAILABLE = True
+except ImportError:
+    socketio = None  # type: ignore[assignment]
+    _SOCKETIO_AVAILABLE = False
+    logging.warning('flask-socketio not installed — real-time collaboration disabled')
 
 # Initialize Problem+JSON error handling middleware (commented for Docker compatibility)
 # problem_json = ProblemJSONMiddleware(app)
@@ -387,6 +405,8 @@ from blueprints.threat_actors import bp as threat_actors_bp
 from blueprints.templates import bp as templates_bp
 from blueprints.entities import bp as entities_bp
 from blueprints.searches import bp as searches_bp
+from blueprints.collaboration import bp as collaboration_bp
+from blueprints.enrichment import bp as enrichment_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(auth_bp)
@@ -410,6 +430,8 @@ app.register_blueprint(threat_actors_bp)
 app.register_blueprint(templates_bp)
 app.register_blueprint(entities_bp)
 app.register_blueprint(searches_bp)
+app.register_blueprint(collaboration_bp)
+app.register_blueprint(enrichment_bp)
 
 logger.info("All blueprints registered successfully")
 
@@ -460,6 +482,14 @@ seed_demo_reports()
 cleanup_thread = threading.Thread(target=cleanup_expired_reports, daemon=True)
 cleanup_thread.start()
 
+# Register Socket.IO collaboration events after blueprints are registered
+if _SOCKETIO_AVAILABLE and socketio is not None:
+    from blueprints.collaboration import register_socket_events
+    register_socket_events(socketio)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    if _SOCKETIO_AVAILABLE and socketio is not None:
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    else:
+        app.run(host='0.0.0.0', port=port, debug=False)

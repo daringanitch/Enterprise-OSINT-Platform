@@ -2,14 +2,21 @@
  * Main Layout Component
  *
  * Wraps authenticated pages with header, sidebar, and main content area.
+ * Also hosts the global Command Palette (⌘K) and its context provider,
+ * so it is available on every authenticated page.
  */
 
-import React, { useState } from 'react';
+import React, { useState, createContext } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Box, styled } from '@mui/material';
 import { Header } from './layout/Header';
 import { Sidebar } from './layout/Sidebar';
 import { cyberColors } from '../utils/theme';
+import { CommandPalette } from './common/CommandPalette';
+import {
+  CommandPaletteContext,
+  useCommandPaletteState,
+} from '../hooks/useCommandPalette';
 
 const SIDEBAR_WIDTH = 280;
 
@@ -36,10 +43,21 @@ const ContentArea = styled(Box)(({ theme }) => ({
   overflowY: 'auto',
 }));
 
+// Mock recent investigations — replace with real API data in Sprint 2
+const RECENT_INVESTIGATIONS = [
+  { id: '4', target: 'malware-c2.net', status: 'analyzing' },
+  { id: '1', target: 'suspicious-domain.com', status: 'collecting' },
+  { id: '3', target: 'threat-actor@example.com', status: 'pending' },
+  { id: '7', target: '10.0.0.55', status: 'generating_report' },
+];
+
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Command Palette state — owns global ⌘K context
+  const cmdPalette = useCommandPaletteState();
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -50,20 +68,30 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <LayoutRoot>
-      <Header onMenuClick={handleToggleSidebar} />
-      <Sidebar
-        open={sidebarOpen}
-        activePath={location.pathname}
-        onNavigate={handleNavigate}
-        width={SIDEBAR_WIDTH}
-      />
-      <MainContent sidebarOpen={sidebarOpen}>
-        <ContentArea>
-          <Outlet />
-        </ContentArea>
-      </MainContent>
-    </LayoutRoot>
+    <CommandPaletteContext.Provider value={cmdPalette}>
+      <LayoutRoot>
+        <Header onMenuClick={handleToggleSidebar} />
+        <Sidebar
+          open={sidebarOpen}
+          activePath={location.pathname}
+          onNavigate={handleNavigate}
+          width={SIDEBAR_WIDTH}
+        />
+        <MainContent sidebarOpen={sidebarOpen}>
+          <ContentArea>
+            <Outlet />
+          </ContentArea>
+        </MainContent>
+
+        {/* Global Command Palette — always mounted, toggled by ⌘K */}
+        <CommandPalette
+          open={cmdPalette.isOpen}
+          onClose={cmdPalette.close}
+          initialQuery={cmdPalette.initialQuery}
+          recentInvestigations={RECENT_INVESTIGATIONS}
+        />
+      </LayoutRoot>
+    </CommandPaletteContext.Provider>
   );
 };
 
