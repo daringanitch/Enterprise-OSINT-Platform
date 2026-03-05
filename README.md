@@ -85,23 +85,51 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 
 ## Deployment Options
 
-### Option 1: Docker Compose (Recommended for Evaluation)
+### Option 1: Docker Compose — Demo (no config required)
+
+Uses `docker-compose.demo.yml` with hardcoded demo credentials. No `.env` file
+needed. **Do not use these credentials in production.**
 
 ```bash
-./start.sh demo    # Demo mode - no API keys needed
-./start.sh local   # Local dev with optional API keys
-```
-
-### Option 2: Kubernetes
-
-```bash
-./start.sh k8s     # Deploy to Kubernetes cluster
-```
-
-### Option 3: Manual Docker Compose
-
-```bash
+# Start everything
+make demo
+# — or —
 docker compose -f docker-compose.demo.yml up -d
+
+# Start worker only
+make demo-worker
+# — or —
+docker compose -f docker-compose.demo.yml up -d worker
+
+# Tail logs
+make demo-logs
+
+# Stop + remove volumes
+make demo-down
+```
+
+Access: **http://localhost:8080** — Login: `admin` / `admin123`
+
+> **Common mistake:** Running `docker compose up -d` (without `-f docker-compose.demo.yml`)
+> requires a `.env` file with real `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `VAULT_MASTER_KEY`,
+> and `VAULT_TOKEN`. Copy `.env.template` → `.env` and fill in values, or use the demo
+> compose file above.
+
+### Option 2: Docker Compose — Production
+
+```bash
+cp .env.template .env          # fill in POSTGRES_PASSWORD, JWT_SECRET_KEY, etc.
+docker compose up -d           # starts backend, worker, frontend, postgres, redis, vault
+```
+
+See `.env.template` for vault setup instructions (one-time init required).
+
+### Option 3: Kubernetes
+
+```bash
+make setup && make deploy && make port-forward
+# — or —
+./start.sh k8s
 ```
 
 ## Project Structure

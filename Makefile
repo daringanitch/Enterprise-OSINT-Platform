@@ -1,29 +1,41 @@
 # Makefile for Enterprise OSINT Platform
 # Automates common development and deployment tasks
 
-.PHONY: help setup deploy rebuild-backend rebuild-frontend rebuild-all port-forward status clean logs
+.PHONY: help setup deploy rebuild-backend rebuild-frontend rebuild-all port-forward status clean logs \
+        demo demo-worker demo-down demo-logs demo-status
+
+DEMO_COMPOSE := docker compose -f docker-compose.demo.yml
 
 # Default target
 help:
 	@echo "Enterprise OSINT Platform - Development Commands"
 	@echo "==============================================="
 	@echo ""
-	@echo "Setup & Deployment:"
+	@echo "Docker Compose Demo (no config required — start here):"
+	@echo "  make demo           - Start all demo services (postgres, redis, backend, worker, frontend)"
+	@echo "  make demo-worker    - Start only the worker (+ its dependencies)"
+	@echo "  make demo-logs      - Tail all demo service logs"
+	@echo "  make demo-status    - Show running demo containers"
+	@echo "  make demo-down      - Stop and remove demo containers + volumes"
+	@echo ""
+	@echo "  Access: http://localhost:8080  |  Login: admin / admin123"
+	@echo ""
+	@echo "Kubernetes Setup & Deployment:"
 	@echo "  make setup          - Initialize namespace and secrets"
 	@echo "  make deploy         - Deploy all components to Kubernetes"
 	@echo ""
-	@echo "Development:"
+	@echo "Kubernetes Development:"
 	@echo "  make rebuild-backend  - Rebuild and deploy backend with port forwarding"
 	@echo "  make rebuild-frontend - Rebuild and deploy frontend with port forwarding"
 	@echo "  make rebuild-all      - Rebuild both backend and frontend"
 	@echo ""
-	@echo "Operations:"
+	@echo "Kubernetes Operations:"
 	@echo "  make port-forward   - Ensure port forwarding is active"
 	@echo "  make status         - Check system status"
 	@echo "  make logs           - Tail backend logs"
 	@echo "  make clean          - Clean up port forwards"
 	@echo ""
-	@echo "Quick Start:"
+	@echo "Kubernetes Quick Start:"
 	@echo "  make deploy && make port-forward"
 	@echo ""
 
@@ -120,3 +132,39 @@ dev-frontend:
 	kubectl rollout status deployment/osint-simple-frontend -n osint-platform --timeout=60s
 	@sleep 2
 	@make port-forward
+
+# ── Docker Compose Demo Targets ───────────────────────────────────────────────
+# These use docker-compose.demo.yml — no .env file or external services needed.
+
+# Start all demo services (build backend on first run)
+demo:
+	@echo "🚀 Starting OSINT Platform in demo mode..."
+	$(DEMO_COMPOSE) up -d --build
+	@echo ""
+	@echo "✅ Demo started!"
+	@echo "   Frontend : http://localhost:8080"
+	@echo "   API      : http://localhost:5001"
+	@echo "   Login    : admin / admin123"
+	@echo ""
+	@echo "Tip: run 'make demo-logs' to tail the logs"
+
+# Start only the worker service (+ its postgres/redis dependencies)
+demo-worker:
+	@echo "🔧 Starting demo worker..."
+	$(DEMO_COMPOSE) up -d --build worker
+	@echo "✅ Worker started. Run 'make demo-logs' to tail."
+
+# Tail all demo service logs
+demo-logs:
+	$(DEMO_COMPOSE) logs -f
+
+# Show status of demo containers
+demo-status:
+	@echo "📊 Demo service status:"
+	$(DEMO_COMPOSE) ps
+
+# Stop demo and remove containers + volumes
+demo-down:
+	@echo "🛑 Stopping demo services..."
+	$(DEMO_COMPOSE) down -v
+	@echo "✅ Demo stopped and volumes removed."
