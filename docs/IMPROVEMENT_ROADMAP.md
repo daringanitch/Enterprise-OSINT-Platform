@@ -4,32 +4,40 @@
 
 This roadmap outlines the strategic improvements needed to transform the Enterprise OSINT Platform into a truly production-ready, enterprise-grade solution. The improvements are organized by priority and timeline, focusing on security, scalability, and operational excellence.
 
-## Current State (Updated January 2025)
+## Current State (Updated March 2026)
 
 ### ✅ Existing Strengths
 - Multi-agent OSINT investigation system with 7-stage workflow
 - Enhanced MCP servers for specialized intelligence gathering
 - Professional PDF report generation
 - Basic JWT authentication with role-based access
-- Kubernetes-native deployment architecture
+- Kubernetes-native deployment architecture (54 manifests)
 - PostgreSQL audit logging
 - New monitoring infrastructure (Prometheus/Grafana)
 - Health check automation
 - **Intelligence correlation engine** with entity extraction and relationship mapping
-- **MITRE ATT&CK mapping** with 14 tactics coverage
+- **MITRE ATT&CK mapping** with 14 tactics coverage and interactive matrix UI
 - **Risk scoring engine** with 6 weighted categories
-- **Frontend component library** with TypeScript and design system
+- **Frontend component library** with TypeScript and design system (350+ tests)
 - **WCAG 2.1 accessibility** compliance with keyboard navigation
-- **570+ automated tests** (220 backend + 350 frontend)
+- **570+ automated tests** (220 backend + 350+ frontend)
+- **Graph Intelligence Engine** — Neo4j with mock fallback, 35+ entity types, centrality/community/blast-radius
+- **Live Collaboration** — Socket.IO presence, live annotations, cursor broadcast (Flask-SocketIO + eventlet)
+- **Unified IOC Enrichment** — SSE fan-out to all MCP servers simultaneously with real-time streaming
+- **Command Palette (⌘K)** — Global navigation with IOC auto-detection and fuzzy investigation search
+- **Investigation Kanban** — 5-column workflow board with framer-motion animations
+- **Evidence Chain** — Geometric-mean confidence attribution with IC-standard assessment language
+- **Entity Hover Previews** — 400ms debounced cross-investigation popover via `EntityChip`
+- **Saved Searches with Alerts** — Named filter presets with Toast notifications for new matches
+- **Freshness Indicators** — 5-tier data-age decay badges (fresh → expired)
 
 ### ❌ Key Gaps
 - Limited user management and authentication features
 - No platform-level API rate limiting
 - Basic audit logging without rotation or archival
 - Mock job queue implementation
-- Limited collaboration features
 - No data retention automation
-- Missing enterprise integrations
+- Missing enterprise integrations (SIEM, ticketing)
 
 ## Phase 1: Security & Foundation (Months 1-2)
 
@@ -98,7 +106,8 @@ This roadmap outlines the strategic improvements needed to transform the Enterpr
 - [ ] Implement approval workflows
 - [ ] Add investigation cloning/duplication
 - [ ] Create investigation comparison views
-- [ ] Implement collaborative features (comments, sharing)
+- [x] Implement collaborative features (real-time annotations + presence via Socket.IO) ✅ v1.2.0
+- [x] Investigation Kanban board for workflow stage management ✅ v1.1.0
 - [ ] Add investigation handoff workflows
 
 ### 3.2 Reporting & Analytics
@@ -162,15 +171,15 @@ This roadmap outlines the strategic improvements needed to transform the Enterpr
 ### 5.2 Advanced Search & Discovery
 **Priority: LOW**
 - [ ] Implement full-text search with Elasticsearch
-- [ ] Add faceted search and filtering
-- [ ] Create saved searches and alerts
+- [x] Add faceted search and filtering (SearchBar with Status/Priority/Risk filters) ✅ v1.1.0
+- [x] Create saved searches and alerts (useSavedSearches + Toast notifications) ✅ v1.1.0
 - [ ] Implement investigation clustering
 - [ ] Add similarity matching
-- [ ] Create knowledge graph visualization
+- [x] Create knowledge graph visualization (Graph Intelligence Engine + MitreMatrix) ✅ v1.0–v1.2
 
 ### 5.3 Developer Experience
 **Priority: LOW**
-- [ ] Create comprehensive API documentation
+- [x] Create comprehensive API documentation (API_REFERENCE.md — 21 sections, 60+ endpoints) ✅ v1.2.0
 - [ ] Add SDK for common languages
 - [ ] Implement GraphQL API
 - [ ] Create developer portal
@@ -180,10 +189,11 @@ This roadmap outlines the strategic improvements needed to transform the Enterpr
 ## Quick Wins (Can be done immediately)
 
 ### Documentation Updates
-- [x] Update README.md with monitoring stack info
+- [x] Update README.md with monitoring stack info ✅
 - [ ] Update DEPLOYMENT_GUIDE.md with new k8s manifests
-- [x] Update ARCHITECTURE_OVERVIEW.md with current design
-- [x] Add CHANGELOG.md for version tracking
+- [x] Update ARCHITECTURE_OVERVIEW.md with current design ✅ v1.2.0
+- [x] Add CHANGELOG.md for version tracking ✅
+- [x] Update API_REFERENCE.md with all 60+ endpoints (21 sections) ✅ v1.2.0
 - [ ] Create user guides and tutorials
 
 ### Cleanup Tasks

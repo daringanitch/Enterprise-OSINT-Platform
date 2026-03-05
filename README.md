@@ -53,6 +53,19 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Credential Intelligence**: HIBP, Dehashed, Hudson Rock, paste monitoring with k-anonymity password checks
 - **Real-Time Monitoring**: Watchlist alerting with snapshot diffing, configurable check intervals
 
+### Analyst Collaboration & Productivity
+- **Live Collaboration**: Socket.IO investigation rooms — real-time analyst presence, live annotation feed with entity tagging, cursor broadcasting, and 20-second heartbeat. Multiple analysts can annotate the same investigation simultaneously and see each other's notes as they are written.
+- **Command Palette (⌘K)**: Keyboard-first launcher giving instant access to any page, investigation, or action. Paste an IOC directly into the palette to trigger fan-out enrichment without navigating to a new page.
+- **Saved Searches with Alerting**: Save filter combinations (status, priority, risk level, free text) and receive Toast notifications when new investigations match since your last visit.
+- **Investigation Kanban View**: Visual 5-column operational board (New → Active → Analysis → Reporting → Closed) as an alternative to the list view. Toggle is persisted per-user.
+- **Indicator Freshness/Decay Badges**: Each IOC displays a color-coded age tier (fresh / recent / aging / stale / expired) with a decay warning when ownership or sinkholing may have changed.
+
+### Enrichment & Analysis
+- **Unified IOC Enrichment ("Investigate This")**: Single command fans out to all 5 MCP intelligence servers in parallel and streams results back to the UI as a live timeline via Server-Sent Events. See each source resolve in real time with findings, confidence, and risk scores.
+- **Interactive MITRE ATT&CK Matrix**: Full 14-tactic × N-technique grid with evidence heat-map and coverage modes. Click to select techniques and filter findings. One-click export to ATT&CK Navigator layer JSON compatible with `navigator.attack.mitre.org`.
+- **Confidence Scoring & Evidence Chain**: Every finding can expose a visual `source → finding → inference → conclusion` chain. Chain confidence is the geometric mean of all node scores (a weak link degrades the whole chain). Designed for defensible, auditable intelligence reports.
+- **Entity Hover Preview Cards**: Hovering any IP, domain, email, or hash anywhere in the UI shows a rich popover (risk score, linked investigations, last seen, top findings) without navigating away.
+
 ### Enterprise Features
 - **Professional PDF Reports**: Executive and technical summaries
 - **Compliance Framework**: GDPR/CCPA assessment
@@ -62,11 +75,13 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 
 ### Frontend Component Library
 - **Design System**: Centralized theme with design tokens
-- **Reusable Components**: Button, Card, Modal, FormField, StatusIndicator, Loading, Toast
-- **Layout Components**: Header, Sidebar, responsive Layout wrapper
-- **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, DataTable
+- **Reusable Components**: Button, Card, Modal, FormField, StatusIndicator, Loading, Toast, EntityChip, FreshnessIndicator, EvidenceChain
+- **Layout Components**: Header, Sidebar, responsive Layout wrapper with global Command Palette
+- **Collaboration Components**: PresenceBar (analyst avatars + live status), AnnotationPanel (real-time shared notes)
+- **Enrichment Components**: EnrichmentPanel (live SSE progress timeline)
+- **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, MitreMatrix (interactive + Navigator export), DataTable
 - **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
-- **484 Component Tests**: Comprehensive test coverage
+- **484+ Component Tests**: Comprehensive test coverage
 
 ## Deployment Options
 
@@ -95,12 +110,15 @@ docker compose -f docker-compose.demo.yml up -d
 Enterprise-OSINT-Platform/
 ├── simple-backend/              # Flask REST API
 │   ├── app.py                   # Main application (60+ endpoints)
-│   ├── blueprints/              # 20 Flask Blueprint modules
+│   ├── blueprints/              # 24 Flask Blueprint modules
 │   │   ├── auth.py, health.py, admin.py
 │   │   ├── investigations.py, reports.py, compliance.py
 │   │   ├── tradecraft.py, monitoring.py, credentials.py
 │   │   ├── pivots.py, correlations.py, threat_actors.py
-│   │   └── templates.py, graph.py, settings.py, ...
+│   │   ├── templates.py, graph.py, settings.py
+│   │   ├── entities.py, searches.py  # Entity lookup + saved searches
+│   │   ├── collaboration.py   # Socket.IO presence + annotations
+│   │   └── enrichment.py      # Unified IOC fan-out (SSE)
 │   ├── pivot_engine.py          # Next-pivot recommendation engine
 │   ├── threat_actor_library.py  # 26-actor MITRE ATT&CK dossier library
 │   ├── cross_investigation_correlator.py  # Shared indicator detection
@@ -116,13 +134,17 @@ Enterprise-OSINT-Platform/
 │   └── tests/                   # Backend test suite (220+ tests)
 ├── frontend/                    # React Frontend (TypeScript)
 │   ├── src/components/          # UI components
-│   │   ├── common/              # Button, Card, Modal, etc.
-│   │   ├── layout/              # Header, Sidebar, Layout
+│   │   ├── common/              # Button, Card, Modal, EntityChip, FreshnessIndicator, CommandPalette
+│   │   ├── layout/              # Header, Sidebar, Layout (+ global ⌘K)
+│   │   ├── collaboration/       # PresenceBar, AnnotationPanel
+│   │   ├── enrichment/          # EnrichmentPanel (SSE streaming)
+│   │   ├── analysis/            # EvidenceChain
+│   │   ├── investigations/      # KanbanBoard, SearchBar
 │   │   ├── dashboard/           # Dashboard components
-│   │   └── visualizations/      # Charts, graphs, heatmaps
-│   ├── src/hooks/               # Custom React hooks
-│   ├── src/utils/               # Theme, validation, a11y utilities
-│   └── src/__tests__/           # Frontend tests (484 tests)
+│   │   └── visualizations/      # Charts, NetworkGraph, MitreMatrix, ThreatMatrix, ...
+│   ├── src/hooks/               # useCollaboration, useCommandPalette, useSavedSearches, ...
+│   ├── src/utils/               # freshness.ts, theme, validation, a11y utilities
+│   └── src/__tests__/           # Frontend tests (484+ tests)
 ├── simple-frontend/             # Legacy React SPA (index.html)
 ├── mcp-servers/                 # Intelligence microservices
 │   ├── infrastructure-advanced/ # Port 8021
@@ -210,7 +232,8 @@ Then restart with `./start.sh local`
 - **Backend**: Flask, SQLAlchemy, PostgreSQL, Redis, Neo4j (optional)
 - **Frontend**: React 18, TypeScript, Material-UI
 - **Component Library**: Custom design system with 10+ reusable components
-- **Testing**: Jest, React Testing Library, pytest (936 total tests — 871 passing, 5 require live infra)
+- **Real-Time**: Flask-SocketIO + Socket.IO client (analyst collaboration)
+- **Testing**: Jest, React Testing Library, pytest (936+ total tests — 652 backend passing, 5 require live infra)
 - **MCP Servers**: FastAPI, aiohttp
 - **Infrastructure**: Docker, Kubernetes, Prometheus, Grafana
 

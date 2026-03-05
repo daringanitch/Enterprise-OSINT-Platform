@@ -17,9 +17,13 @@ Complete API documentation for the Enterprise OSINT Platform REST API and MCP se
 12. [STIX/MISP Export](#stixmisp-export)
 13. [System Status](#system-status)
 14. [Graph Intelligence](#graph-intelligence)
-15. [MCP Server APIs](#mcp-server-apis)
-16. [Error Handling](#error-handling)
-17. [Rate Limiting](#rate-limiting)
+15. [Entity Intelligence](#entity-intelligence)
+16. [Saved Searches](#saved-searches)
+17. [Unified IOC Enrichment (SSE)](#unified-ioc-enrichment-sse)
+18. [Live Collaboration](#live-collaboration)
+19. [MCP Server APIs](#mcp-server-apis)
+20. [Error Handling](#error-handling)
+21. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -1916,6 +1920,547 @@ Simulate influence spread through the network.
 
 ---
 
+## Entity Intelligence
+
+Lightweight entity-lookup endpoint that aggregates presence of a given value (IP, domain, email, hash, URL) across all active investigations. Used by `EntityHoverCard` to populate on-hover context popups without requiring a full enrichment run.
+
+### Lookup Entity
+
+**GET** `/api/entities/lookup`
+
+Look up an entity value across all investigations and return a summary of where it has been seen, associated risk data, and linked investigations.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `value` | string | Yes | The entity value to look up (e.g., `1.2.3.4`, `evil.com`) |
+| `type` | string | Yes | Entity type: `ip_address`, `domain`, `email`, `hash`, `url` |
+
+**Example Request:**
+```
+GET /api/entities/lookup?value=198.51.100.42&type=ip_address
+Authorization: Bearer <token>
+```
+
+**Response (found):**
+```json
+{
+    "found": true,
+    "value": "198.51.100.42",
+    "type": "ip_address",
+    "confidence": 0.87,
+    "first_seen": "2025-01-15T10:30:00Z",
+    "last_seen": "2026-02-28T14:22:00Z",
+    "days_since_seen": 4,
+    "sources": ["mcp-infrastructure", "mcp-threat-aggregator"],
+    "tags": ["malicious", "c2", "botnet"],
+    "investigations": [
+        {
+            "id": "inv-abc123",
+            "target": "example.com",
+            "status": "completed",
+            "risk_level": "high"
+        },
+        {
+            "id": "inv-def456",
+            "target": "198.51.100.0/24",
+            "status": "analyzing",
+            "risk_level": "critical"
+        }
+    ],
+    "investigation_count": 2
+}
+```
+
+**Response (not found):**
+```json
+{
+    "found": false,
+    "value": "10.0.0.1",
+    "type": "ip_address"
+}
+```
+
+**Notes:**
+- Always returns `200 OK` regardless of whether the entity was found (avoids CORS noise on hover).
+- `confidence` is the highest confidence value observed across all matching investigations.
+- `days_since_seen` is computed from `last_seen` at request time.
+
+**Status Codes:**
+- `200` - Lookup complete (check `found` field)
+- `400` - Missing or invalid `value` / `type` parameters
+- `401` - Unauthorized
+
+---
+
+## Saved Searches
+
+Manage named investigation filter presets. Saved searches allow analysts to quickly re-apply common filter combinations and receive toast notifications when new matching investigations appear.
+
+### Search Investigations
+
+**GET** `/api/investigations/search`
+
+Full-text and field-filtered search over the investigation list.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | string | Free-text match on `target` and `investigator` fields |
+| `status` | string | Exact status match (e.g., `analyzing`, `completed`) |
+| `type` | string | Exact investigation type match |
+| `priority` | string | `critical`, `high`, `medium`, `low` |
+| `risk_level` | string | `critical`, `high`, `medium`, `low`, `minimal` |
+| `from_date` | ISO 8601 | Filter `created_at >=` this date |
+| `to_date` | ISO 8601 | Filter `created_at <=` this date |
+
+**Example Request:**
+```
+GET /api/investigations/search?q=apt&risk_level=high&status=completed
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+    "results": [
+        {
+            "id": "inv-abc123",
+            "target": "apt29-c2.example.com",
+            "status": "completed",
+            "risk_level": "high",
+            "created_at": "2026-01-10T08:00:00Z"
+        }
+    ],
+    "total": 1
+}
+```
+
+**Status Codes:**
+- `200` - Results returned (may be empty)
+- `401` - Unauthorized
+
+---
+
+### List Saved Searches
+
+**GET** `/api/searches`
+
+Return all saved searches for the authenticated user's session.
+
+**Response:**
+```json
+{
+    "searches": [
+        {
+            "id": "srch-uuid1",
+            "name": "APT High Risk",
+            "description": "All high-risk APT investigations",
+            "query_params": {
+                "q": "apt",
+                "risk_level": "high"
+            },
+            "created_at": "2026-01-20T10:00:00Z",
+            "last_run_at": "2026-03-01T09:00:00Z",
+            "match_count": 7
+        }
+    ],
+    "total": 1
+}
+```
+
+---
+
+### Create Saved Search
+
+**POST** `/api/searches`
+
+Save a named search preset.
+
+**Request Body:**
+```json
+{
+    "name": "APT High Risk",
+    "description": "All high-risk APT investigations",
+    "query_params": {
+        "q": "apt",
+        "risk_level": "high",
+        "status": "completed"
+    }
+}
+```
+
+**Response:**
+```json
+{
+    "id": "srch-uuid1",
+    "name": "APT High Risk",
+    "description": "All high-risk APT investigations",
+    "query_params": { "q": "apt", "risk_level": "high", "status": "completed" },
+    "created_at": "2026-03-04T12:00:00Z",
+    "last_run_at": null,
+    "match_count": 0
+}
+```
+
+**Status Codes:**
+- `201` - Created
+- `400` - Missing `name` or `query_params`
+- `401` - Unauthorized
+
+---
+
+### Delete Saved Search
+
+**DELETE** `/api/searches/{id}`
+
+Delete a saved search by ID.
+
+**Status Codes:**
+- `200` - Deleted
+- `404` - Not found
+- `401` - Unauthorized
+
+---
+
+### Run Saved Search
+
+**GET** `/api/searches/{id}/matches`
+
+Execute a saved search and return current matching investigations. Updates `last_run_at` and `match_count` on the saved search record.
+
+**Response:**
+```json
+{
+    "search": {
+        "id": "srch-uuid1",
+        "name": "APT High Risk",
+        "last_run_at": "2026-03-04T12:05:00Z",
+        "match_count": 8
+    },
+    "results": [ ... ],
+    "total": 8
+}
+```
+
+**Status Codes:**
+- `200` - Results returned
+- `404` - Saved search not found
+- `401` - Unauthorized
+
+---
+
+## Unified IOC Enrichment (SSE)
+
+Fan-out enrichment endpoint that queries all applicable MCP intelligence servers in parallel and streams structured results back as Server-Sent Events (SSE). This powers the **"Investigate This"** panel in the UI.
+
+> **Important:** The response is `Content-Type: text/event-stream`. Clients must handle SSE framing. Because `EventSource` does not support custom headers, the UI uses `fetch` with `ReadableStream` to pass the `Authorization` header.
+
+### Enrich IOC (GET)
+
+**GET** `/api/enrich`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `value` | string | Yes | The IOC value to enrich |
+| `type` | string | Yes | `ip_address`, `domain`, `email`, `hash`, `url` |
+
+**Example Request:**
+```
+GET /api/enrich?value=evil.example.com&type=domain
+Authorization: Bearer <token>
+Accept: text/event-stream
+```
+
+### Enrich IOC (POST)
+
+**POST** `/api/enrich`
+
+CORS-preflight-free variant. Accepts the same parameters as the GET form via JSON body.
+
+**Request Body:**
+```json
+{
+    "value": "evil.example.com",
+    "type": "domain"
+}
+```
+
+---
+
+### SSE Event Reference
+
+Results stream as a sequence of named SSE frames:
+
+#### `source_start`
+Emitted once per applicable source before any queries begin. Allows the UI to show each source card in "queued" state immediately.
+
+```
+event: source_start
+data: {
+    "source": "infrastructure",
+    "label": "Infrastructure / DNS",
+    "icon": "dns",
+    "description": "DNS records, WHOIS, certificates, port scan summary"
+}
+```
+
+#### `source_result`
+Emitted when a source responds successfully.
+
+```
+event: source_result
+data: {
+    "source": "threat_intel",
+    "status": "success",
+    "duration_ms": 843,
+    "findings": [
+        {
+            "title": "Known C2 IP",
+            "category": "malware",
+            "severity": "high",
+            "detail": "Observed in 12 campaigns since 2024-06"
+        }
+    ],
+    "confidence": 0.91,
+    "risk_score": 8.4,
+    "summary": "High-confidence C2 indicator with multi-feed corroboration."
+}
+```
+
+#### `source_error`
+Emitted when a source times out or returns a non-200 response.
+
+```
+event: source_error
+data: {
+    "source": "social",
+    "status": "timeout",
+    "duration_ms": 8002,
+    "error": "Timed out after 8.0s"
+}
+```
+
+#### `summary`
+Emitted after all sources have resolved, before `done`.
+
+```
+event: summary
+data: {
+    "value": "evil.example.com",
+    "type": "domain",
+    "total_findings": 14,
+    "max_risk": 8.4,
+    "sources_queried": 4,
+    "sources_successful": 3,
+    "threat_categories": ["malware", "phishing", "infrastructure"],
+    "duration_ms": 9120,
+    "timestamp": "2026-03-04T12:00:09Z"
+}
+```
+
+#### `done`
+Signals end of stream. No data payload.
+
+```
+event: done
+data: {}
+```
+
+---
+
+### Applicable Sources by IOC Type
+
+| Source | Label | ip_address | domain | email | hash | url |
+|--------|-------|:---:|:---:|:---:|:---:|:---:|
+| `infrastructure` | Infrastructure / DNS | ✓ | ✓ | | | ✓ |
+| `threat_intel` | Threat Intelligence | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `social` | Social & OSINT | | ✓ | ✓ | | |
+| `ai_analysis` | AI Analysis | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `financial` | Financial / SEC | | ✓ | ✓ | | |
+
+---
+
+### List Enrichment Sources
+
+**GET** `/api/enrich/sources`
+
+Return all configured enrichment source definitions (no auth required).
+
+**Response:**
+```json
+{
+    "sources": [
+        {
+            "id": "infrastructure",
+            "label": "Infrastructure / DNS",
+            "icon": "dns",
+            "url_template": "http://localhost:8021/analyze",
+            "timeout": 10.0,
+            "applicable_types": ["ip_address", "domain", "url"],
+            "description": "DNS records, WHOIS, certificates, port scan summary"
+        }
+    ],
+    "total": 5
+}
+```
+
+**Status Codes:**
+- `200` - Source list returned
+- `400` - Missing or invalid `value` / `type` (for enrich endpoints)
+- `401` - Unauthorized (for enrich endpoints)
+
+---
+
+## Live Collaboration
+
+Real-time multi-analyst collaboration on shared investigations. Built on **Socket.IO** with per-investigation rooms. The REST endpoints manage persistent annotations; Socket.IO events broadcast ephemeral presence and cursor data.
+
+> **Prerequisite:** The backend must be started with `flask-socketio` installed and eventlet async mode enabled. If `flask-socketio` is not installed the collaboration blueprint falls back gracefully (REST annotation endpoints remain available; Socket.IO events are disabled).
+
+### REST Endpoints
+
+#### List Annotations
+
+**GET** `/api/investigations/{id}/annotations`
+
+Fetch all annotations for an investigation.
+
+**Response:**
+```json
+{
+    "annotations": [
+        {
+            "id": "ann-uuid1",
+            "analyst_id": "analyst-007",
+            "analyst_name": "J. Smith",
+            "text": "Confirmed C2 registration via WHOIS — see pivot to registrar abuse contact.",
+            "entity_tags": ["evil.example.com", "198.51.100.42"],
+            "created_at": "2026-03-04T11:00:00Z"
+        }
+    ],
+    "total": 1
+}
+```
+
+---
+
+#### Add Annotation
+
+**POST** `/api/investigations/{id}/annotations`
+
+Add a new annotation. Also broadcasts a `new_annotation` Socket.IO event to all analysts in the same investigation room.
+
+**Request Body:**
+```json
+{
+    "analyst_id": "analyst-007",
+    "analyst_name": "J. Smith",
+    "text": "Confirmed C2 registration via WHOIS.",
+    "entity_tags": ["evil.example.com"]
+}
+```
+
+**Response:** The created annotation object (same shape as above).
+
+**Status Codes:**
+- `201` - Annotation created
+- `400` - Missing required fields
+- `401` - Unauthorized
+
+---
+
+#### Delete Annotation
+
+**DELETE** `/api/investigations/{id}/annotations/{annotation_id}`
+
+Delete an annotation. Also broadcasts an `annotation_deleted` Socket.IO event.
+
+**Status Codes:**
+- `200` - Deleted
+- `404` - Annotation not found
+- `401` - Unauthorized
+
+---
+
+#### Get Presence
+
+**GET** `/api/investigations/{id}/presence`
+
+Return current active analysts in the investigation room (derived from the in-memory presence dict).
+
+**Response:**
+```json
+{
+    "investigation_id": "inv-abc123",
+    "analysts": [
+        {
+            "analyst_id": "analyst-007",
+            "analyst_name": "J. Smith",
+            "joined_at": "2026-03-04T10:55:00Z",
+            "last_heartbeat": "2026-03-04T11:02:30Z"
+        }
+    ],
+    "count": 1
+}
+```
+
+---
+
+### Socket.IO Events
+
+Connect to the same base URL as the REST API. Use the `investigation_` room namespace pattern.
+
+#### Client → Server Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `join_investigation` | `{ investigation_id, analyst_id, analyst_name }` | Join an investigation room. Server emits `analyst_joined` to all other members. |
+| `leave_investigation` | `{ investigation_id, analyst_id }` | Leave the room. Server emits `analyst_left`. |
+| `cursor_move` | `{ investigation_id, analyst_id, position: { x, y } }` | Broadcast cursor position (throttle client-side to ~10 Hz). |
+| `update_investigation` | `{ investigation_id, analyst_id, update_type, data }` | Notify room of a field or status change. |
+| `heartbeat` | `{ analyst_id, investigation_id }` | Keep-alive sent every 20 s to maintain presence. |
+
+#### Server → Client Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `analyst_joined` | `{ analyst_id, analyst_name, joined_at }` | Another analyst entered the room. |
+| `analyst_left` | `{ analyst_id }` | An analyst left the room. |
+| `cursor_moved` | `{ analyst_id, position }` | Forwarded cursor position from another analyst. |
+| `investigation_updated` | `{ analyst_id, update_type, data, timestamp }` | Forwarded investigation change. |
+| `new_annotation` | Annotation object | Broadcast when any analyst adds an annotation via REST. |
+| `annotation_deleted` | `{ annotation_id }` | Broadcast when an annotation is deleted via REST. |
+
+**JavaScript Connection Example:**
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5001', {
+    auth: { token: jwtToken }
+});
+
+socket.emit('join_investigation', {
+    investigation_id: 'inv-abc123',
+    analyst_id: 'analyst-007',
+    analyst_name: 'J. Smith'
+});
+
+socket.on('analyst_joined', ({ analyst_name }) => {
+    console.log(`${analyst_name} joined the investigation`);
+});
+
+socket.on('new_annotation', (annotation) => {
+    // Update UI with live annotation
+});
+```
+
+---
+
 ## MCP Server APIs
 
 Direct access to MCP server capabilities for advanced users.
@@ -2174,6 +2719,19 @@ X-RateLimit-Reset: 1692195600
 | `POST /api/graph/similarity` | Yes | Any |
 | `POST /api/graph/anomalies` | Yes | Any |
 | `POST /api/graph/influence` | Yes | Any |
+| `GET /api/entities/lookup` | Yes | Any |
+| `GET /api/investigations/search` | Yes | Any |
+| `GET /api/searches` | Yes | Any |
+| `POST /api/searches` | Yes | Analyst+ |
+| `DELETE /api/searches/{id}` | Yes | Analyst+ |
+| `GET /api/searches/{id}/matches` | Yes | Any |
+| `GET /api/enrich` | Yes | Any |
+| `POST /api/enrich` | Yes | Any |
+| `GET /api/enrich/sources` | No | None |
+| `GET /api/investigations/{id}/annotations` | Yes | Any |
+| `POST /api/investigations/{id}/annotations` | Yes | Analyst+ |
+| `DELETE /api/investigations/{id}/annotations/{aid}` | Yes | Analyst+ |
+| `GET /api/investigations/{id}/presence` | Yes | Any |
 
 ### Role Hierarchy
 1. **Viewer**: Read-only access to investigations

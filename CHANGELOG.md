@@ -9,6 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-03-04
+
+### Added
+
+#### Command Palette (⌘K / Ctrl+K)
+- **`frontend/src/hooks/useCommandPalette.ts`** — Global context + keyboard shortcut registration (`⌘K` / `Ctrl+K`). Exposes `open(initialQuery?)` / `close()` to any component via `CommandPaletteContext`.
+- **`frontend/src/components/common/CommandPalette.tsx`** — Full-featured modal launcher with fuzzy search across all pages, investigations, and actions. IOC auto-detection: pasting an IP, domain, email, or hash surface "Investigate [value]" as the top result with fan-out enrichment shortcut. Full keyboard navigation (↑↓ Enter Esc) with shortcut hints. Wired globally via `CommandPaletteContext` in `Layout.tsx`.
+
+#### Live Collaboration (Socket.IO)
+- **`flask-socketio`** + **`eventlet`** added to `requirements.txt`; SocketIO instance initialised in `app.py` with graceful fallback when package is absent.
+- **`simple-backend/blueprints/collaboration.py`** — Investigation-scoped Socket.IO rooms; events: `join_investigation`, `leave_investigation`, `cursor_move`, `update_investigation`, `heartbeat`. REST endpoints: `GET /api/investigations/<id>/annotations`, `POST /api/investigations/<id>/annotations`, `DELETE /api/investigations/<id>/annotations/<aid>`, `GET /api/investigations/<id>/presence`. Annotations broadcast via socket and persist in-memory.
+- **`frontend/src/hooks/useCollaboration.ts`** — Socket.IO client hook: presence tracking, real-time annotation feed, cursor broadcasting, 20-second heartbeat, auto-reconnect. Optimistic annotation add/delete with server-side fallback.
+- **`frontend/src/components/collaboration/PresenceBar.tsx`** — Colored analyst avatar stack (deterministic color assignment), last-seen tooltip, Live/Offline badge.
+- **`frontend/src/components/collaboration/AnnotationPanel.tsx`** — Collapsible side-panel: entity tagging, ⌘↵ submit, real-time feed with avatar + timestamp, per-author delete.
+
+#### Unified IOC Enrichment — "Investigate This" (SSE Fan-out)
+- **`simple-backend/blueprints/enrichment.py`** — `GET /api/enrich` and `POST /api/enrich` stream Server-Sent Events as all 5 MCP servers are queried concurrently via `asyncio`/`aiohttp`. Events: `source_start` → `source_result` | `source_error` → `summary` → `done`. Hard 35-second ceiling. `GET /api/enrich/sources` lists configured sources and their applicability by IOC type.
+- **`frontend/src/components/enrichment/EnrichmentPanel.tsx`** — Live SSE consumer using `fetch + ReadableStream` (supports auth headers). Source cards animate queued → loading → success/error with risk badges and expandable findings. Summary stat block (findings / max risk / sources / elapsed) on completion.
+
+#### Interactive MITRE ATT&CK Matrix
+- **`frontend/src/components/visualizations/MitreMatrix.tsx`** — Full 14-tactic × N-technique interactive grid:
+  - **Evidence heat-map mode**: cell opacity and color scale by finding count × severity
+  - **Coverage mode**: binary detected/not-detected
+  - Click to select technique; Shift/⌘+Click for multi-select; `onSelect` callback emits selected IDs
+  - Hover popover: finding count, severity, direct link to attack.mitre.org
+  - **ATT&CK Navigator layer export**: one-click `.json` download importable to `navigator.attack.mitre.org`
+  - All 14 enterprise ATT&CK tactics hard-coded; live evidence overlaid via `detectedTechniques` prop
+
+#### Confidence Scoring & Evidence Chain
+- **`frontend/src/components/analysis/EvidenceChain.tsx`** — Visual `source → finding → inference → conclusion` chain with:
+  - Per-node confidence bars color-coded by tier (High ≥85% / Medium ≥65% / Low ≥40% / Speculative)
+  - **Chain confidence = geometric mean** of all node scores — a weak link degrades the whole chain (correct epistemics for defensible reports)
+  - Corroboration badges for cross-source verification, `FreshnessIndicator` per node
+  - Expandable raw detail, collapsible to compact (first 2 nodes) mode
+  - Analyst-readable conclusion + assessment block with IC-standard language guidance
+
+#### Analyst UX Improvements (v1.1.x backport)
+- **Investigation Kanban View** — `KanbanBoard.tsx` with 5 operational columns (New/Active/Analysis/Reporting/Closed), framer-motion animations, per-column count badges, risk/priority chips, progress bars. List ↔ Kanban toggle in Investigations header, preference persisted in `localStorage`.
+- **Entity Hover Preview Cards** — `EntityChip.tsx` + `EntityHoverCard.tsx`: 400ms-debounced MUI Popover showing confidence bar, first/last seen with freshness badge, linked investigation rows. Backend: `GET /api/entities/lookup` aggregates entity intelligence across all investigations.
+- **Indicator Freshness/Decay Badges** — `freshness.ts` utility with 5 tiers (fresh <7d, recent 7–30d, aging 30–90d, stale 90–180d, expired >180d). `FreshnessIndicator.tsx` in compact-dot and full-chip modes with decay warning messages. Applied to investigation cards, kanban cards, and entity hover cards.
+- **Saved Searches with Alerting** — `SearchBar.tsx`: live client-side filter (text + status/priority/risk dropdowns), save-search modal, collapsible saved-searches panel. `useSavedSearches.ts`: CRUD hook for `GET/POST/DELETE /api/searches`. On-mount Toast notification when new investigations match a saved search since last visit (localStorage timestamp).
+
+### Changed
+- `Layout.tsx` wired with `CommandPaletteContext` provider and global `CommandPalette` mount so `⌘K` works on every authenticated page.
+- `app.py` — registered `collaboration_bp` and `enrichment_bp` blueprints; conditional SocketIO init with `eventlet` async mode.
+- `simple-backend/shared.py` — added `saved_searches: dict = {}` to `_Services` singleton.
+
+### Fixed
+- `FreshnessIndicator.tsx` — renamed custom `color` styled-prop to `chipcolor` to avoid collision with MUI Chip's built-in `color` prop (TypeScript error).
+- `EntityChip.tsx` — renamed custom `clickable` prop to `isclickable` to avoid collision with MUI Chip's `clickable: boolean` prop.
+
+### Security
+- `collaboration.py` — annotation REST endpoints respect existing JWT auth headers; Socket.IO events are room-scoped so cross-investigation leakage is not possible.
+- `enrichment.py` — SSE endpoint hard-capped at 35 seconds; individual MCP source timeouts enforced via `aiohttp.ClientTimeout`.
+
+---
+
 ## [1.0.0] - 2026-02-26
 
 ### Added

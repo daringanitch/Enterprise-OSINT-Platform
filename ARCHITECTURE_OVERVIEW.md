@@ -31,6 +31,11 @@ The Enterprise OSINT Platform is a Kubernetes-native, microservices-based open-s
 - **Financial Intelligence**: SEC filings, stock data, company analysis
 - **Technical Intelligence**: GitHub/GitLab repository analysis, code intelligence
 - **Graph Intelligence**: Palantir-style relationship analysis, community detection, blast radius analysis
+- **Analyst Collaboration**: Real-time multi-analyst presence via Socket.IO, live annotations, cursor sharing
+- **Unified IOC Enrichment**: SSE fan-out to all MCP servers simultaneously with live result streaming
+- **Command Palette**: Global ⌘K command palette for instant navigation and IOC triage
+- **Investigation Kanban**: Visual operational board grouping investigations by workflow stage
+- **Evidence Chain**: Geometric-mean confidence attribution chains with IC-standard assessment language
 
 ---
 
@@ -559,6 +564,10 @@ class Services:
 | `correlations.py` | `/api/correlations/*` | Cross-investigation correlation endpoints |
 | `threat_actors.py` | `/api/threat-actors/*` | Threat actor dossier endpoints |
 | `templates.py` | `/api/templates/*` | Investigation template endpoints |
+| `entities.py` | `/api/entities/*` | Entity cross-investigation lookup |
+| `searches.py` | `/api/searches/*`, `/api/investigations/search` | Saved searches + full-text search |
+| `enrichment.py` | `/api/enrich`, `/api/enrich/sources` | SSE fan-out IOC enrichment |
+| `collaboration.py` | `/api/investigations/*/annotations`, `/api/investigations/*/presence` + Socket.IO | Real-time collaboration |
 
 ---
 
@@ -567,20 +576,24 @@ class Services:
 ### Backend Technologies
 - **Language**: Python 3.11
 - **Framework**: Flask 2.3.3
-- **WSGI Server**: Gunicorn 21.2.0
+- **WSGI Server**: Gunicorn 21.2.0 (eventlet when SocketIO is active)
 - **Database ORM**: SQLAlchemy 2.0.21
-- **Async Processing**: asyncio + aiohttp
+- **Async Processing**: asyncio + aiohttp (fan-out enrichment in background threads)
 - **Authentication**: PyJWT 2.8.0
 - **API Documentation**: Flask-CORS 4.0.0
+- **Real-Time Transport**: Flask-SocketIO 5.3.6 + python-socketio 5.10.0 + eventlet 0.35.2
+- **Streaming**: Flask `stream_with_context` for Server-Sent Events (SSE)
 
 ### Frontend Technologies
 - **Framework**: React 18.2.0
 - **Language**: TypeScript 5.3+
 - **UI Library**: Material-UI 5.14.5
-- **State Management**: Redux Toolkit
-- **HTTP Client**: Axios 1.5.0
+- **State Management**: Redux Toolkit + React Context (CommandPalette, Collaboration)
+- **HTTP Client**: Axios 1.5.0 + native `fetch` with `ReadableStream` (SSE)
+- **Real-Time**: socket.io-client 4.6.0
+- **Animations**: framer-motion (KanbanBoard card transitions)
 - **PDF Generation**: jsPDF 2.5.1
-- **Testing**: Jest, React Testing Library (484 frontend tests)
+- **Testing**: Jest, React Testing Library (350+ frontend tests)
 - **Accessibility**: WCAG 2.1 compliant components
 
 ### Infrastructure Technologies
@@ -1146,17 +1159,31 @@ frontend/
 │   │   │   ├── FormField.tsx           # Text, Select, Checkbox, Switch, Textarea
 │   │   │   ├── StatusIndicator.tsx     # Status badges, RiskLevelIndicator
 │   │   │   ├── Loading.tsx             # Spinner, ProgressBar, Skeletons
-│   │   │   └── Toast.tsx               # Toast notifications with provider
+│   │   │   ├── Toast.tsx               # Toast notifications with provider
+│   │   │   ├── CommandPalette.tsx      # Global ⌘K palette with IOC detection + fuzzy search
+│   │   │   ├── EntityChip.tsx          # Inline entity chip with 400ms hover preview
+│   │   │   ├── EntityHoverCard.tsx     # MUI Popover entity intelligence card
+│   │   │   └── FreshnessIndicator.tsx  # Data-age dot/chip badge (5 tiers)
 │   │   ├── layout/                     # Layout components
 │   │   │   ├── Header.tsx              # Search, notifications, user menu
 │   │   │   ├── Sidebar.tsx             # Collapsible navigation
-│   │   │   └── Layout.tsx              # Main wrapper with PageWrapper
+│   │   │   └── Layout.tsx              # Main wrapper; hosts CommandPaletteContext + SocketIO
+│   │   ├── investigations/             # Investigation list components
+│   │   │   ├── KanbanBoard.tsx         # 5-column Kanban with framer-motion animations
+│   │   │   └── SearchBar.tsx           # Filter bar with saved-search management
+│   │   ├── collaboration/              # Real-time multi-analyst components
+│   │   │   ├── PresenceBar.tsx         # Avatar stack with last-seen tooltips
+│   │   │   └── AnnotationPanel.tsx     # Live annotation feed with entity tagging
+│   │   ├── enrichment/                 # IOC enrichment components
+│   │   │   └── EnrichmentPanel.tsx     # SSE consumer; source-card state machine
+│   │   ├── analysis/                   # Analysis components
+│   │   │   └── EvidenceChain.tsx       # Geometric-mean confidence attribution chain
 │   │   ├── dashboard/                  # Dashboard-specific components
 │   │   │   ├── MITREDashboard.tsx      # MITRE ATT&CK full dashboard panel
 │   │   │   ├── ExecutiveSummary.tsx    # Executive summary with key findings
 │   │   │   ├── AnomalyPanel.tsx        # Anomaly detection display
 │   │   │   └── RiskCommandCenter.tsx   # Risk command center overview
-│   │   ├── visualizations/             # Chart and graph components (15 components)
+│   │   ├── visualizations/             # Chart and graph components (16 components)
 │   │   │   ├── AreaChart.tsx           # Area/fill time-series chart
 │   │   │   ├── BarChart.tsx            # Horizontal/vertical bar chart
 │   │   │   ├── CommunityMap.tsx        # Graph community visualization
@@ -1166,11 +1193,12 @@ frontend/
 │   │   │   ├── InvestigationGraph.tsx  # Investigation entity graph
 │   │   │   ├── InvestigationTimeline.tsx # Chronological timeline
 │   │   │   ├── LineChart.tsx           # Multi-series line chart
+│   │   │   ├── MitreMatrix.tsx         # Interactive 14-tactic ATT&CK matrix + Navigator export
 │   │   │   ├── NetworkGraph.tsx        # Network topology graph
 │   │   │   ├── PieChart.tsx            # Pie/donut chart
 │   │   │   ├── RiskGauge.tsx           # Risk score gauge chart
 │   │   │   ├── StatCard.tsx            # KPI stat card with trend
-│   │   │   ├── ThreatMatrix.tsx        # MITRE ATT&CK heatmap
+│   │   │   ├── ThreatMatrix.tsx        # MITRE ATT&CK heatmap (legacy dashboard)
 │   │   │   └── TimelineChart.tsx       # Investigation timeline visualization
 │   │   └── a11y/                       # Accessibility components
 │   │       ├── SkipLinks.tsx           # Skip navigation for keyboard users
@@ -1182,26 +1210,39 @@ frontend/
 │   │   ├── useFocusTrap.ts             # Modal focus trapping
 │   │   ├── useAnnounce.ts              # ARIA live announcements
 │   │   ├── useMediaQuery.ts            # Responsive breakpoints
-│   │   └── useInvestigationPolling.ts  # Real-time investigation status updates
+│   │   ├── useInvestigationPolling.ts  # Real-time investigation status updates
+│   │   ├── useCommandPalette.ts        # Global ⌘K state + keyboard shortcut registration
+│   │   ├── useCollaboration.ts         # Socket.IO lifecycle, presence, annotations
+│   │   └── useSavedSearches.ts         # Saved search CRUD + match-count alerting
 │   ├── utils/                          # Utilities
 │   │   ├── theme.ts                    # Design system tokens
 │   │   ├── validation.ts               # Form validators (15+)
-│   │   └── a11y.ts                     # Color contrast, focus helpers
+│   │   ├── a11y.ts                     # Color contrast, focus helpers
+│   │   └── freshness.ts                # Data-age tier calculation (5 tiers, 0-180+ days)
 │   ├── types/                          # TypeScript definitions
 │   │   └── index.ts                    # 80+ interfaces
-│   └── __tests__/                      # Test suites (484 frontend tests)
+│   └── __tests__/                      # Test suites (350+ frontend tests)
 ├── package.json                        # Node dependencies
 └── tsconfig.json                       # TypeScript configuration
 ```
 
 **Frontend Capabilities (Updated):**
-- 16 pages supporting all new backend modules
+- 16 pages supporting all backend modules
 - AnalyticWorkbench: NATO/Admiralty scale ratings, ACH matrix, hypothesis tracking
 - Monitoring dashboard: Real-time watchlist feed with 30s auto-refresh, alert management
 - Credential intelligence: Multi-source breach checking with severity scoring
 - Tradecraft visualization: Confidence statements, alternative explanations, devil's advocacy
 - STIX/MISP export: One-click threat intelligence standard export
 - Service settings: In-app API key management for 19-service catalog
+- **Live collaboration**: Multi-analyst presence bar, real-time annotation panel, cursor broadcast
+- **Command Palette (⌘K)**: Global navigation + IOC auto-detection + investigation search
+- **Investigation Kanban**: 5-column workflow board with framer-motion drag animations
+- **Unified IOC Enrichment**: `EnrichmentPanel` streaming fan-out across all MCP sources via SSE
+- **Interactive MITRE Matrix**: `MitreMatrix` — 14-tactic ATT&CK grid, heat/coverage modes, Navigator export
+- **Evidence Chain**: `EvidenceChain` — geometric-mean confidence chain with IC-standard assessment language
+- **Entity hover previews**: `EntityChip` + `EntityHoverCard` — 400ms debounced popover with cross-investigation intel
+- **Saved searches with alerts**: `SearchBar` + `useSavedSearches` — named filter presets + Toast notifications
+- **Freshness badges**: `FreshnessIndicator` — 5-tier data-age display (fresh → expired)
 
 ### Legacy Frontend Structure (`simple-frontend/`)
 
@@ -1373,6 +1414,17 @@ kubectl exec -it deployment/osint-backend -n osint-platform -- psql $POSTGRES_UR
 
 ## Future Enhancements
 
+### Recently Delivered (v1.1–v1.2)
+- ✅ Real-time collaboration (Socket.IO presence, annotations, cursor sharing)
+- ✅ Unified IOC enrichment with SSE fan-out streaming
+- ✅ Command Palette (⌘K) with global navigation and IOC triage
+- ✅ Interactive MITRE ATT&CK Matrix with Navigator export
+- ✅ Confidence Scoring & Evidence Chain (geometric-mean attribution)
+- ✅ Investigation Kanban board with workflow stage grouping
+- ✅ Entity hover previews with cross-investigation intelligence
+- ✅ Saved searches with new-match Toast alerting
+- ✅ Freshness indicators (data-age decay badges)
+
 ### Planned Features
 1. **Machine Learning Integration**
    - Anomaly detection in infrastructure patterns
@@ -1391,8 +1443,8 @@ kubectl exec -it deployment/osint-backend -n osint-platform -- psql $POSTGRES_UR
 
 4. **Operational Improvements**
    - GraphQL API endpoint
-   - Real-time collaboration
    - Mobile application
+   - Persistent graph database (production Neo4j deployment)
 
 ---
 
