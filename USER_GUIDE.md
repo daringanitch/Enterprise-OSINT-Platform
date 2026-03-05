@@ -499,9 +499,46 @@ For each service:
 
 ### Mode & General tab
 
-- **Demo Mode / Live Mode** toggle — switch between simulated responses (no keys needed) and
-  live external API calls.
+- **Demo Mode / Live Mode** toggle — switches the backend between `demo` and `production`
+  operating modes. This is the in-UI equivalent of the `OPERATION_MODE` environment variable.
 - Notification preferences, theme, and other platform-wide settings.
+
+#### Understanding Demo Mode vs. Live Mode
+
+There are two independent layers that control what data you see:
+
+**Layer 1 — Operating mode (`OPERATION_MODE`)**
+
+| Mode | What the backend serves |
+|------|------------------------|
+| **Demo** (default) | Pre-seeded synthetic investigations and mock findings. API keys, even if configured, are intentionally ignored. |
+| **Live** (production) | Real investigation data from the database. External API calls are made when keys are available. |
+
+The platform defaults to Demo mode unless `OPERATION_MODE=production` is set in the environment
+at startup — or until you toggle it here. Toggling in the UI persists the choice across restarts
+(stored in `/app/data/mode_config.json`).
+
+> If you deployed via `./start.sh k8s` or `kubectl apply -f k8s/` and see only sample
+> investigations, this is why — the k8s manifests do not set `OPERATION_MODE` by default.
+> Toggle to Live mode here, or add `OPERATION_MODE: production` to the backend deployment
+> manifest for it to take effect from startup.
+
+**Layer 2 — API keys (per-service)**
+
+Switching to Live mode does not require any API keys. The platform is designed so every service
+works in some form without one:
+
+- **Free services** (DNS, WHOIS, SSL, port scanning) — fully operational, no key ever needed
+- **Freemium services** (VirusTotal, Shodan, AbuseIPDB) — return empty or minimal results
+  without a key; add a free key on the provider's website to unlock real data
+- **Paid/optional services** (Dehashed, Hudson Rock) — skipped entirely during enrichment
+  until a key is configured
+- **AI analysis** (OpenAI) — narrative summaries and GPT-4 threat profiles are skipped;
+  structured findings are still returned from other sources
+
+You can add, test, and remove keys at any time on the **Intelligence Services** tab without
+redeploying. See [DEPLOYMENT_GUIDE.md → Operating Modes](DEPLOYMENT_GUIDE.md#operating-modes)
+for how to configure this at the infrastructure level.
 
 ---
 

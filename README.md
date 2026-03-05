@@ -100,6 +100,13 @@ basic investigation management.
 The **full platform** ships an entirely separate, production-grade React frontend with 16
 dedicated pages, a component design system, and deep integrations into every backend capability.
 
+> **Note on demo data vs. live intelligence:** Even after deploying the full React frontend, the
+> backend defaults to serving synthetic demo data unless you explicitly set
+> `OPERATION_MODE=production`. And even in production mode, external API results (VirusTotal,
+> Shodan, etc.) require API keys — without them, each service degrades gracefully rather than
+> breaking. See [DEPLOYMENT_GUIDE.md → Operating Modes](DEPLOYMENT_GUIDE.md#operating-modes)
+> for a full explanation of how these two layers interact.
+
 ### What the Demo Gives You
 
 | Component | Demo (`simple-frontend`) |

@@ -3,15 +3,160 @@
 Complete guide for deploying the Enterprise OSINT Platform to Kubernetes in development, staging, and production environments.
 
 ## Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Quick Start Deployment](#quick-start-deployment)
-3. [Development Environment](#development-environment)
-4. [Production Deployment](#production-deployment)
-5. [High Availability Setup](#high-availability-setup)
-6. [Security Hardening](#security-hardening)
-7. [Monitoring and Maintenance](#monitoring-and-maintenance)
-8. [Backup and Recovery](#backup-and-recovery)
-9. [Troubleshooting](#troubleshooting)
+1. [Operating Modes](#operating-modes)
+2. [Prerequisites](#prerequisites)
+3. [Quick Start Deployment](#quick-start-deployment)
+4. [Development Environment](#development-environment)
+5. [Production Deployment](#production-deployment)
+6. [High Availability Setup](#high-availability-setup)
+7. [Security Hardening](#security-hardening)
+8. [Monitoring and Maintenance](#monitoring-and-maintenance)
+9. [Backup and Recovery](#backup-and-recovery)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
+## Operating Modes
+
+Understanding how the platform decides what data to serve — and when external APIs are called —
+is essential before you deploy. There are two independent layers to be aware of.
+
+---
+
+### Layer 1: `OPERATION_MODE` — Demo Data vs. Real Data
+
+The `OPERATION_MODE` environment variable controls whether the backend serves **synthetic/mock
+investigation data** or **real investigation data from the database**.
+
+| Value | Behaviour |
+|-------|-----------|
+| `demo` (default) | Serves pre-seeded synthetic investigations, mock findings, and demo reports. No real intelligence gathering is performed. API keys, even if present, are **ignored** by `get_api_key_if_available()`. |
+| `production` | Serves real investigation data. External API calls are made when keys are configured. Graceful per-service degradation applies when keys are absent. |
+
+**The default is `demo`** — if you do not explicitly set `OPERATION_MODE=production`, the
+backend will always start in demo mode regardless of how it is deployed.
+
+#### How each deployment method sets `OPERATION_MODE`
+
+| Deployment method | `OPERATION_MODE` set? | Effective mode |
+|-------------------|-----------------------|---------------|
+| `./start.sh demo` / `docker compose -f docker-compose.demo.yml up` | Not set | `demo` (default) |
+| `docker compose up -d` (production compose file) | `production` | `production` |
+| `./start.sh k8s` / `kubectl apply -f k8s/` | **Not set in manifests** | `demo` (default) ⚠️ |
+
+> **Important for Kubernetes users:** The k8s manifests do not set `OPERATION_MODE` by default.
+> A bare `./start.sh k8s` will deploy the full React UI and all MCP servers, but the backend
+> will still serve demo data. To use live intelligence gathering you must add
+> `OPERATION_MODE: production` to the backend deployment environment block — see
+> [Production Deployment](#production-deployment) below.
+
+#### Switching mode at runtime
+
+You can also toggle the mode without redeploying via the API or the Settings page in the UI:
+
+```bash
+# Switch to production mode (requires a valid JWT)
+curl -X POST http://localhost:5001/api/settings/mode \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "production"}'
+
+# Check current mode
+curl http://localhost:5001/api/settings/mode \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The mode is persisted to `/app/data/mode_config.json` inside the container and survives
+restarts (as long as the data volume is mounted). In the UI, use **Settings → Mode & General**
+to toggle between Demo and Live mode with a single switch.
+
+---
+
+### Layer 2: API Keys — Live Results vs. Graceful Degradation
+
+API keys are separate from `OPERATION_MODE`. Even in `production` mode, **no keys are
+required** — the platform is designed so that every service provides some value without one.
+
+There are no keys in the `required_api_keys` list, so the automatic demo-mode fallback never
+fires. Instead, each service degrades gracefully on its own:
+
+| Tier | Examples | Behaviour without a key |
+|------|----------|-------------------------|
+| **Free — no key needed** | DNS, WHOIS, SSL certificates, port scanning | Fully operational, unlimited |
+| **Freemium** | VirusTotal, Shodan, AbuseIPDB, AlienVault OTX | Returns empty or minimal results; rate-limited or blocked at the API |
+| **Paid / optional** | Dehashed, Hudson Rock, full Shodan API | Shows "Needs API Key" in the Data Sources page; skipped during enrichment |
+| **AI analysis** | OpenAI GPT-4 | AI-powered summaries and threat profiles are skipped; structured data still returned |
+
+The Data Sources page (`/data-sources`) shows the live status of every service so you can see
+exactly which sources are operational, limited, or needing a key.
+
+#### Adding API keys
+
+**Docker Compose** — add keys to your `.env` file:
+
+```bash
+OPENAI_API_KEY=sk-...
+VIRUSTOTAL_API_KEY=...
+SHODAN_API_KEY=...
+ABUSEIPDB_API_KEY=...
+```
+
+**Kubernetes** — create a Secret and reference it in the backend deployment:
+
+```bash
+kubectl create secret generic osint-api-keys \
+  --namespace=osint-platform \
+  --from-literal=virustotal-api-key="${VIRUSTOTAL_API_KEY}" \
+  --from-literal=shodan-api-key="${SHODAN_API_KEY}" \
+  --from-literal=abuseipdb-api-key="${ABUSEIPDB_API_KEY}" \
+  --from-literal=openai-api-key="${OPENAI_API_KEY}"
+```
+
+Then add to the backend deployment env block:
+
+```yaml
+- name: VIRUSTOTAL_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: osint-api-keys
+      key: virustotal-api-key
+- name: SHODAN_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: osint-api-keys
+      key: shodan-api-key
+- name: ABUSEIPDB_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: osint-api-keys
+      key: abuseipdb-api-key
+- name: OPENAI_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: osint-api-keys
+      key: openai-api-key
+```
+
+You can also add or update keys at runtime without redeploying — use **Settings →
+Intelligence Services** in the UI to paste a key, save it, and test it with a live API call.
+Keys entered via the UI are stored in Vault (production) or a local JSON file (demo/dev) and
+loaded into environment variables automatically.
+
+---
+
+### Summary: What You Need for Fully Live Intelligence
+
+To run the platform with real investigation data **and** live external API results:
+
+1. Set `OPERATION_MODE=production` in the backend environment (compose file or k8s manifest)
+2. Provide API keys for the services you want (at minimum VirusTotal + Shodan cover the most
+   ground; all others are additive)
+3. Deploy the React frontend (via `docker compose up -d` or `kubectl apply -f k8s/`) to access
+   all 16 analyst pages
+
+Without step 1 the backend silently serves demo data regardless of keys. Without step 2 you get
+real intelligence results via the API but some enrichment sources return empty responses.
+Without step 3 you have the full API available but only the legacy single-page demo UI.
 
 ---
 
