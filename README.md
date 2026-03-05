@@ -422,6 +422,7 @@ Then restart with `./start.sh local`
 | Document | Description |
 |----------|-------------|
 | [QUICKSTART.md](QUICKSTART.md) | 5-minute getting started guide |
+| [USER_GUIDE.md](USER_GUIDE.md) | Page-by-page walkthrough of all 16 UI pages |
 | [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) | System architecture details |
 | [API_REFERENCE.md](API_REFERENCE.md) | Complete API documentation |
 | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Production deployment |
