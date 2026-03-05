@@ -106,11 +106,9 @@ describe('EvidenceChain — corroboration badge', () => {
     const nodes = [
       makeNode({ id: 'c1', label: 'Corroborated Source', corroborated: true }),
     ];
-    const { container } = render(<EvidenceChain nodes={nodes} />);
-    // MUI CheckCircleIcon renders as an SVG; the title attribute on Tooltip has the text
-    expect(container.querySelector('[data-testid="CheckCircleIcon"]') ||
-      // Fallback: look for the tooltip text via title
-      container.querySelector('svg')).toBeTruthy();
+    render(<EvidenceChain nodes={nodes} />);
+    // MUI CheckCircleIcon renders with data-testid="CheckCircleIcon" in test environments
+    expect(screen.getByTestId('CheckCircleIcon')).toBeInTheDocument();
   });
 
   it('does not crash when corroborated is false', () => {

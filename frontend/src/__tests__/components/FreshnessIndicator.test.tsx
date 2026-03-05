@@ -107,6 +107,8 @@ describe('FreshnessIndicator — className prop', () => {
     const { container } = render(
       <FreshnessIndicator lastSeen={daysAgoISO(3)} className="test-class" />
     );
+    // className forwarding requires direct DOM inspection — no Testing Library equivalent
+    // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access
     expect(container.querySelector('.test-class')).toBeInTheDocument();
   });
 });
