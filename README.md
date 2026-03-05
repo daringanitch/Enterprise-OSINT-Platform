@@ -144,6 +144,61 @@ Deploying the React frontend — either via `docker compose` (see the `frontend/
 | **Data Sources** | `/data-sources` | MCP server health and configuration — Infrastructure (DNS/WHOIS/certs), Threat (VT/Shodan/AbuseIPDB), Social, Financial (SEC), AI Analyzer |
 | **Settings** | `/settings` | API key management, notification preferences, theme, platform configuration |
 
+#### How to Navigate the UI
+
+The full React frontend organizes its 16 pages across three navigation mechanisms:
+
+**1. Left Sidebar — always visible**
+
+The sidebar is split into two labelled sections. Clicking a top-level item navigates directly;
+"Investigations" expands in-place to reveal three sub-items.
+
+```
+MAIN
+  Dashboard
+  Investigations
+    ├─ Active
+    ├─ History
+    └─ Saved
+  Reports
+  Threat Intelligence
+  Compliance
+
+ADMINISTRATION
+  Team
+  Data Sources
+  Monitoring
+  Credentials
+  Settings
+```
+
+The sidebar collapses to icon-only mode (64 px) — hover any icon to see its label as a tooltip.
+
+**2. Investigation-Scoped Pages — reached from inside an investigation**
+
+Four pages live inside a specific investigation. Open any investigation from the Investigations
+list, then use the tabs or navigation links within the Investigation Detail view:
+
+| Page | How to reach it |
+|------|-----------------|
+| Investigation Detail | Click any investigation in the list |
+| Graph Intelligence | "Graph" tab inside an open investigation |
+| Threat Analysis | "Threats" tab inside an open investigation |
+| Analytic Workbench | "Workbench" tab inside an open investigation |
+
+**3. New Investigation — triggered from the Investigations list**
+
+Click the **+ New Investigation** button on the Investigations list page to reach the template
+picker and form at `/investigations/new`.
+
+**4. Command Palette (⌘K / Ctrl+K) — keyboard shortcut from anywhere**
+
+Press ⌘K (Mac) or Ctrl+K (Windows/Linux) at any time to open the Command Palette. Type to jump
+to any sidebar page, open a recent investigation by name, or paste an IOC directly to trigger
+fan-out enrichment — all without taking your hands off the keyboard.
+
+---
+
 #### Cross-Cutting Features (Available on Every Page)
 
 - **Command Palette (⌘K / Ctrl+K)**: Keyboard-first launcher — navigate to any page, open any
