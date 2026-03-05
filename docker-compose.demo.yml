@@ -33,6 +33,8 @@ services:
       POSTGRES_DB: osint_audit
     volumes:
       - demo_postgres_data:/var/lib/postgresql/data
+      # Run schema DDL on first boot (no-op on subsequent starts)
+      - ./simple-backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - osint-demo-network
     healthcheck:
@@ -91,12 +93,25 @@ services:
         condition: service_healthy
     networks:
       - osint-demo-network
+    # Override CMD: use gunicorn eventlet worker (required by flask-socketio).
+    # Without -k eventlet, the gthread default worker conflicts with eventlet's
+    # async I/O model and gunicorn may hang before binding port 5001.
+    command: >
+      gunicorn --bind 0.0.0.0:5001
+               --worker-class eventlet
+               --workers 1
+               --timeout 300
+               --access-logfile -
+               --error-logfile -
+               app:app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      # Eventlet worker startup + all blueprint imports can take up to 60 s
+      # on a cold Docker build; give it plenty of runway before failing.
+      start_period: 60s
     restart: unless-stopped
 
   # RQ Worker — processes investigation jobs queued by the backend
@@ -125,6 +140,12 @@ services:
         condition: service_healthy
     networks:
       - osint-demo-network
+    # The Dockerfile HEALTHCHECK hits http://localhost:5001/health, which only
+    # exists in the backend container (gunicorn).  The worker runs rq, not
+    # gunicorn, so port 5001 is never opened here — disable the health check
+    # so Docker doesn't report the worker as perpetually unhealthy.
+    healthcheck:
+      disable: true
     restart: unless-stopped
     command: >
       rq worker investigations reports mcp_operations compliance default
