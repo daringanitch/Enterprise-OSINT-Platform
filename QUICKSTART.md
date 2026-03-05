@@ -26,14 +26,35 @@ docker compose -f docker-compose.demo.yml up -d
 
 ## What You Get
 
-| Feature | Demo Mode |
-|---------|-----------|
-| Web Interface | http://localhost:8080 |
-| API | http://localhost:5001 |
-| Sample Investigations | 5 pre-loaded |
-| Report Generation | Full PDF reports |
-| External APIs | Simulated (no keys needed) |
-| Database | PostgreSQL (auto-configured) |
+The demo starts two things: the **full Flask backend** (all 160+ API endpoints operational) and a
+**lightweight legacy frontend** (`simple-frontend`) that exposes a small subset of the UI.
+
+| Feature | Demo (`simple-frontend`) | Full Platform (React + k8s) |
+|---------|--------------------------|------------------------------|
+| Web Interface | http://localhost:8080 | http://localhost:8080 (React) |
+| API | http://localhost:5001 | http://localhost:5001 |
+| Sample investigations | 5 pre-loaded | unlimited |
+| Report generation | ✅ PDF reports | ✅ PDF + STIX 2.1 export |
+| External APIs | Simulated (no keys needed) | Live (add API keys to `.env`) |
+| Database | PostgreSQL (auto-configured) | PostgreSQL (auto-configured) |
+| MITRE ATT&CK matrix | ❌ (API only) | ✅ Interactive + Navigator export |
+| Graph intelligence | ❌ (API only) | ✅ Full network graph UI |
+| Credential intelligence | ❌ (API only) | ✅ HIBP / Dehashed / Hudson Rock |
+| Threat actor dossiers | ❌ (API only) | ✅ 26-actor library with TTP scoring |
+| Compliance dashboards | ❌ (API only) | ✅ GDPR / CCPA / HIPAA |
+| Monitoring / watchlists | ❌ (API only) | ✅ Real-time diffing + alerts |
+| Live analyst collaboration | ❌ (API only) | ✅ Socket.IO presence + annotations |
+| Command Palette (⌘K) | ❌ | ✅ Keyboard-first navigation |
+| Saved searches + alerts | ❌ | ✅ Toast notifications on match |
+| Kanban investigation board | ❌ | ✅ 5-column operational view |
+| Entity hover preview cards | ❌ | ✅ Inline popover on any IOC |
+| Freshness / decay badges | ❌ | ✅ Color-coded IOC age tiers |
+| Evidence chain viewer | ❌ | ✅ Confidence chain per finding |
+
+> **Bottom line:** The demo is a great way to try the API and core investigation workflow. For
+> the full analyst experience, deploy the React frontend via Kubernetes (`./start.sh k8s`) or
+> the production Docker Compose stack. See the
+> [Demo vs. Full Platform section in README.md](README.md#demo-vs-full-platform) for details.
 
 ## Default Login
 
@@ -108,5 +129,20 @@ See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the full 10-minute walkthrough.
 3. Apply an investigation template: `POST /api/templates/apt_attribution/apply`
 4. Generate a PDF report
 5. Check the API at http://localhost:5001/health
+
+### Ready for the Full Platform?
+
+To unlock all 16 React UI pages and the complete analyst feature set:
+
+```bash
+# Kubernetes (recommended for production)
+./start.sh k8s
+
+# — or Docker Compose with React frontend —
+docker compose up -d
+```
+
+See [README.md → Demo vs. Full Platform](README.md#demo-vs-full-platform) for the complete
+feature comparison and [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for production setup.
 
 For full documentation, see [README.md](README.md).

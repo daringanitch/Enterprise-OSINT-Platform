@@ -12,6 +12,12 @@ Open http://localhost:8080 and login with `admin` / `admin123`
 
 That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 
+> **Note:** The one-command demo uses the legacy `simple-frontend` (a single-page HTML app) which
+> exposes only a small slice of the platform. For the full analyst experience — MITRE ATT&CK
+> matrix, graph intelligence, credential exposure, threat actor dossiers, live collaboration,
+> and 16 dedicated pages — deploy the **React frontend** via Kubernetes or Docker Compose.
+> [See the Demo vs. Full Platform comparison below.](#demo-vs-full-platform)
+
 ## Platform Overview
 
 ```
@@ -82,6 +88,120 @@ That's it! See [QUICKSTART.md](QUICKSTART.md) for more options.
 - **Visualization Components**: Charts (Line, Bar, Pie, Area), RiskGauge, Timeline, NetworkGraph, Heatmap, ThreatMatrix, MitreMatrix (interactive + Navigator export), DataTable
 - **Accessibility**: WCAG 2.1 compliant with keyboard navigation, focus management, screen reader support
 - **484+ Component Tests**: Comprehensive test coverage
+
+## Demo vs. Full Platform
+
+The quick-start demo (`./start.sh demo`) is a **proof-of-concept** designed to let you kick the
+tyres in under five minutes — no API keys, no config files, no infrastructure required. It
+serves the **`simple-frontend`** (a legacy single-page HTML/JS app) backed by the full Flask
+API, but the UI only wires up a handful of endpoints and has no navigation beyond dashboards and
+basic investigation management.
+
+The **full platform** ships an entirely separate, production-grade React frontend with 16
+dedicated pages, a component design system, and deep integrations into every backend capability.
+
+### What the Demo Gives You
+
+| Component | Demo (`simple-frontend`) |
+|-----------|--------------------------|
+| UI technology | Vanilla HTML / CSS / JavaScript (single `index.html`) |
+| Navigation | Dashboard, Investigations list, basic investigation detail |
+| Investigations | Create, view status, view basic findings |
+| Reports | View/download PDF reports |
+| API coverage | ~10 of 160+ endpoints wired to the UI |
+| Real-time features | None |
+| Graph intelligence | Not visible in UI (available via API) |
+| MITRE ATT&CK | Not visible in UI (available via API) |
+| Compliance | Not visible in UI (available via API) |
+| Credential intelligence | Not visible in UI (available via API) |
+| Threat actor dossiers | Not visible in UI (available via API) |
+| Collaboration | Not visible in UI (available via API) |
+| Monitoring / watchlists | Not visible in UI (available via API) |
+
+The demo is intentionally minimal so first-time users aren't overwhelmed. All 160+ API endpoints
+are fully operational in demo mode — you can call them directly with `curl` or any HTTP client.
+
+### What the Full Platform (React Frontend + Kubernetes) Gives You
+
+Deploying the React frontend — either via `docker compose` (see the `frontend/` service) or
+`kubectl apply -f k8s/` — unlocks all 16 pages and the complete analyst workflow:
+
+| Page | Route | What you can do |
+|------|-------|-----------------|
+| **Dashboard** | `/dashboard` | Real-time KPI widgets, recent investigations, risk heatmap, alert feed, API health status |
+| **Investigations** | `/investigations` | Full list with search/filter bar, saved searches with Toast alerts, **Kanban view** (5-column operational board), indicator freshness badges |
+| **New Investigation** | `/investigations/new` | 6 pre-built analyst templates (APT attribution, ransomware, phishing, M&A due diligence, insider threat, vulnerability exposure) |
+| **Investigation Detail** | `/investigations/:id` | 7-stage workflow progress, entity timeline, pivot suggestions, cross-investigation correlation, live analyst collaboration (presence + annotations) |
+| **Graph Intelligence** | `/investigations/:id/graph` | Palantir-style interactive network graph — 35+ entity types, 45+ relationship types, PageRank, betweenness centrality, community detection, blast radius / compromise impact analysis |
+| **Threat Analysis** | `/investigations/:id/threats` | MITRE ATT&CK technique evidence with heatmap overlay, one-click export to ATT&CK Navigator layer JSON |
+| **Analytic Workbench** | `/investigations/:id/workbench` | NATO Admiralty rating scale, ACH (Analysis of Competing Hypotheses) matrix, IC-standard confidence levels, devil's advocate workflow |
+| **Reports** | `/reports` | PDF report library, executive vs. technical summaries, STIX 2.1 bundle export, scheduled report runs |
+| **Threat Intelligence** | `/threat-intelligence` | 26-actor threat actor dossier library, TTP overlap scoring (MITRE ATT&CK), sector and technique filtering, entity hover preview cards |
+| **Compliance** | `/compliance` | GDPR/CCPA/HIPAA assessment dashboards, evidence mapping, remediation tracking |
+| **Credential Intelligence** | `/credentials` | HIBP / Dehashed / Hudson Rock breach lookup, paste site monitoring, k-anonymity password checks |
+| **Monitoring** | `/monitoring` | Real-time watchlist manager, snapshot diffing, configurable check intervals, alert history |
+| **Team** | `/team` | User management, role assignments (admin / analyst / viewer), audit trail |
+| **Data Sources** | `/data-sources` | MCP server health and configuration — Infrastructure (DNS/WHOIS/certs), Threat (VT/Shodan/AbuseIPDB), Social, Financial (SEC), AI Analyzer |
+| **Settings** | `/settings` | API key management, notification preferences, theme, platform configuration |
+
+#### Cross-Cutting Features (Available on Every Page)
+
+- **Command Palette (⌘K / Ctrl+K)**: Keyboard-first launcher — navigate to any page, open any
+  investigation, or paste an IOC directly to trigger immediate fan-out enrichment without leaving
+  your current view.
+- **Live Collaboration**: Socket.IO investigation rooms with real-time analyst presence (avatars +
+  status), live annotation feed with entity tagging, and cursor broadcasting. Multiple analysts
+  can annotate the same investigation simultaneously.
+- **Unified IOC Enrichment ("Investigate This")**: Single command fans out to all 5 MCP
+  intelligence servers in parallel and streams results back via Server-Sent Events (SSE) as a
+  live timeline — see each source resolve in real time with findings, confidence, and risk scores.
+- **Entity Hover Preview Cards**: Hovering any IP, domain, email address, or hash anywhere in
+  the UI shows a rich popover (risk score, linked investigations, last seen, top findings) without
+  navigating away.
+- **Indicator Freshness / Decay Badges**: Every IOC displays a color-coded age tier (🟢 fresh
+  < 7 d / 🔵 recent < 30 d / 🟠 aging < 90 d / 🔴 stale < 180 d / ⚫ expired > 180 d) with
+  an automatic warning when IP ownership or domain sinkholing may have changed.
+- **Evidence Chain Viewer**: Each finding can expose a visual `source → finding → inference →
+  conclusion` confidence chain. Chain confidence is the geometric mean of all node scores —
+  a weak link degrades the whole chain — designed for auditable, defensible intelligence.
+
+### Accessing the Full API in Demo Mode
+
+Even without the React frontend, every endpoint is reachable directly. The demo backend starts
+on `http://localhost:5001`. Get a token and start exploring:
+
+```bash
+# 1. Login
+TOKEN=$(curl -s -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+# 2. Create an investigation
+curl -s -X POST http://localhost:5001/api/investigations \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"evil.example.com","investigation_type":"comprehensive"}' | python3 -m json.tool
+
+# 3. Match threat actors by TTP
+curl -s -X POST http://localhost:5001/api/threat-actors/match \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"techniques":["T1566.001","T1071.001"]}' | python3 -m json.tool
+
+# 4. Apply an investigation template
+curl -s -X POST http://localhost:5001/api/templates/apt_attribution/apply \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"evil.example.com","target_type":"domain"}' | python3 -m json.tool
+
+# 5. Compliance frameworks
+curl -s http://localhost:5001/api/compliance/frameworks \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+See [API_REFERENCE.md](API_REFERENCE.md) for the complete endpoint catalogue.
+
+---
 
 ## Deployment Options
 
