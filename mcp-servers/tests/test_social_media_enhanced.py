@@ -83,7 +83,7 @@ class TestToolsEndpoint:
 
     def test_includes_all_expected_tools(self, client):
         tools = _json(client.get("/tools")).get("tools", {})
-        expected = {"twitter_profile", "reddit_profile", "social_media_search"}
+        expected = {"twitter_profile", "reddit_profile", "social_media_search", "sherlock_username_search"}
         assert expected.issubset(tools.keys()), (
             f"Missing expected tools: {expected - tools.keys()}"
         )
@@ -203,3 +203,87 @@ class TestExecuteEndpointDegradedMode:
         if resp.status_code == 200:
             data = _json(resp)
             assert "timestamp" in data
+
+
+# ---------------------------------------------------------------------------
+# Sherlock username search tool
+# ---------------------------------------------------------------------------
+class TestSherlockUsernameTool:
+    """Tests for sherlock_username_search — Sherlock is mocked so no network calls."""
+
+    def _post(self, client, tool, parameters):
+        payload = {"tool": tool, "parameters": parameters}
+        return client.post(
+            "/execute",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_missing_username_returns_400(self, client):
+        resp = self._post(client, "sherlock_username_search", {})
+        assert resp.status_code == 400
+
+    def test_sherlock_tool_listed_in_tools_endpoint(self, client):
+        tools = _json(client.get("/tools")).get("tools", {})
+        assert "sherlock_username_search" in tools, (
+            "sherlock_username_search not found in /tools"
+        )
+
+    def test_sherlock_tool_has_description(self, client):
+        tools = _json(client.get("/tools")).get("tools", {})
+        defn = tools.get("sherlock_username_search", {})
+        assert "description" in defn
+
+    def test_sherlock_returns_claimed_accounts(self, client, monkeypatch):
+        """Mock run_sherlock so no real scan is made; verify response shape."""
+        import social_media_enhanced_app as srv
+
+        monkeypatch.setattr(
+            srv,
+            "run_sherlock",
+            lambda username: [
+                {"site": "GitHub", "url": "https://github.com/testuser"},
+                {"site": "Twitter", "url": "https://twitter.com/testuser"},
+            ],
+        )
+
+        resp = self._post(client, "sherlock_username_search", {"username": "testuser"})
+        assert resp.status_code == 200
+        data = _json(resp)
+        result = data.get("result", {})
+        assert result.get("username") == "testuser"
+        assert result.get("found_count") == 2
+        assert len(result.get("accounts", [])) == 2
+        assert result["accounts"][0]["site"] == "GitHub"
+        assert result["accounts"][0]["url"] == "https://github.com/testuser"
+
+    def test_sherlock_returns_zero_accounts_when_none_found(self, client, monkeypatch):
+        import social_media_enhanced_app as srv
+
+        monkeypatch.setattr(srv, "run_sherlock", lambda username: [])
+
+        resp = self._post(client, "sherlock_username_search", {"username": "nobody123xyz"})
+        assert resp.status_code == 200
+        result = _json(resp).get("result", {})
+        assert result.get("found_count") == 0
+        assert result.get("accounts") == []
+
+    def test_sherlock_response_has_scan_duration(self, client, monkeypatch):
+        import social_media_enhanced_app as srv
+
+        monkeypatch.setattr(srv, "run_sherlock", lambda username: [])
+
+        resp = self._post(client, "sherlock_username_search", {"username": "testuser"})
+        assert resp.status_code == 200
+        result = _json(resp).get("result", {})
+        assert "scan_duration_seconds" in result
+
+    def test_sherlock_response_has_timestamp(self, client, monkeypatch):
+        import social_media_enhanced_app as srv
+
+        monkeypatch.setattr(srv, "run_sherlock", lambda username: [])
+
+        resp = self._post(client, "sherlock_username_search", {"username": "testuser"})
+        assert resp.status_code == 200
+        result = _json(resp).get("result", {})
+        assert "timestamp" in result

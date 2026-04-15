@@ -14,6 +14,19 @@ import hashlib
 import re
 from typing import Dict, List, Any, Optional
 import base64
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
+# Sherlock is optional — server starts even if not installed
+try:
+    from sherlock_project.sherlock import sherlock as _sherlock_run
+    from sherlock_project.sites import SitesInformation
+    from sherlock_project.result import QueryStatus
+    from sherlock_project.notify import QueryNotify
+    SHERLOCK_AVAILABLE = True
+except ImportError:
+    SHERLOCK_AVAILABLE = False
+
+_executor = ThreadPoolExecutor(max_workers=4)
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -262,6 +275,35 @@ def search_social_media_mentions(query: str) -> Dict[str, Any]:
     results['query_time'] = datetime.utcnow().isoformat()
     return results
 
+def run_sherlock(username: str) -> list[dict]:
+    """
+    Run a Sherlock username scan and return only claimed accounts.
+
+    Executes synchronously — call via _executor.submit() to avoid
+    blocking the Flask worker thread.
+
+    Returns a list of {"site": str, "url": str} dicts.
+    """
+    if not SHERLOCK_AVAILABLE:
+        raise RuntimeError("sherlock-project is not installed")
+
+    sites_info = SitesInformation()
+    site_data = {name: obj.information for name, obj in sites_info.sites.items()}
+    query_notify = QueryNotify()  # base class — silent, no output
+
+    results = _sherlock_run(
+        username,
+        site_data,
+        query_notify,
+        timeout=60,
+    )
+
+    return [
+        {"site": site_name, "url": data["url_user"]}
+        for site_name, data in results.items()
+        if data["status"].status == QueryStatus.CLAIMED
+    ]
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -302,7 +344,16 @@ def list_tools():
                 },
                 'intelligence_type': 'REAL',
                 'example': {'query': 'forestcore.com'}
-            }
+            },
+            'sherlock_username_search': {
+                'description': 'Search 400+ social media sites for a username and return claimed accounts',
+                'parameters': {
+                    'username': {'type': 'string', 'description': 'Username to search for', 'required': True}
+                },
+                'intelligence_type': 'REAL',
+                'requires_api_key': False,
+                'example': {'username': 'john_doe'}
+            },
         }
     })
 
@@ -347,6 +398,34 @@ def execute_tool():
             
             result = search_social_media_mentions(query)
             
+        elif tool == 'sherlock_username_search':
+            username = parameters.get('username')
+            if not username:
+                return jsonify({'error': 'username parameter required'}), 400
+
+            if not SHERLOCK_AVAILABLE:
+                return jsonify({'error': 'sherlock not available'}), 500
+
+            scan_start = datetime.utcnow()
+            try:
+                future = _executor.submit(run_sherlock, username)
+                accounts = future.result(timeout=120)
+            except FuturesTimeoutError:
+                return jsonify({'error': 'scan timed out'}), 504
+            except Exception as exc:
+                logger.error(f"Sherlock scan failed for {username!r}: {exc}")
+                return jsonify({'error': f'scan failed: {exc}'}), 500
+
+            scan_duration = (datetime.utcnow() - scan_start).total_seconds()
+
+            result = {
+                'username': username,
+                'found_count': len(accounts),
+                'accounts': accounts,
+                'scan_duration_seconds': round(scan_duration, 2),
+                'timestamp': datetime.utcnow().isoformat(),
+            }
+
         else:
             return jsonify({'error': f'Unknown tool: {tool}'}), 400
         
@@ -367,8 +446,8 @@ def execute_tool():
             }
         }
         
-        # Cache successful responses
-        if 'error' not in result:
+        # Cache successful responses (skip Sherlock — scan_duration_seconds would reflect stale timing)
+        if 'error' not in result and tool != 'sherlock_username_search':
             cache_response(cache_key, response)
         
         return jsonify(response)
