@@ -83,7 +83,7 @@ class TestToolsEndpoint:
 
     def test_includes_all_expected_tools(self, client):
         tools = _json(client.get("/tools")).get("tools", {})
-        expected = {"twitter_profile", "reddit_profile", "social_media_search"}
+        expected = {"twitter_profile", "reddit_profile", "social_media_search", "sherlock_username_search"}
         assert expected.issubset(tools.keys()), (
             f"Missing expected tools: {expected - tools.keys()}"
         )

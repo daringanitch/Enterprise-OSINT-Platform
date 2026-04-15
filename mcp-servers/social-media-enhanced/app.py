@@ -446,8 +446,8 @@ def execute_tool():
             }
         }
         
-        # Cache successful responses
-        if 'error' not in result:
+        # Cache successful responses (skip Sherlock — scan_duration_seconds would reflect stale timing)
+        if 'error' not in result and tool != 'sherlock_username_search':
             cache_response(cache_key, response)
         
         return jsonify(response)
