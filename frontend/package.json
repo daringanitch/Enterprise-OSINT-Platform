@@ -62,6 +62,10 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "prettier": "^3.1.1"
   },
+  "overrides": {
+    "shell-quote": ">=1.9.0",
+    "websocket-driver": ">=0.7.5"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
