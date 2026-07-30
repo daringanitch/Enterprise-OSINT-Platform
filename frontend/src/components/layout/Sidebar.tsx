@@ -32,6 +32,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { designTokens } from '../../utils/theme';
 
@@ -119,6 +120,12 @@ const defaultNavItems: NavItem[] = [
     label: 'Credentials',
     icon: <ManageSearchIcon />,
     path: '/credentials',
+  },
+  {
+    id: 'username-search',
+    label: 'Username Search',
+    icon: <PersonSearchIcon />,
+    path: '/username-search',
   },
   {
     id: 'settings',

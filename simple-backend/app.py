@@ -407,6 +407,7 @@ from blueprints.entities import bp as entities_bp
 from blueprints.searches import bp as searches_bp
 from blueprints.collaboration import bp as collaboration_bp
 from blueprints.enrichment import bp as enrichment_bp
+from blueprints.social import bp as social_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(auth_bp)
@@ -432,6 +433,7 @@ app.register_blueprint(entities_bp)
 app.register_blueprint(searches_bp)
 app.register_blueprint(collaboration_bp)
 app.register_blueprint(enrichment_bp)
+app.register_blueprint(social_bp)
 
 logger.info("All blueprints registered successfully")
 

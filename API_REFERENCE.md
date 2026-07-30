@@ -334,6 +334,42 @@ Authorization: Bearer <jwt_token>
 
 ---
 
+## Social Intelligence
+
+### Username Search (Sherlock)
+**POST** `/api/social/username-search`
+
+Search 400+ social-media sites for a username and return the claimed accounts.
+Backed by the `sherlock_username_search` tool on the social-media-enhanced MCP.
+The scan runs synchronously and can take up to ~2 minutes.
+
+**Request Body**
+```json
+{
+    "username": "john_doe"
+}
+```
+
+**Response** `200 OK`
+```json
+{
+    "username": "john_doe",
+    "count": 2,
+    "accounts": [
+        { "site": "GitHub", "url": "https://github.com/john_doe" },
+        { "site": "Reddit", "url": "https://reddit.com/user/john_doe" }
+    ],
+    "scan_duration_seconds": 12.3
+}
+```
+
+**Errors**
+- `400` — `username` missing or blank
+- `502` — MCP unreachable or the scan failed
+- `504` — scan exceeded the timeout
+
+---
+
 ## Pivot Suggestions
 
 Ranked next-pivot recommendations for investigation entities, scored across 5 weighted signals.
