@@ -21,6 +21,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 
 from models import ComplianceFramework
+from utils.geographical_scope import expand_region_aliases
 
 logger = logging.getLogger(__name__)
 
@@ -339,7 +340,11 @@ class ComplianceEngine:
     def _determine_applicable_frameworks(self, geographical_scope: List[str]) -> List[ComplianceFramework]:
         """Determine which compliance frameworks apply based on geographical scope"""
         applicable = []
-        
+
+        # Matching below is on ISO alpha-2 codes, so a region alias such as
+        # 'EU' would silently match nothing. Expand aliases first.
+        geographical_scope = expand_region_aliases(geographical_scope)
+
         # EU countries require GDPR
         eu_countries = {'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
                        'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 

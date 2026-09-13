@@ -48,6 +48,11 @@ except ImportError:
 from mcp_clients import MCPClientManager
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from risk_assessment_engine import RiskAssessmentEngine, RiskAssessmentResult
+from utils.geographical_scope import derive_geographical_scope, expand_region_aliases
+
+# Broad default used only when an investigation collected no geographic data
+# at all, so a missing signal can't narrow the compliance assessment.
+DEFAULT_GEOGRAPHICAL_SCOPE = ['US', 'EU']
 
 # Import expanded data sources
 try:
@@ -1376,20 +1381,28 @@ class InvestigationOrchestrator:
     
     def _determine_geographical_scope(self, investigation: OSINTInvestigation) -> List[str]:
         """Determine geographical scope based on investigation data"""
-        geographical_scope = ['US', 'EU']  # Default scope
-        
-        # Analyze infrastructure data for location hints
-        if investigation.infrastructure_intelligence and investigation.infrastructure_intelligence.ip_addresses:
-            for ip_info in investigation.infrastructure_intelligence.ip_addresses:
-                if 'location' in ip_info:
-                    location = ip_info['location']
-                    if location not in geographical_scope:
-                        geographical_scope.append(location)
-        
+        # Derive jurisdictions from the country data the collectors actually
+        # store: geolocated IPs, WHOIS registrant countries, and Shodan
+        # country names on exposed services.
+        geographical_scope = derive_geographical_scope(
+            investigation.infrastructure_intelligence
+        )
+
+        if not geographical_scope:
+            # Nothing geographic was collected. Fall back to the broad default
+            # so an under-scoped assessment can't silently skip a framework;
+            # 'EU' is expanded to member states because the compliance
+            # framework matches ISO alpha-2 codes only.
+            logger.info(
+                f"No geographic data collected for investigation {investigation.id}; "
+                "falling back to default compliance scope"
+            )
+            geographical_scope = expand_region_aliases(DEFAULT_GEOGRAPHICAL_SCOPE)
+
         # Add specific compliance jurisdictions
         if 'US' in geographical_scope:
             geographical_scope.append('US-CA')  # California for CCPA
-        
+
         return geographical_scope
     
     def _extract_processing_activities(self, investigation: OSINTInvestigation) -> List[Dict[str, Any]]:
