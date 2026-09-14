@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`frontend/src/pages/UsernameSearch.tsx`** — New page at `/username-search`: username input, live progress (scans can take up to ~2 min), and a responsive grid of claimed accounts each linking out to the profile. Added to `App.tsx` routing and the sidebar (`Username Search`, PersonSearch icon).
 - **`simple-backend/tests/unit/test_social.py`** — Endpoint tests: auth enforcement, input validation, response normalization, `found_count` fallback, and MCP-error → 502 handling.
 
+### Fixed
+
+#### Compliance geographical scope was never derived from investigation data
+- **`simple-backend/utils/geographical_scope.py`** (new) — Derives ISO 3166-1 alpha-2 jurisdiction codes from the country data collectors actually store: geolocated IPs (`ip_addresses[].countryCode|country|location`), WHOIS registrant country (`domains[].country`), and Shodan country names (`exposed_services[].country`). `normalize_country()` reconciles the formats sources disagree on (Shodan returns `"United States"`, WHOIS returns `"US"`) and drops unrecognized values rather than guessing, since a wrong jurisdiction is worse than a missing one. `expand_region_aliases()` expands the non-ISO `'EU'` alias into its 27 member-state codes.
+- **`simple-backend/investigation_orchestrator.py`** — `_determine_geographical_scope()` read `ip_info['location']`, a key only the *simulated* fallback ever wrote. Every real investigation fell through to the hardcoded `['US', 'EU']` default. Now derives from collected data, falling back to the broad default (with a log line) only when no geographic data was collected at all.
+- **`simple-backend/investigation_reporting.py`** — Same dead `location` key, but with no default, so report geographical scope was always empty. Now shares the derivation helper.
+- **`simple-backend/compliance_framework.py`** — `_determine_applicable_frameworks()` matches ISO alpha-2 codes, so the literal `'EU'` in the default scope silently matched nothing and **GDPR was never triggered by the fallback path** — only CCPA, via `'US'`. Region aliases are now expanded before matching, regardless of caller.
+- **`simple-backend/tests/unit/test_geographical_scope.py`** (new) — 34 tests covering code/name normalization, placeholder rejection, per-source derivation, alias expansion, and a regression guard that `'California'` never normalizes to `'CA'` (Canada), which would falsely trigger PIPEDA.
+
+**Impact:** GDPR, PIPEDA, and LGPD assessments were unreachable for real investigations; every target produced the same hardcoded jurisdiction set. Assessments generated before this fix should be re-run.
+
 ---
 
 ## [1.2.0] - 2026-03-04
