@@ -69,3 +69,22 @@ class TestUsernameSearch:
         response = client.post(ENDPOINT, json={"username": "x"}, headers=auth_headers)
         assert response.status_code == 502
         assert "error" in response.get_json()
+
+    @patch("blueprints.social._call_sherlock", new_callable=AsyncMock)
+    def test_does_not_leave_a_closed_event_loop_installed(self, mock_call, client, auth_headers):
+        """The handler must not strand a closed loop on the worker thread.
+
+        Creating a loop by hand and only closing it leaves it installed as the
+        thread's current loop, so the next request served by that thread fails
+        with "Event loop is closed".
+        """
+        import asyncio
+
+        mock_call.return_value = {"accounts": []}
+        client.post(ENDPOINT, json={"username": "x"}, headers=auth_headers)
+
+        try:
+            loop = asyncio.get_event_loop_policy().get_event_loop()
+        except RuntimeError:
+            return  # no loop installed at all — also fine
+        assert not loop.is_closed(), "handler left a closed event loop installed"

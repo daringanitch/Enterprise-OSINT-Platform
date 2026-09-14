@@ -66,18 +66,18 @@ def username_search():
 
     logger.info("Username search (sherlock): username=%s", username)
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # asyncio.run() closes its loop AND clears it from the thread. Creating a
+    # loop by hand and only closing it leaves a *closed* loop installed on a
+    # worker thread, so the next request handled by that thread fails with
+    # "Event loop is closed".
     try:
-        result = loop.run_until_complete(_call_sherlock(username))
+        result = asyncio.run(_call_sherlock(username))
     except asyncio.TimeoutError:
         logger.warning("Username search timed out for %r", username)
         return jsonify({"error": f"Search timed out after {_SEARCH_TIMEOUT_SECONDS}s"}), 504
     except Exception as exc:  # noqa: BLE001 - surface MCP/network errors to the client
         logger.error("Username search failed for %r: %s", username, exc)
         return jsonify({"error": str(exc)[:200]}), 502
-    finally:
-        loop.close()
 
     accounts = result.get("accounts", [])
     return jsonify({
