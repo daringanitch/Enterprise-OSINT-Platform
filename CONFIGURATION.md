@@ -200,6 +200,62 @@ REACT_APP_MAX_FILE_SIZE=10485760  # 10MB
 
 ---
 
+## GeoIP Database (infrastructure-advanced MCP)
+
+IP geolocation is resolved **in-process from a local MaxMind GeoLite2 database**.
+No network request is made, so investigation target IPs never leave your
+infrastructure. This replaced a plaintext `http://ip-api.com` call that
+disclosed every target to a third party over an unencrypted connection.
+
+There is deliberately **no network fallback**. If the database is absent,
+lookups report themselves unavailable rather than silently restoring that
+egress.
+
+### Getting the database
+
+The database is not redistributable, so it is not committed to this repo.
+Sign up for a free licence key at
+[maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup),
+then bake it into the image at build time:
+
+```bash
+docker build \
+  --build-arg MAXMIND_LICENSE_KEY=your-key \
+  -t osint-platform/mcp-infrastructure:latest \
+  mcp-servers/infrastructure-advanced/
+```
+
+The image builds and the server runs without a key — geolocation simply
+reports `available: false`, and compliance jurisdiction falls back to WHOIS
+and Shodan country data.
+
+### Configuration
+
+```bash
+# Path to the .mmdb file inside the container.
+# Set by the Dockerfile; override only if you mount the database elsewhere.
+GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
+```
+
+The database ships **inside the image** because the Kubernetes deployment sets
+`readOnlyRootFilesystem: true`. MaxMind publishes updates weekly; refresh by
+rebuilding, or mount a newer file and point `GEOIP_DB_PATH` at it.
+
+### Verifying
+
+```bash
+curl -X POST http://localhost:8021/infrastructure/geolocation \
+  -H 'Content-Type: application/json' \
+  -d '{"ip": "8.8.8.8"}'
+```
+
+A working database returns `"available": true` with `countryCode`, `latitude`,
+and `longitude`. Private and reserved addresses correctly return
+`available: false` — GeoLite2 holds no data for them, which is expected, not
+an error.
+
+---
+
 ## API Keys Configuration
 
 ### External Service API Keys

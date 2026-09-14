@@ -6,3 +6,4 @@ asyncio==3.4.3
 fastapi==0.104.1
 uvicorn==0.24.0
 cryptography>=41.0.0
+geoip2==4.8.0
