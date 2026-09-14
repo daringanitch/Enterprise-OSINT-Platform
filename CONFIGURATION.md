@@ -41,7 +41,7 @@ The following services are active immediately after installation:
 | DNS Resolution | Network | A, MX, TXT, NS, CNAME records; subdomain enumeration |
 | WHOIS Lookup | Network | Registrar, registration dates, name servers |
 | Certificate Transparency (crt.sh) | Network | Subdomain discovery via SSL cert logs |
-| IP Geolocation (ip-api.com) | Network | Country, city, ISP, ASN — 45 req/min |
+| IP Geolocation (MaxMind GeoLite2) | Network | Country, city, coordinates — resolved locally, no network egress ([setup](#geoip-database-infrastructure-advanced-mcp)) |
 | MalwareBazaar (abuse.ch) | Threat | Malware hash lookups and family classification |
 | ThreatFox (abuse.ch) | Threat | Community IOC database (IPs, domains, hashes) |
 | URLScan.io (basic) | Threat | URL sandbox scans and verdicts |

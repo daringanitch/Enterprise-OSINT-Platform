@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`mcp-servers/infrastructure-advanced/app.py`** — Domain targets are now geolocated via their resolved IP. Previously only literal-IP targets got geolocation at all, leaving compliance jurisdiction with nothing to derive from on domain investigations. Adds the `infrastructure/geolocation` capability and route.
 - **`mcp-servers/tests/test_geoip_local.py`** (new) — 16 tests: graceful degradation without a database (including an explicit assertion that no network connection is attempted), private/reserved/invalid address handling, and geoip2 field mapping via a mocked reader so the happy path is covered without shipping a database.
 - **`CONFIGURATION.md`** — New "GeoIP Database" section: obtaining a licence key, build-time installation, `GEOIP_DB_PATH`, and verification.
+- **`simple-backend/service_config.py`**, **`CONFIGURATION.md`** — The Settings service catalog and the "works without keys" table advertised ip-api.com with its 45 req/min limit. Both now describe the local database: no key and no rate limit at query time.
 
 
 ### Fixed

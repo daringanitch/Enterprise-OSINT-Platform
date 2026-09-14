@@ -102,16 +102,19 @@ SERVICE_CATALOG: List[ServiceDefinition] = [
     ),
     ServiceDefinition(
         id="ip_geolocation",
-        name="IP Geolocation (ip-api.com)",
-        description="Country, city, ISP, ASN, and GPS coordinates for IP addresses.",
+        name="IP Geolocation (MaxMind GeoLite2)",
+        description=(
+            "Country, city, and coordinates for IP addresses. Resolved locally "
+            "from a bundled database — target IPs never leave your infrastructure."
+        ),
         category="network",
         tier="free",
-        tier_note="45 req/min free, no key required",
+        tier_note="No key or rate limit at query time; free MaxMind account needed to build the image",
         works_without_key=True,
         env_var=None,
-        signup_url="https://ip-api.com",
-        docs_url="https://ip-api.com/docs",
-        rate_limit_note="45 req/min on free tier",
+        signup_url="https://www.maxmind.com/en/geolite2/signup",
+        docs_url="https://dev.maxmind.com/geoip/geolite2-free-geolocation-data",
+        rate_limit_note="No rate limit — lookups are local, not API calls",
         enabled_by_default=True,
     ),
     ServiceDefinition(
