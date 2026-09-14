@@ -48,7 +48,11 @@ except ImportError:
 from mcp_clients import MCPClientManager
 from compliance_framework import ComplianceEngine, ComplianceFramework
 from risk_assessment_engine import RiskAssessmentEngine, RiskAssessmentResult
-from utils.geographical_scope import derive_geographical_scope, expand_region_aliases
+from utils.geographical_scope import (
+    derive_geographical_scope,
+    expand_region_aliases,
+    merge_geolocation,
+)
 
 # Broad default used only when an investigation collected no geographic data
 # at all, so a missing signal can't narrow the compliance assessment.
@@ -801,6 +805,12 @@ class InvestigationOrchestrator:
                                     'cname_records': processed.get('cname_records', [])
                                 })
                         
+                        # Geolocation — merged onto the matching ip_addresses
+                        # entry so coordinates and country travel with the IP
+                        # they belong to, rather than sitting in a side channel.
+                        elif result.source == 'geolocation':
+                            merge_geolocation(ip_addresses, processed)
+
                         # Shodan data
                         elif result.source == 'shodan':
                             if 'ports' in processed:

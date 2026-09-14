@@ -446,6 +446,91 @@ class AdvancedInfrastructureIntel:
         except Exception as e:
             return {'error': str(e)}
 
+    # ── /execute tool implementations ────────────────────────────────────────
+    # These return the key names the backend's mcp_clients.py reads. They are
+    # deliberately separate from the _private helpers below, which feed
+    # comprehensive_recon and whose shapes other callers already depend on.
+
+    async def whois_lookup(self, domain: str) -> Dict[str, Any]:
+        """WHOIS in the shape the backend expects (`created`/`expires`/`nameservers`)."""
+        try:
+            w = whois.whois(domain)
+        except Exception as e:
+            return {'error': str(e), 'domain': domain}
+
+        name_servers = w.name_servers if isinstance(w.name_servers, list) else (
+            [w.name_servers] if w.name_servers else []
+        )
+
+        return {
+            'domain': domain,
+            'registrar': w.registrar,
+            'created': str(w.creation_date) if w.creation_date else None,
+            'expires': str(w.expiration_date) if w.expiration_date else None,
+            'nameservers': [str(ns).lower() for ns in name_servers if ns],
+            'status': w.status,
+            'org': getattr(w, 'org', None),
+            # Registrant country. Feeds the backend's compliance jurisdiction
+            # derivation, which expects an ISO alpha-2 code.
+            'country': getattr(w, 'country', None),
+            'emails': getattr(w, 'emails', None),
+            'dnssec': getattr(w, 'dnssec', None),
+            'raw_data': str(w.text) if getattr(w, 'text', None) else '',
+            'data_source': 'Live WHOIS Query',
+        }
+
+    async def dns_records(self, domain: str, record_type: str = None) -> Dict[str, Any]:
+        """DNS records in the shape the backend expects.
+
+        Emits both the flat `*_records` lists that mcp_clients reads and the
+        `records` dict keyed by type that the orchestrator reads when pulling
+        A records out into ip_addresses. Both consumers exist; both are served.
+        """
+        records = await self._comprehensive_dns_lookup(domain)
+
+        by_type = {k: v for k, v in records.items() if k != 'dnssec'}
+        if record_type:
+            requested = record_type.upper()
+            by_type = {requested: by_type.get(requested, [])}
+
+        return {
+            'domain': domain,
+            'records': by_type,
+            'a_records': by_type.get('A', []),
+            'aaaa_records': by_type.get('AAAA', []),
+            'mx_records': by_type.get('MX', []),
+            'ns_records': by_type.get('NS', []),
+            'txt_records': by_type.get('TXT', []),
+            'cname_records': by_type.get('CNAME', []),
+            'dnssec': records.get('dnssec', False),
+            'data_source': 'Live DNS Query',
+        }
+
+    async def ssl_certificate_info(self, domain: str, port: int = 443) -> Dict[str, Any]:
+        """Live TLS certificate details in the shape the backend expects."""
+        cert = await CertificateChainAnalyzer.fetch_live_cert(domain, port)
+        if 'error' in cert:
+            return {'error': cert['error'], 'domain': domain}
+
+        return {
+            'domain': domain,
+            'subject': cert.get('subject', {}),
+            'issuer': cert.get('issuer', {}),
+            'serial_number': cert.get('serial_number'),
+            'not_before': cert.get('not_before'),
+            'not_after': cert.get('not_after'),
+            'signature_algorithm': cert.get('signature_algorithm'),
+            'days_until_expiry': cert.get('days_until_expiry', 0),
+            # A cert is valid when it is inside its validity window; the
+            # analyzer reports days remaining, negative once expired.
+            'is_valid': cert.get('days_until_expiry', -1) >= 0,
+            'subject_alt_names': cert.get('subject_alt_names', []),
+            'sha256_fingerprint': cert.get('sha256_fingerprint'),
+            'is_self_signed': cert.get('is_self_signed', False),
+            'expiry_alert': cert.get('expiry_alert'),
+            'data_source': 'Live SSL Query',
+        }
+
     async def _whois_lookup(self, domain: str) -> Dict[str, Any]:
         """Enhanced WHOIS lookup"""
         try:
@@ -492,6 +577,78 @@ class InfrastructureAdvancedMCPServer:
     def __init__(self):
         self.intel = None
         
+    async def execute_tool(self, request: Dict[str, Any]) -> tuple:
+        """Execute a tool by name, using the platform's standard MCP contract.
+
+        This is the contract the backend's mcp_clients.py speaks and that
+        social-media-enhanced and financial-enhanced already implement:
+
+            request : {"tool": str, "parameters": {...}}
+            response: {"tool", "parameters", "result", "success",
+                       "timestamp", "metadata": {...}}
+
+        This server previously exposed only /mcp (method/params -> data) and
+        the REST-style /infrastructure/<tool> routes, neither of which the
+        backend calls, so infrastructure intelligence never reached it.
+        Both remain untouched for existing callers.
+
+        Returns (payload, status_code) so the HTTP layer stays a thin wrapper
+        and this dispatch is directly testable.
+        """
+        tool = request.get('tool')
+        parameters = request.get('parameters', {}) or {}
+
+        if not tool:
+            return {'error': "'tool' is required", 'success': False}, 400
+
+        start_time = datetime.utcnow()
+
+        async with AdvancedInfrastructureIntel() as intel:
+            handlers = {
+                'whois_lookup': intel.whois_lookup,
+                'dns_records': intel.dns_records,
+                'ssl_certificate_info': intel.ssl_certificate_info,
+                'geolocation': intel.geoip_lookup,
+                'asn_lookup': intel.asn_lookup,
+                'port_scan': intel.port_scan,
+                'web_technologies': intel.web_technologies,
+                'passive_dns_multi': intel.passive_dns_multi,
+                'certificate_transparency': intel.certificate_transparency,
+                'certificate_deep_analysis': intel.certificate_deep_analysis,
+                'comprehensive_recon': intel.comprehensive_recon,
+            }
+
+            handler = handlers.get(tool)
+            if handler is None:
+                return {'error': f'Unknown tool: {tool}',
+                        'tool': tool, 'success': False}, 400
+
+            try:
+                result = await handler(**parameters)
+            except TypeError as exc:
+                # Wrong or missing parameters for this tool.
+                return {'error': f'Invalid parameters for {tool}: {exc}',
+                        'tool': tool, 'success': False}, 400
+            except Exception as exc:
+                return {'error': str(exc), 'tool': tool, 'success': False}, 500
+
+        processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        succeeded = isinstance(result, dict) and 'error' not in result
+
+        return {
+            'tool': tool,
+            'parameters': parameters,
+            'result': result,
+            'success': succeeded,
+            'timestamp': datetime.utcnow().isoformat(),
+            'metadata': {
+                'processing_time_ms': processing_time,
+                'cache_used': False,
+                'intelligence_type': 'REAL',
+                'data_freshness': 'Live' if succeeded else 'Error',
+            },
+        }, 200
+
     async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP protocol requests"""
         method = request.get('method')
@@ -636,6 +793,14 @@ if __name__ == '__main__':
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
+    @app.post("/execute")
+    async def execute_tool(request: dict):
+        """Standard MCP tool contract — see InfrastructureAdvancedMCPServer.execute_tool."""
+        payload, status = await mcp_server.execute_tool(request)
+        if status != 200:
+            return JSONResponse(status_code=status, content=payload)
+        return payload
+
     # Add individual endpoint routes for direct access
     @app.post("/infrastructure/certificate_transparency")
     async def certificate_transparency(request: dict):

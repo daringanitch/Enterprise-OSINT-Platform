@@ -504,7 +504,15 @@ class InfrastructureMCPClient(MCPClientBase):
             dns_data = await self._gather_dns_intelligence(target)
             if dns_data:
                 results.append(dns_data)
-            
+
+                # Geolocate the addresses DNS just resolved. Done here rather
+                # than per-IP later so the orchestrator has coordinates
+                # available when it builds ip_addresses.
+                for ip in dns_data.processed_data.get('a_records', [])[:5]:
+                    geo_data = await self._gather_geolocation_intelligence(ip)
+                    if geo_data:
+                        results.append(geo_data)
+
             # Shodan Intelligence
             if self.shodan_creds and self.shodan_creds.api_key:
                 shodan_data = await self._gather_shodan_intelligence(target)
@@ -595,6 +603,10 @@ class InfrastructureMCPClient(MCPClientBase):
                             # Transform MCP result to our format
                             processed_data = {
                                 'domain': dns_data.get('domain', target),
+                                # The orchestrator pulls A records out of
+                                # 'records' to build ip_addresses; without it
+                                # no IPs are ever extracted from DNS.
+                                'records': dns_data.get('records', {}),
                                 'a_records': dns_data.get('a_records', []),
                                 'mx_records': dns_data.get('mx_records', []),
                                 'ns_records': dns_data.get('ns_records', []),
@@ -624,6 +636,70 @@ class InfrastructureMCPClient(MCPClientBase):
         
         return None
     
+    @trace_mcp_operation("infrastructure", "geolocation")
+    async def _gather_geolocation_intelligence(self, ip: str) -> Optional[IntelligenceResult]:
+        """Geolocate an IP via the infrastructure MCP's local GeoLite2 database.
+
+        The MCP resolves this from a local database with no network egress, so
+        the target IP is never disclosed to a third party. A result with
+        available=False is a normal outcome (private address, or no database
+        installed) and is not collected.
+        """
+        try:
+            mcp_url = 'http://mcp-infrastructure-enhanced:8021/execute'
+            payload = {
+                'tool': 'geolocation',
+                'parameters': {'ip': ip}
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(mcp_url, json=payload, timeout=30) as response:
+                    if response.status == 200:
+                        mcp_result = await response.json()
+
+                        if mcp_result.get('success') and 'result' in mcp_result:
+                            geo_data = mcp_result['result']
+
+                            if not geo_data.get('available'):
+                                logger.debug(
+                                    "Geolocation unavailable for %s: %s",
+                                    ip, geo_data.get('error')
+                                )
+                                return None
+
+                            processed_data = {
+                                'ip': ip,
+                                'countryCode': geo_data.get('countryCode'),
+                                'country': geo_data.get('country'),
+                                'city': geo_data.get('city'),
+                                'region': geo_data.get('region'),
+                                'latitude': geo_data.get('latitude'),
+                                'longitude': geo_data.get('longitude'),
+                                'accuracy_radius_km': geo_data.get('accuracyRadiusKm'),
+                                'timezone': geo_data.get('timezone'),
+                                'data_source': geo_data.get('source', 'maxmind-geolite2-local')
+                            }
+
+                            return IntelligenceResult(
+                                source='geolocation',
+                                data_type='infrastructure',
+                                target=ip,
+                                raw_data={'geolocation_response': mcp_result},
+                                processed_data=processed_data,
+                                confidence_score=0.75,  # City-level GeoIP is approximate
+                                timestamp=datetime.utcnow(),
+                                metadata={
+                                    'query_type': 'ip_geolocation',
+                                    'intelligence_type': 'REAL',
+                                    'processing_time_ms': mcp_result.get('metadata', {}).get('processing_time_ms', 0)
+                                }
+                            )
+
+        except Exception as e:
+            logger.error(f"Geolocation lookup failed for {ip}: {str(e)}")
+
+        return None
+
     @trace_mcp_operation("infrastructure", "shodan_lookup")
     async def _gather_shodan_intelligence(self, target: str) -> Optional[IntelligenceResult]:
         """Gather Shodan intelligence"""
