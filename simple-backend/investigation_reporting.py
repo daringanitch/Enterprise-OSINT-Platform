@@ -15,6 +15,7 @@ from collections import defaultdict, Counter
 from enum import Enum
 
 from models import OSINTInvestigation, InvestigationType, InvestigationStatus, Priority
+from utils.geographical_scope import derive_geographical_scope
 
 logger = logging.getLogger(__name__)
 
@@ -248,13 +249,11 @@ class InvestigationReportGenerator:
         elif investigation.processing_time_seconds:
             processing_time = investigation.processing_time_seconds
         
-        # Determine geographical scope
-        geographical_scope = []
-        if investigation.infrastructure_intelligence and investigation.infrastructure_intelligence.ip_addresses:
-            for ip_info in investigation.infrastructure_intelligence.ip_addresses:
-                location = ip_info.get('location')
-                if location and location not in geographical_scope:
-                    geographical_scope.append(location)
+        # Determine geographical scope from the country data the collectors
+        # store (geolocated IPs, WHOIS registrant country, Shodan country).
+        geographical_scope = derive_geographical_scope(
+            investigation.infrastructure_intelligence
+        )
         
         # Calculate risk score
         risk_score = 0.0
