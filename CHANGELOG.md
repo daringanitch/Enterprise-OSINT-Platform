@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Username Search (Sherlock) — surfaced in the UI
+- **`simple-backend/blueprints/social.py`** — New `POST /api/social/username-search` endpoint (`@require_auth`). Proxies the `sherlock_username_search` tool on the social-media-enhanced MCP (`:8010`), scanning 400+ sites and returning claimed accounts normalized to `{username, count, accounts: [{site, url}], scan_duration_seconds}`. Registered in `app.py`.
+- **`frontend/src/pages/UsernameSearch.tsx`** — New page at `/username-search`: username input, live progress (scans can take up to ~2 min), and a responsive grid of claimed accounts each linking out to the profile. Added to `App.tsx` routing and the sidebar (`Username Search`, PersonSearch icon).
+- **`simple-backend/tests/unit/test_social.py`** — Endpoint tests: auth enforcement, input validation, response normalization, `found_count` fallback, and MCP-error → 502 handling.
+- Event loop handling uses `asyncio.run()` rather than creating a loop by hand and only closing it — the latter strands a *closed* loop on the Flask worker thread, so the next request served by that thread fails with "Event loop is closed". Covered by a regression test.
+
 ### Fixed
 
 #### Compliance geographical scope was never derived from investigation data

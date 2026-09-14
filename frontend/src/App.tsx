@@ -24,6 +24,7 @@ import ThreatAnalysisPage from './pages/ThreatAnalysis';
 import AnalyticWorkbenchPage from './pages/AnalyticWorkbench';
 import MonitoringPage from './pages/Monitoring';
 import CredentialIntelligencePage from './pages/CredentialIntelligence';
+import UsernameSearchPage from './pages/UsernameSearch';
 import ThreatIntelligencePage from './pages/ThreatIntelligence';
 import CompliancePage from './pages/CompliancePage';
 import TeamPage from './pages/TeamPage';
@@ -99,6 +100,7 @@ function App() {
                     <Route path="data-sources" element={<DataSourcesPage />} />
                     <Route path="monitoring" element={<MonitoringPage />} />
                     <Route path="credentials" element={<CredentialIntelligencePage />} />
+                    <Route path="username-search" element={<UsernameSearchPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
                   
