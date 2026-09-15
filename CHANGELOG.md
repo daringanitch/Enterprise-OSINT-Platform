@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+#### The backend was never actually connected to the infrastructure MCP
+`simple-backend/mcp_clients.py` posts to `http://mcp-infrastructure-enhanced:8021/execute`, but that server exposed only `/mcp` (`method`/`params` → `data`) and REST-style `/infrastructure/<tool>` routes. Every infrastructure call failed, was swallowed by a broad `except`, and the orchestrator fell back to **simulated data** — the `"Falling back to simulated infrastructure data due to MCP failure"` path. WHOIS, DNS, SSL, and geolocation intelligence never reached the backend from this server.
+
+Four independent mismatches had to be closed: the path, the request keys (`tool`/`parameters` vs `method`/`params`), the response key (`result` vs `data`), and the tool names — `whois_lookup`, `dns_records`, and `ssl_certificate_info` existed under **no** route at all.
+
+- **`mcp-servers/infrastructure-advanced/app.py`** — Adds `InfrastructureAdvancedMCPServer.execute_tool()` and a thin `/execute` route implementing the contract `social-media-enhanced` and `financial-enhanced` already use. Adds public `whois_lookup`, `dns_records`, and `ssl_certificate_info` methods returning the key names the backend reads; the existing private helpers that feed `comprehensive_recon` are untouched, as are `/mcp` and the `/infrastructure/*` routes.
+- **`simple-backend/mcp_clients.py`** — DNS results now carry the `records` dict keyed by record type. The orchestrator extracts A records from `processed['records']['A']`, but the client only emitted flat `a_records`, so **no IPs were ever extracted from DNS** even when the call succeeded. Adds `_gather_geolocation_intelligence()`, which geolocates the addresses DNS resolved (capped at 5 per investigation).
+- **`simple-backend/utils/geographical_scope.py`** — Adds `merge_geolocation()`, folding coordinates onto the matching `ip_addresses` entry so they travel with the IP they describe. Preserves DNS provenance, ignores empty values so a partial result cannot blank data another source supplied, and appends an unmatched IP rather than dropping it.
+- **`simple-backend/investigation_orchestrator.py`** — Consumes `geolocation` results via that helper.
+- **Tests** — `mcp-servers/tests/test_infrastructure_execute.py` (12) pins the wire contract: tool names, request keys, response envelope, and that `/mcp`'s separate shape still works. `simple-backend/tests/unit/test_geolocation_wiring.py` (13) covers the merge and the collection path, including that jurisdiction becomes derivable from a geolocated IP.
+
+**Impact:** live-mode investigations can now receive real infrastructure intelligence. Demo mode is unaffected — `blueprints/investigations.py` short-circuits before the orchestrator runs.
+
 ### Security
 
 #### IP geolocation no longer leaks investigation targets to a third party
