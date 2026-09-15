@@ -21,6 +21,7 @@ from functools import lru_cache
 
 from passive_dns_circl import CIRCLPassiveDNS
 from cert_chain import CertificateChainAnalyzer
+import geoip_local
 
 class AdvancedInfrastructureIntel:
     """Advanced infrastructure intelligence gathering"""
@@ -196,14 +197,13 @@ class AdvancedInfrastructureIntel:
             return {'error': str(e)}
 
     async def geoip_lookup(self, ip: str) -> Dict[str, Any]:
-        """Get geographic information for an IP"""
-        try:
-            url = f"http://ip-api.com/json/{ip}"
-            async with self.session.get(url) as response:
-                if response.status == 200:
-                    return await response.json()
-        except:
-            return {'error': 'GeoIP lookup failed'}
+        """Get geographic information for an IP from the local GeoLite2 database.
+
+        Resolved in-process from an .mmdb file — no network request, so target
+        IPs are never disclosed to a third party. Returns a dict with an
+        `available` flag; callers must check it before reading location fields.
+        """
+        return geoip_local.lookup(ip)
 
     async def reverse_ip_lookup(self, ip: str) -> Dict[str, Any]:
         """Find other domains hosted on the same IP"""
@@ -423,6 +423,10 @@ class AdvancedInfrastructureIntel:
                 ip = socket.gethostbyname(target)
                 results['intelligence']['port_scan'] = await self.port_scan(ip)
                 results['intelligence']['asn'] = await self.asn_lookup(ip)
+                # Geolocate the resolved address too. Domain targets previously
+                # returned no geolocation at all, which left compliance scope
+                # with nothing to derive a jurisdiction from.
+                results['intelligence']['geolocation'] = await self.geoip_lookup(ip)
             except:
                 pass
         
@@ -563,6 +567,11 @@ class InfrastructureAdvancedMCPServer:
                     'params': ['ip']
                 },
                 {
+                    'name': 'infrastructure/geolocation',
+                    'description': 'Geolocate an IP from the local GeoLite2 database (no network egress)',
+                    'params': ['ip']
+                },
+                {
                     'name': 'infrastructure/reverse_ip',
                     'description': 'Find domains on same IP',
                     'params': ['ip']
@@ -658,6 +667,16 @@ if __name__ == '__main__':
             result = await intel.asn_lookup(ip)
             return {"success": True, "data": result}
     
+    @app.post("/infrastructure/geolocation")
+    async def geolocation(request: dict):
+        ip = request.get('ip')
+        if not ip:
+            raise HTTPException(status_code=400, detail="IP address required")
+
+        async with AdvancedInfrastructureIntel() as intel:
+            result = await intel.geoip_lookup(ip)
+            return {"success": True, "data": result}
+
     @app.post("/infrastructure/port_scan")
     async def port_scan(request: dict):
         host = request.get('host')

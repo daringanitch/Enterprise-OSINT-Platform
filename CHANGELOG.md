@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+#### IP geolocation no longer leaks investigation targets to a third party
+- **`mcp-servers/infrastructure-advanced/geoip_local.py`** (new) — Resolves IPs in-process from a local MaxMind GeoLite2 City database. Replaces `geoip_lookup()`'s call to **plaintext `http://ip-api.com`**, which sent every investigation target IP unencrypted to a third party, visible to anything on the network path. There is deliberately **no network fallback**: a missing database reports `available: false` rather than silently restoring the egress this change removes.
+- **`mcp-servers/infrastructure-advanced/Dockerfile`** — Fetches the GeoLite2 database at build time via `--build-arg MAXMIND_LICENSE_KEY`. The database is not redistributable and is not committed. The image builds and runs without a key; geolocation simply reports unavailable. Also now copies `passive_dns_circl.py` and `cert_chain.py`, which `app.py` imports but the Dockerfile previously omitted.
+- **`mcp-servers/infrastructure-advanced/app.py`** — Domain targets are now geolocated via their resolved IP. Previously only literal-IP targets got geolocation at all, leaving compliance jurisdiction with nothing to derive from on domain investigations. Adds the `infrastructure/geolocation` capability and route.
+- **`mcp-servers/tests/test_geoip_local.py`** (new) — 16 tests: graceful degradation without a database (including an explicit assertion that no network connection is attempted), private/reserved/invalid address handling, and geoip2 field mapping via a mocked reader so the happy path is covered without shipping a database.
+- **`CONFIGURATION.md`** — New "GeoIP Database" section: obtaining a licence key, build-time installation, `GEOIP_DB_PATH`, and verification.
+- **`simple-backend/service_config.py`**, **`CONFIGURATION.md`** — The Settings service catalog and the "works without keys" table advertised ip-api.com with its 45 req/min limit. Both now describe the local database: no key and no rate limit at query time.
+
+
 ### Fixed
 
 #### Compliance geographical scope was never derived from investigation data
