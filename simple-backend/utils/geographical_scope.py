@@ -170,3 +170,47 @@ def expand_region_aliases(scope) -> list:
         elif value and value not in expanded:
             expanded.append(value)
     return expanded
+
+
+def merge_geolocation(ip_addresses: list, geo: dict) -> list:
+    """Merge a geolocation result onto the matching entry in `ip_addresses`.
+
+    Coordinates travel with the IP they describe rather than sitting in a
+    side channel, so anything reading `ip_addresses` (compliance scope, the
+    report generator, a map view) sees them without a second lookup.
+
+    Existing keys on the entry are preserved unless geolocation supplies a
+    value — DNS provenance such as `source` and `record_type` must survive.
+    An IP that no entry matches is appended, since geolocation can arrive for
+    an address DNS did not surface.
+    """
+    if not isinstance(geo, dict):
+        return ip_addresses
+
+    geo_ip = geo.get('ip')
+    if not geo_ip:
+        return ip_addresses
+
+    fields = {
+        'countryCode': geo.get('countryCode'),
+        'country': geo.get('country'),
+        'city': geo.get('city'),
+        'region': geo.get('region'),
+        'latitude': geo.get('latitude'),
+        'longitude': geo.get('longitude'),
+        'accuracy_radius_km': geo.get('accuracy_radius_km'),
+        'geo_source': geo.get('data_source'),
+    }
+    # Drop empties so a partial result can't blank a value another source set.
+    fields = {k: v for k, v in fields.items() if v is not None}
+
+    matched = False
+    for entry in ip_addresses:
+        if isinstance(entry, dict) and entry.get('ip') == geo_ip:
+            entry.update(fields)
+            matched = True
+
+    if not matched:
+        ip_addresses.append({'ip': geo_ip, 'source': 'geolocation', **fields})
+
+    return ip_addresses
